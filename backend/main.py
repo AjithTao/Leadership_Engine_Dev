@@ -1017,11 +1017,13 @@ async def configure_jira(config: JiraConfigRequest):
             # Convert Jira URL to Confluence URL format
             confluence_url = config.url
             if '.atlassian.net' in config.url and not config.url.endswith('/wiki'):
-                confluence_url = config.url.replace('.atlassian.net', '.atlassian.net/wiki')
+                # Correct conversion: https://taodigital.atlassian.net -> https://taodigital.atlassian.net/wiki
+                confluence_url = config.url.rstrip('/') + '/wiki'
             elif not config.url.endswith('/wiki'):
-                confluence_url = f"{config.url}/wiki"
+                confluence_url = f"{config.url.rstrip('/')}/wiki"
             
-            logger.info(f"Initializing Confluence with URL: {confluence_url}")
+            logger.info(f"Jira URL: {config.url}")
+            logger.info(f"Converted Confluence URL: {confluence_url}")
             
             confluence_config = ConfluenceConfig(
                 base_url=confluence_url,  # Converted URL for Confluence
