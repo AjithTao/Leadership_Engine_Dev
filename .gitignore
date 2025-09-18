@@ -11,6 +11,12 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# Configuration files with sensitive data
+config.env
+backend/config.env
+config/config.env
+**/config.env
+
 # Build outputs
 dist/
 build/
