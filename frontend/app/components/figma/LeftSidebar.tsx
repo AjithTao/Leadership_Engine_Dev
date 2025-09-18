@@ -103,7 +103,6 @@ export function FigmaLeftSidebar({
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
   const [integrationsExpanded, setIntegrationsExpanded] = useState(true)
-  const [quickActionsExpanded, setQuickActionsExpanded] = useState(false)
   const [showWelcome, setShowWelcome] = useState(true)
 
   // Fade out welcome message after 3 seconds
@@ -943,85 +942,59 @@ export function FigmaLeftSidebar({
             animate="animate"
             className="space-y-2"
           >
-            <div className="flex items-center justify-between">
-              <h4 className={`text-xs font-semibold uppercase tracking-wider px-2 ${
-                theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-[var(--text-muted)]'
-              }`}>
-                Quick Actions
-              </h4>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setQuickActionsExpanded(!quickActionsExpanded)}
-                className="h-5 w-5 p-0 text-[var(--text-muted)] hover:shadow-lg hover:shadow-blue-500/20"
-              >
-                {quickActionsExpanded ? (
-                  <ChevronDown className="w-3 h-3" />
-                ) : (
-                  <ChevronRight className="w-3 h-3" />
-                )}
-              </Button>
-            </div>
+            <h4 className={`text-xs font-semibold uppercase tracking-wider px-2 ${
+              theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-[var(--text-muted)]'
+            }`}>
+              Quick Actions
+            </h4>
 
-            <AnimatePresence>
-              {quickActionsExpanded && (
+            <div className="space-y-1.5">
+              {quickActions.map((action, index) => (
                 <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="space-y-1.5 overflow-hidden"
+                  key={action.label}
+                  custom={index}
+                  variants={itemVariants}
+                  initial="initial"
+                  animate="animate"
+                  whileHover={{ 
+                    scale: 1.03, 
+                    x: 3,
+                    transition: { duration: 0.2, ease: "easeOut" }
+                  }}
+                  whileTap={{ scale: 0.97 }}
+                  className="relative group"
                 >
-                  {quickActions.map((action, index) => (
-                  <motion.div
-                      key={action.label}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.2, delay: index * 0.05 }}
-                      whileHover={{ 
-                        scale: 1.03, 
-                        x: 3,
-                        transition: { duration: 0.2, ease: "easeOut" }
-                      }}
-                      whileTap={{ scale: 0.97 }}
-                      className="relative group"
-                    >
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={`w-full h-8 flex items-center justify-start px-2 rounded-lg transition-all duration-300 relative overflow-hidden hover:shadow-lg border ${
-                          theme === 'dark' 
-                            ? 'hover:shadow-blue-500/20 border-[var(--border-subtle)]' 
-                            : 'hover:shadow-blue-500/20 border-[var(--border-subtle)]'
-                        }`}
-                        onClick={() => {
-                          onQuickAction(action.prompt)
-                        }}
-                      >
-                        <div className={`w-5 h-5 rounded-md bg-gradient-to-r ${action.color} flex items-center justify-center mr-2 flex-shrink-0`}>
-                          <action.icon className="w-3 h-3 text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0 text-left">
-                          <div className={`text-xs font-medium truncate ${
-                            theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-[var(--text-primary)]'
-                          }`}>
-                            {action.label}
-                          </div>
-                          <div className={`text-xs truncate ${
-                            theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-[var(--text-muted)]'
-                          }`}>
-                            {action.subtext}
-                          </div>
-                        </div>
-                        
-                        {/* Subtle shimmer effect */}
-                      </Button>
-                  </motion.div>
-                  ))}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`w-full h-8 flex items-center justify-start px-2 rounded-lg transition-all duration-300 relative overflow-hidden hover:shadow-lg border ${
+                      theme === 'dark' 
+                        ? 'hover:shadow-blue-500/20 border-[var(--border-subtle)]' 
+                        : 'hover:shadow-blue-500/20 border-[var(--border-subtle)]'
+                    }`}
+                    onClick={() => {
+                      onQuickAction(action.prompt)
+                    }}
+                  >
+                    <div className={`w-5 h-5 rounded-md bg-gradient-to-r ${action.color} flex items-center justify-center mr-2 flex-shrink-0`}>
+                      <action.icon className="w-3 h-3 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className={`text-xs font-medium truncate ${
+                        theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-[var(--text-primary)]'
+                      }`}>
+                        {action.label}
+                      </div>
+                      <div className={`text-xs truncate ${
+                        theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-[var(--text-muted)]'
+                      }`}>
+                        {action.subtext}
+                      </div>
+                    </div>
+                  </Button>
                 </motion.div>
-              )}
-            </AnimatePresence>
+              ))}
+            </div>
                   </motion.div>
         </div>
       </ScrollArea>
