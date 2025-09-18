@@ -1,0 +1,1083 @@
+'use client'
+
+import React, { useState, useEffect } from 'react'
+import { motion, useInView, useMotionValue, useSpring, useTransform } from 'framer-motion'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
+import { Progress } from '../ui/progress'
+import { Badge } from '../ui/badge'
+import { Button } from '../ui/button'
+import { ScrollArea } from '../ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
+import { Alert, AlertDescription } from '../ui/alert'
+import { 
+  SprintBurndownChart,
+  VelocityChart,
+  BestPerformersChart,
+  ProjectHealthChart,
+  IssueStatusChart,
+  PriorityChart
+} from '../charts/ChartComponents'
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  Users, 
+  Target, 
+  Calendar, 
+  Clock,
+  Award,
+  AlertCircle,
+  CheckCircle,
+  Zap,
+  BarChart3,
+  Activity,
+  ArrowUpRight,
+  ArrowDownRight,
+  Download,
+  Filter,
+  Eye,
+  Star,
+  GitBranch,
+  MessageCircle,
+  Code,
+  Timer,
+  Flag,
+  Crown,
+  Sparkles,
+  Command,
+  Shield,
+  Database,
+  Monitor,
+  Workflow,
+  Layers,
+  Bug,
+  FileText,
+  BookOpen,
+  ClipboardList,
+  PieChart,
+  LineChart,
+  TrendingUp as TrendUp,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Clock3,
+  Calendar as CalendarIcon,
+  UserCheck,
+  UserX,
+  GitCommit,
+  GitPullRequest,
+  GitMerge,
+  FolderOpen,
+  File,
+  Search,
+  Settings,
+  RefreshCw,
+  Play,
+  Pause,
+  StopCircle,
+  MoreHorizontal,
+  ExternalLink,
+  Link,
+  Tag,
+  Hash,
+  AtSign,
+  MessageSquare,
+  ThumbsUp,
+  ThumbsDown,
+  Heart,
+  Share,
+  Bookmark,
+  Archive,
+  Trash2,
+  Edit,
+  Plus,
+  Minus,
+  Maximize,
+  Minimize,
+  RotateCcw,
+  RotateCw,
+  ZoomIn,
+  ZoomOut,
+  Move,
+  Copy,
+  Scissors,
+  Save,
+  Upload,
+  Download as DownloadIcon,
+  Send,
+  Mail,
+  Phone,
+  Video,
+  Camera,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+  Bell,
+  BellOff,
+  Lock,
+  Unlock,
+  Key,
+  Shield as ShieldIcon,
+  Eye as EyeIcon,
+  EyeOff,
+  Sun,
+  Moon,
+  Cloud,
+  CloudRain,
+  CloudSnow,
+  Wind,
+  Thermometer,
+  Droplets,
+  Flame,
+  Snowflake,
+  Zap as Lightning,
+  Sun as SunIcon,
+  Moon as MoonIcon,
+  Cloud as CloudIcon,
+  CloudRain as RainIcon,
+  CloudSnow as SnowIcon,
+  Wind as WindIcon,
+  Thermometer as ThermometerIcon,
+  Droplets as DropletsIcon,
+  Flame as FlameIcon,
+  Snowflake as SnowflakeIcon,
+  Lightning as LightningIcon
+} from 'lucide-react'
+
+interface InsightsDashboardProps {
+  hasActiveConnections: boolean
+  theme: 'light' | 'dark'
+}
+
+// Data interfaces
+interface Project {
+  id: string
+  key: string
+  name: string
+  projectTypeKey: string
+}
+
+interface JiraMetrics {
+  totalIssues: number
+  resolvedIssues: number
+  openIssues: number
+  bugs: number
+  stories: number
+  tasks: number
+  epics: number
+  subtasks: number
+  storyPoints: number
+  completedStoryPoints: number
+  sprintVelocity: number
+  avgResolutionTime: number
+  completionRate: number
+  overdueIssues: number
+  issuesThisWeek: number
+  issuesThisMonth: number
+  projectHealthScore: number
+  issuesByStatus: { [key: string]: number }
+  issuesByPriority: { [key: string]: number }
+  issuesByAssignee: { [key: string]: number }
+}
+
+
+interface RecentActivity {
+  id: string
+  type: 'issue' | 'page' | 'comment' | 'sprint'
+  title: string
+  description: string
+  author: string
+  timestamp: string
+  status?: string
+  priority?: string
+  space?: string
+  url?: string
+}
+
+// Custom hook for scroll animations
+const useScrollAnimation = () => {
+  const ref = React.useRef(null)
+  const isInView = useInView(ref, { once: true, margin: "-100px" })
+  return { ref, isInView }
+}
+
+// Animated counter component
+const AnimatedNumber = ({ value, duration = 2 }: { value: number; duration?: number }) => {
+  const motionValue = useMotionValue(0)
+  const springValue = useSpring(motionValue, { duration: duration * 1000, bounce: 0 })
+  const display = useTransform(springValue, (current) => Math.round(current))
+
+  React.useEffect(() => {
+    motionValue.set(value)
+  }, [motionValue, value])
+
+  return <motion.span>{display}</motion.span>
+}
+
+export function InsightsDashboard({ hasActiveConnections, theme }: InsightsDashboardProps) {
+  const { ref: metricsRef, isInView: metricsInView } = useScrollAnimation()
+  const { ref: chartsRef, isInView: chartsInView } = useScrollAnimation()
+  const { ref: jiraRef, isInView: jiraInView } = useScrollAnimation()
+
+  // State management
+  const [projects, setProjects] = useState<Project[]>([])
+  const [selectedProject, setSelectedProject] = useState<string>('all')
+  const [jiraMetrics, setJiraMetrics] = useState<JiraMetrics | null>(null)
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Load cached data on component mount
+  useEffect(() => {
+    loadCachedData()
+    fetchProjects()
+  }, [])
+
+  // Fetch metrics when project selection changes
+  useEffect(() => {
+    if (projects.length > 0) {
+      fetchMetrics()
+    }
+  }, [selectedProject, projects])
+
+  // Auto-refresh every 1 minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (hasActiveConnections) {
+        refreshData()
+      }
+    }, 60000) // 1 minute
+
+    return () => clearInterval(interval)
+  }, [hasActiveConnections])
+
+  // Auto-refresh on page visibility change (when user comes back to tab)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && hasActiveConnections) {
+        refreshData()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [hasActiveConnections])
+
+  // Load cached data from localStorage
+  const loadCachedData = () => {
+    try {
+      const cachedProjects = localStorage.getItem('insights_projects')
+      const cachedJiraMetrics = localStorage.getItem('insights_jira_metrics')
+      const cachedActivities = localStorage.getItem('insights_activities')
+      const cachedLastRefresh = localStorage.getItem('insights_last_refresh')
+
+      if (cachedProjects) {
+        setProjects(JSON.parse(cachedProjects))
+      }
+      if (cachedJiraMetrics) {
+        setJiraMetrics(JSON.parse(cachedJiraMetrics))
+      }
+      if (cachedActivities) {
+        setRecentActivities(JSON.parse(cachedActivities))
+      }
+      if (cachedLastRefresh) {
+        setLastRefresh(new Date(cachedLastRefresh))
+      }
+    } catch (err) {
+      console.error('Error loading cached data:', err)
+    }
+  }
+
+  // Cache data to localStorage
+  const cacheData = (key: string, data: any) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(data))
+    } catch (err) {
+      console.error('Error caching data:', err)
+    }
+  }
+
+  const fetchProjects = async () => {
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+      console.log('Fetching projects from', `${backendUrl}/api/jira/projects`)
+      const response = await fetch(`${backendUrl}/api/jira/projects`)
+      console.log('Response status:', response.status)
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Projects data received:', data)
+        // Handle both formats: data.projects (new) and data.projects.detailed (existing)
+        const projectsData = data.projects?.detailed || data.projects || []
+        console.log('Processed projects:', projectsData)
+        setProjects(projectsData)
+        cacheData('insights_projects', projectsData)
+        setError(null) // Clear any previous errors
+      } else {
+        const errorText = await response.text()
+        console.error('API error:', response.status, errorText)
+        throw new Error(`Failed to fetch projects: ${response.status}`)
+      }
+    } catch (err) {
+      console.error('Error fetching projects:', err)
+      setError('Failed to load projects. Using cached data if available.')
+    }
+  }
+
+  const fetchMetrics = async () => {
+    setLoading(true)
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+      
+      // Fetch Jira metrics
+      const jiraResponse = await fetch(`${backendUrl}/api/jira/metrics`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          projectKey: selectedProject === 'all' ? null : selectedProject 
+        })
+      })
+
+      if (jiraResponse.ok) {
+        const jiraData = await jiraResponse.json()
+        setJiraMetrics(jiraData.metrics)
+        cacheData('insights_jira_metrics', jiraData.metrics)
+      }
+
+      // Fetch recent activities
+      const activitiesResponse = await fetch(`${backendUrl}/api/activities/recent`)
+      if (activitiesResponse.ok) {
+        const activitiesData = await activitiesResponse.json()
+        const activities = activitiesData.activities || []
+        setRecentActivities(activities)
+        cacheData('insights_activities', activities)
+      }
+
+      // Update last refresh time
+      const now = new Date()
+      setLastRefresh(now)
+      cacheData('insights_last_refresh', now.toISOString())
+      setError(null) // Clear any previous errors
+
+    } catch (err) {
+      console.error('Error fetching metrics:', err)
+      setError('Failed to load analytics data. Using cached data if available.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Refresh all data
+  const refreshData = async () => {
+    setIsRefreshing(true)
+    try {
+      await Promise.all([
+        fetchProjects(),
+        fetchMetrics()
+      ])
+    } catch (err) {
+      console.error('Error refreshing data:', err)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
+  // Calculate derived metrics
+  const getJiraMetrics = () => {
+    if (!jiraMetrics) return []
+    
+    const resolutionRate = jiraMetrics.completionRate || 0
+    const healthScore = jiraMetrics.projectHealthScore || 0
+    const avgResolutionTime = jiraMetrics.avgResolutionTime || 0
+    const sprintVelocity = jiraMetrics.sprintVelocity || 0
+
+    return [
+      {
+        title: "Total Issues",
+        value: jiraMetrics.totalIssues,
+        change: `+${jiraMetrics.issuesThisWeek || 0} this week`,
+        trend: "up",
+        icon: Bug,
+        color: "text-blue-500",
+        bgColor: "bg-blue-500/10",
+        description: selectedProject === 'all' ? 'All projects' : `Project ${selectedProject}`
+      },
+      {
+        title: "Completion Rate",
+        value: `${resolutionRate}%`,
+        change: `${jiraMetrics.resolvedIssues || 0} resolved`,
+        trend: resolutionRate > 70 ? "up" : resolutionRate > 50 ? "neutral" : "down",
+        icon: CheckCircle,
+        color: resolutionRate > 70 ? "text-green-500" : resolutionRate > 50 ? "text-yellow-500" : "text-red-500",
+        bgColor: resolutionRate > 70 ? "bg-green-500/10" : resolutionRate > 50 ? "bg-yellow-500/10" : "bg-red-500/10",
+        description: "Issues completed"
+      },
+      {
+        title: "Project Health",
+        value: `${healthScore}%`,
+        change: `${jiraMetrics.overdueIssues || 0} overdue`,
+        trend: healthScore > 80 ? "up" : healthScore > 60 ? "neutral" : "down",
+        icon: Target,
+        color: healthScore > 80 ? "text-green-500" : healthScore > 60 ? "text-yellow-500" : "text-red-500",
+        bgColor: healthScore > 80 ? "bg-green-500/10" : healthScore > 60 ? "bg-yellow-500/10" : "bg-red-500/10",
+        description: "Overall project status"
+      },
+      {
+        title: "Sprint Velocity",
+        value: sprintVelocity,
+        change: `${jiraMetrics.completedStoryPoints || 0} points done`,
+        trend: "up",
+        icon: Zap,
+        color: "text-purple-500",
+        bgColor: "bg-purple-500/10",
+        description: "Story points per sprint"
+      },
+      {
+        title: "Avg Resolution Time",
+        value: `${avgResolutionTime} days`,
+        change: `${jiraMetrics.issuesThisMonth || 0} this month`,
+        trend: avgResolutionTime < 7 ? "up" : avgResolutionTime < 14 ? "neutral" : "down",
+        icon: Clock,
+        color: avgResolutionTime < 7 ? "text-green-500" : avgResolutionTime < 14 ? "text-yellow-500" : "text-red-500",
+        bgColor: avgResolutionTime < 7 ? "bg-green-500/10" : avgResolutionTime < 14 ? "bg-yellow-500/10" : "bg-red-500/10",
+        description: "Time to resolve issues"
+      },
+      {
+        title: "Active Issues",
+        value: jiraMetrics.openIssues || 0,
+        change: `${jiraMetrics.overdueIssues || 0} overdue`,
+        trend: (jiraMetrics.overdueIssues || 0) < 5 ? "up" : "down",
+        icon: AlertCircle,
+        color: (jiraMetrics.overdueIssues || 0) < 5 ? "text-blue-500" : "text-orange-500",
+        bgColor: (jiraMetrics.overdueIssues || 0) < 5 ? "bg-blue-500/10" : "bg-orange-500/10",
+        description: "Currently in progress"
+      }
+    ]
+  }
+
+
+  // Debug logging
+  console.log('InsightsDashboard render state:', {
+    hasActiveConnections,
+    loading,
+    error,
+    projects: projects.length,
+    jiraMetrics: !!jiraMetrics,
+    recentActivities: recentActivities.length
+  })
+
+  // Show error state if no connections
+  if (!hasActiveConnections) {
+    return (
+      <ScrollArea className="h-full">
+        <div className={`p-4 space-y-4 transition-all duration-500 ease-in-out ${
+          theme === 'dark' ? 'bg-[var(--bg-primary)]' : 'bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100'
+        }`}>
+          <Alert className={`border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20`}>
+            <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+            <AlertDescription className="text-orange-800 dark:text-orange-200">
+              Please connect your Jira account to view analytics and insights.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </ScrollArea>
+    )
+  }
+
+  // Show error state if there's an error
+  if (error) {
+    return (
+      <ScrollArea className="h-full">
+        <div className={`p-4 space-y-4 transition-all duration-500 ease-in-out ${
+          theme === 'dark' ? 'bg-[var(--bg-primary)]' : 'bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100'
+        }`}>
+          <Alert className={`border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20`}>
+            <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+            <AlertDescription className="text-red-800 dark:text-red-200">
+              {error}
+            </AlertDescription>
+          </Alert>
+        </div>
+      </ScrollArea>
+    )
+  }
+
+  return (
+    <ScrollArea className="h-full">
+      <div className={`p-4 space-y-4 transition-all duration-500 ease-in-out ${
+        theme === 'dark' ? 'bg-[var(--bg-primary)]' : 'bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100'
+      }`}>
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="flex items-center justify-between"
+        >
+          <div className="flex items-center space-x-2">
+            <motion.div
+              className="w-6 h-6 bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] rounded-md flex items-center justify-center"
+              animate={{
+                rotate: [0, 3, -3, 0],
+                scale: [1, 1.05, 1]
+              }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            >
+              <BarChart3 className="w-3 h-3 text-white" />
+            </motion.div>
+            <div>
+              <h1 className={`text-xl font-semibold ${
+                theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-gray-900'
+              }`}>Jira Insights</h1>
+              <p className={`text-sm ${
+                theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'
+              }`}>
+                Comprehensive analytics and team performance metrics
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            {/* Project Filter */}
+            <div className="flex items-center space-x-2">
+              <span className={`text-xs font-medium ${
+                theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'
+              }`}>Project:</span>
+              <Select value={selectedProject} onValueChange={setSelectedProject}>
+                <SelectTrigger className="w-32 h-7 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Projects</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.key} value={project.key}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={refreshData}
+              disabled={loading || isRefreshing}
+              className={`flex items-center space-x-1 h-7 px-2 ${
+                theme === 'dark' 
+                  ? 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--accent-primary)]/5' 
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-blue-50'
+              }`}
+            >
+              <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="text-xs">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+            </Button>
+            <Button size="sm" className="flex items-center space-x-1 h-7 px-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-white">
+              <Download className="w-3 h-3" />
+              <span className="text-xs">Export</span>
+            </Button>
+          </div>
+        </motion.div>
+
+        {/* Last Refresh Indicator */}
+        {lastRefresh && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className={`flex items-center justify-between px-2 py-1 rounded-md ${
+              theme === 'dark' 
+                ? 'bg-[var(--bg-tertiary)]/30 border border-[var(--border-subtle)]' 
+                : 'bg-blue-50 border border-blue-200'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <div className={`w-2 h-2 rounded-full ${
+                isRefreshing ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'
+              }`} />
+              <span className={`text-xs ${
+                theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-blue-600'
+              }`}>
+                {isRefreshing ? 'Refreshing data...' : `Last updated: ${lastRefresh.toLocaleTimeString()}`}
+              </span>
+            </div>
+            {error && (
+              <span className={`text-xs ${
+                theme === 'dark' ? 'text-orange-400' : 'text-orange-600'
+              }`}>
+                Using cached data
+              </span>
+            )}
+          </motion.div>
+        )}
+
+        {/* Jira Metrics */}
+        <motion.div
+          ref={jiraRef}
+          initial={{ opacity: 0, y: 30 }}
+          animate={jiraInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <Card className={`${theme === 'dark' ? 'border border-[var(--border-subtle)]' : ''}`}>
+            <CardHeader className="pb-3">
+              <CardTitle className={`flex items-center space-x-2 text-base ${theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-gray-900'}`}>
+                <div className="w-4 h-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded flex items-center justify-center">
+                  <Bug className="w-2.5 h-2.5 text-white" />
+                </div>
+                <span>Jira Analytics</span>
+              </CardTitle>
+              <CardDescription className={`text-xs ${theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'}`}>
+                Issue tracking and sprint performance metrics
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="flex items-center space-x-2">
+                    <RefreshCw className="w-4 h-4 animate-spin text-[var(--accent-primary)]" />
+                    <span className={`text-sm ${theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'}`}>
+                      Loading Jira metrics...
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+                  {getJiraMetrics().map((metric, index) => (
+                  <motion.div
+                    key={metric.title}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={jiraInView ? { opacity: 1, scale: 1 } : {}}
+                    transition={{ duration: 0.4, delay: 0.3 + index * 0.1 }}
+                    whileHover={{ scale: 1.02, y: -1 }}
+                  >
+                    <Card className={`${metric.bgColor} hover:shadow-lg transition-all duration-300 ${
+                      theme === 'dark' ? 'border border-[var(--border-subtle)]' : ''
+                    }`}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <p className={`text-xs font-medium ${
+                              theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'
+                            }`}>{metric.title}</p>
+                            <div className="flex items-center space-x-1.5">
+                              <span className={`text-xl font-bold ${
+                                theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-gray-900'
+                              }`}>
+                                {jiraInView ? <AnimatedNumber value={metric.value} /> : 0}
+                              </span>
+                              <div className={`flex items-center space-x-0.5 text-xs ${
+                                metric.trend === 'up' ? 'text-green-500' : 'text-red-500'
+                              }`}>
+                                {metric.trend === 'up' ? (
+                                  <ArrowUpRight className="w-3 h-3" />
+                                ) : (
+                                  <ArrowDownRight className="w-3 h-3" />
+                                )}
+                                <span>{metric.change}</span>
+                              </div>
+                            </div>
+                            <p className={`text-xs ${
+                              theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'
+                            }`}>{metric.description}</p>
+                          </div>
+                          <div className={`p-2 rounded-md ${metric.bgColor}`}>
+                            <metric.icon className={`w-4 h-4 ${metric.color}`} />
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <Progress 
+                            value={metric.value > 100 ? 100 : metric.value} 
+                            className="h-1.5"
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+
+        {/* Charts and Activities */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Sprint Burndown Chart */}
+          <motion.div
+            ref={chartsRef}
+            initial={{ opacity: 0, x: -30 }}
+            animate={chartsInView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="lg:col-span-2"
+          >
+            <Card className={`${theme === 'dark' ? 'border border-[var(--border-subtle)]' : ''}`}>
+              <CardHeader className="pb-3">
+                <CardTitle className={`flex items-center space-x-2 text-base ${theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-gray-900'}`}>
+                  <LineChart className="w-4 h-4" />
+                  <span>Sprint Burndown</span>
+                </CardTitle>
+                <CardDescription className={`text-xs ${theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'}`}>
+                  Current sprint progress and velocity trends
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SprintBurndownChart theme={theme} />
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Velocity Tracking */}
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            animate={chartsInView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.7 }}
+          >
+            <Card className={`${theme === 'dark' ? 'border border-[var(--border-subtle)]' : ''}`}>
+              <CardHeader className="pb-3">
+                <CardTitle className={`flex items-center space-x-2 text-base ${theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-gray-900'}`}>
+                  <Zap className="w-4 h-4" />
+                  <span>Sprint Velocity</span>
+                </CardTitle>
+                <CardDescription className={`text-xs ${theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'}`}>
+                  Story points completed per sprint
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <VelocityChart theme={theme} />
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Team Performance and Analytics */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Best Performers */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={chartsInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.8 }}
+          >
+            <Card className={`${theme === 'dark' ? 'border border-[var(--border-subtle)]' : ''}`}>
+              <CardHeader className="pb-3">
+                <CardTitle className={`flex items-center space-x-2 text-base ${theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-gray-900'}`}>
+                  <Award className="w-4 h-4" />
+                  <span>Top Performers</span>
+                </CardTitle>
+                <CardDescription className={`text-xs ${theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'}`}>
+                  Team members by issues completed
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <BestPerformersChart theme={theme} />
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Project Health */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={chartsInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.9 }}
+          >
+            <Card className={`${theme === 'dark' ? 'border border-[var(--border-subtle)]' : ''}`}>
+              <CardHeader className="pb-3">
+                <CardTitle className={`flex items-center space-x-2 text-base ${theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-gray-900'}`}>
+                  <Target className="w-4 h-4" />
+                  <span>Project Health</span>
+                </CardTitle>
+                <CardDescription className={`text-xs ${theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'}`}>
+                  Overall project status distribution
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ProjectHealthChart theme={theme} />
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Issue Distribution Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Issue Status Distribution */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={chartsInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.6, delay: 1.0 }}
+          >
+            <Card className={`${theme === 'dark' ? 'border border-[var(--border-subtle)]' : ''}`}>
+              <CardHeader className="pb-3">
+                <CardTitle className={`flex items-center space-x-2 text-base ${theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-gray-900'}`}>
+                  <PieChart className="w-4 h-4" />
+                  <span>Issue Status</span>
+                </CardTitle>
+                <CardDescription className={`text-xs ${theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'}`}>
+                  Distribution of issues by status
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <IssueStatusChart theme={theme} />
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Priority Distribution */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={chartsInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.6, delay: 1.1 }}
+          >
+            <Card className={`${theme === 'dark' ? 'border border-[var(--border-subtle)]' : ''}`}>
+              <CardHeader className="pb-3">
+                <CardTitle className={`flex items-center space-x-2 text-base ${theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-gray-900'}`}>
+                  <Flag className="w-4 h-4" />
+                  <span>Priority Distribution</span>
+                </CardTitle>
+                <CardDescription className={`text-xs ${theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'}`}>
+                  Issues categorized by priority level
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PriorityChart theme={theme} />
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Recent Jira Activities */}
+        <motion.div
+          initial={{ opacity: 0, x: 30 }}
+          animate={chartsInView ? { opacity: 1, x: 0 } : {}}
+          transition={{ duration: 0.6, delay: 1.2 }}
+        >
+            <Card className={`${theme === 'dark' ? 'border border-[var(--border-subtle)]' : ''}`}>
+              <CardHeader className="pb-3">
+                <CardTitle className={`flex items-center space-x-2 text-base ${theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-gray-900'}`}>
+                  <Bug className="w-4 h-4" />
+                  <span>Recent Jira Activity</span>
+                </CardTitle>
+                <CardDescription className={`text-xs ${theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'}`}>
+                  Latest issue updates and resolutions
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {recentActivities.filter(activity => activity.type === 'issue' || activity.type === 'sprint').slice(0, 4).map((activity, index) => (
+                    <motion.div
+                      key={activity.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={chartsInView ? { opacity: 1, y: 0 } : {}}
+                      transition={{ duration: 0.3, delay: 0.8 + index * 0.1 }}
+                      className="flex items-start space-x-2 p-2 rounded-lg hover:bg-[var(--bg-tertiary)]/50 transition-colors"
+                    >
+                      <div className={`p-1.5 rounded-md ${
+                        activity.status === 'success' ? 'bg-green-500/10' :
+                        activity.status === 'warning' ? 'bg-orange-500/10' :
+                        'bg-blue-500/10'
+                      }`}>
+                        {activity.type === 'issue' ? (
+                          <CheckCircle2 className={`w-3 h-3 ${
+                            activity.status === 'success' ? 'text-green-500' :
+                            activity.status === 'warning' ? 'text-orange-500' :
+                            'text-blue-500'
+                          }`} />
+                        ) : (
+                          <Flag className={`w-3 h-3 ${
+                            activity.status === 'success' ? 'text-green-500' :
+                            activity.status === 'warning' ? 'text-orange-500' :
+                            'text-blue-500'
+                          }`} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <p className="font-medium text-xs text-[var(--text-primary)]">{activity.title}</p>
+                          {activity.priority && (
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs px-1 py-0 ${
+                                activity.priority === 'High' ? 'text-red-500' :
+                                activity.priority === 'Medium' ? 'text-yellow-500' :
+                                'text-green-500'
+                              }`}
+                            >
+                              {activity.priority}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-[var(--text-muted)] mt-0.5">{activity.description}</p>
+                        <div className="flex items-center justify-between mt-1">
+                          <p className="text-xs text-[var(--text-muted)]">{activity.timestamp}</p>
+                          <p className="text-xs text-[var(--text-muted)]">{activity.author}</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+
+        {/* Detailed Analytics */}
+        {jiraMetrics && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 1.0 }}
+          >
+            <Card className={`${theme === 'dark' ? 'border border-[var(--border-subtle)]' : ''}`}>
+              <CardHeader className="pb-3">
+                <CardTitle className={`flex items-center space-x-2 text-base ${theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-gray-900'}`}>
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Detailed Analytics</span>
+                </CardTitle>
+                <CardDescription className={`text-xs ${theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'}`}>
+                  Issue breakdown and performance insights
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {/* Issue Types */}
+                  <div className="space-y-2">
+                    <h4 className={`text-sm font-medium ${theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-gray-900'}`}>
+                      Issue Types
+                    </h4>
+                    <div className="space-y-1">
+                      {Object.entries({
+                        'Bugs': jiraMetrics.bugs,
+                        'Stories': jiraMetrics.stories,
+                        'Tasks': jiraMetrics.tasks,
+                        'Epics': jiraMetrics.epics,
+                        'Subtasks': jiraMetrics.subtasks
+                      }).map(([type, count]) => (
+                        <div key={type} className="flex items-center justify-between text-xs">
+                          <span className={`${theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'}`}>{type}</span>
+                          <Badge variant="secondary" className="text-xs px-1 py-0">{count}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Status Breakdown */}
+                  <div className="space-y-2">
+                    <h4 className={`text-sm font-medium ${theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-gray-900'}`}>
+                      Status Breakdown
+                    </h4>
+                    <div className="space-y-1">
+                      {Object.entries(jiraMetrics.issuesByStatus).slice(0, 5).map(([status, count]) => (
+                        <div key={status} className="flex items-center justify-between text-xs">
+                          <span className={`${theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'}`}>{status}</span>
+                          <Badge variant="secondary" className="text-xs px-1 py-0">{count}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Priority Distribution */}
+                  <div className="space-y-2">
+                    <h4 className={`text-sm font-medium ${theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-gray-900'}`}>
+                      Priority Distribution
+                    </h4>
+                    <div className="space-y-1">
+                      {Object.entries(jiraMetrics.issuesByPriority).map(([priority, count]) => (
+                        <div key={priority} className="flex items-center justify-between text-xs">
+                          <span className={`${theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'}`}>{priority}</span>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs px-1 py-0 ${
+                              priority === 'High' ? 'text-red-500' :
+                              priority === 'Medium' ? 'text-yellow-500' :
+                              'text-green-500'
+                            }`}
+                          >
+                            {count}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Team Performance */}
+                  <div className="space-y-2">
+                    <h4 className={`text-sm font-medium ${theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-gray-900'}`}>
+                      Top Contributors
+                    </h4>
+                    <div className="space-y-1">
+                      {Object.entries(jiraMetrics.issuesByAssignee)
+                        .sort(([,a], [,b]) => b - a)
+                        .slice(0, 5)
+                        .map(([assignee, count]) => (
+                        <div key={assignee} className="flex items-center justify-between text-xs">
+                          <span className={`${theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'}`}>
+                            {assignee === 'Unassigned' ? 'Unassigned' : assignee.split(' ')[0]}
+                          </span>
+                          <Badge variant="secondary" className="text-xs px-1 py-0">{count}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Quick Actions */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 1.2 }}
+        >
+          <Card className={`${theme === 'dark' ? 'border border-[var(--border-subtle)]' : ''}`}>
+            <CardHeader className="pb-3">
+              <CardTitle className={`flex items-center space-x-2 text-base ${theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-gray-900'}`}>
+                <Zap className="w-4 h-4" />
+                <span>Quick Actions</span>
+              </CardTitle>
+              <CardDescription className={`text-xs ${theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-gray-500'}`}>
+                Common Jira and Confluence tasks
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { icon: Plus, label: "Create Issue", color: "text-blue-500" },
+                  { icon: FileText, label: "New Page", color: "text-indigo-500" },
+                  { icon: GitBranch, label: "Start Sprint", color: "text-green-500" },
+                  { icon: Users, label: "Team Review", color: "text-purple-500" },
+                  { icon: BarChart3, label: "View Reports", color: "text-orange-500" },
+                  { icon: Search, label: "Search Issues", color: "text-cyan-500" },
+                  { icon: BookOpen, label: "Knowledge Base", color: "text-emerald-500" },
+                  { icon: Settings, label: "Configure", color: "text-gray-500" }
+                ].map((action, index) => (
+                  <motion.div
+                    key={action.label}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3, delay: 1.3 + index * 0.1 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button
+                      variant="outline"
+                      className="w-full h-16 flex flex-col items-center justify-center space-y-1 hover:bg-[var(--accent-primary)]/5 transition-colors"
+                    >
+                      <action.icon className={`w-4 h-4 ${action.color}`} />
+                      <span className={`text-xs font-medium ${theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-gray-900'}`}>{action.label}</span>
+                    </Button>
+                  </motion.div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    </ScrollArea>
+  )
+}

@@ -1,0 +1,15 @@
+{
+  "dependencies": {
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "@fontsource/poppins": "^5.2.7",
+    "@next/font": "^14.2.15",
+    "@radix-ui/react-avatar": "^1.1.10",
+    "@radix-ui/react-switch": "^1.2.6",
+    "framer-motion": "^12.23.14",
+    "inter": "^2.1.0",
+    "poppins": "^0.1.1",
+    "react-spring": "^10.0.1",
+    "recharts": "^3.2.1"
+  }
+}
