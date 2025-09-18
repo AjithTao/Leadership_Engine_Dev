@@ -5,7 +5,8 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { RefreshCw, TrendingUp, Users, Clock, Target, AlertTriangle, CheckCircle, BarChart3, PieChart, Activity, Zap, Sparkles, ArrowUpRight, Trophy, Crown, Star, Medal, Award } from 'lucide-react';
+import { RefreshCw, TrendingUp, Users, Clock, Target, AlertTriangle, CheckCircle, BarChart3, PieChart, Activity, Zap, Sparkles, ArrowUpRight, Trophy, Crown, Star, Medal, Award, Download, FileText } from 'lucide-react';
+import { exportInsightsAsPDF } from '../../utils/exportUtils';
 
 interface Project {
   id: string;
@@ -294,6 +295,15 @@ export default function InsightsDashboard() {
     }
   };
 
+  // Export dashboard as PDF
+  const handleExportPDF = async () => {
+    try {
+      await exportInsightsAsPDF('insights-dashboard', `insights-dashboard-${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('Failed to export PDF:', error);
+    }
+  };
+
   if (loading && !jiraMetrics) {
     return (
       <div className="h-full flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
@@ -331,7 +341,7 @@ export default function InsightsDashboard() {
   }
 
   return (
-    <div className="h-full overflow-auto bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <div id="insights-dashboard" className="h-full overflow-auto bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       <div className="p-6 space-y-8">
         {/* Header with Glassmorphism */}
         <motion.div 
@@ -393,6 +403,17 @@ export default function InsightsDashboard() {
                   <RefreshCw className="h-4 w-4 mr-2" />
                 </motion.div>
                 Refresh
+              </Button>
+            </motion.div>
+            
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button 
+                onClick={handleExportPDF}
+                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg border-0"
+                size="sm"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Export PDF
               </Button>
             </motion.div>
           </motion.div>

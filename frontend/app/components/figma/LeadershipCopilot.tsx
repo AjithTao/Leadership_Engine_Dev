@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Input } from '../ui/input'
 import { ScrollArea } from '../ui/scroll-area'
 import { Badge } from '../ui/badge'
+import { exportChatAsPDF, exportChatAsExcel, useVoiceToText } from '../../utils/exportUtils'
 import { 
   Bot, 
   User, 
@@ -35,7 +36,12 @@ import {
   Database,
   Monitor,
   Workflow,
-  Trash2
+  Trash2,
+  FileText,
+  FileSpreadsheet,
+  Mic,
+  MicOff,
+  Square
 } from 'lucide-react'
 
 interface Message {
@@ -87,6 +93,9 @@ export function FigmaLeadershipCopilot({
   const [cachedProjects, setCachedProjects] = useState<Record<string, any>>({})
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  
+  // Voice-to-text functionality
+  const { isListening, transcript, isSupported, startListening, stopListening, resetTranscript } = useVoiceToText()
 
   // Load user data from localStorage and initialize welcome message
   useEffect(() => {
@@ -141,6 +150,13 @@ export function FigmaLeadershipCopilot({
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // Update input when voice transcript changes
+  useEffect(() => {
+    if (transcript) {
+      setInputValue(transcript)
+    }
+  }, [transcript])
 
   // Auto-resize textarea
   useEffect(() => {
@@ -391,6 +407,49 @@ export function FigmaLeadershipCopilot({
     }])
   }
 
+  // Export functions
+  const handleExportPDF = async () => {
+    try {
+      const messagesForExport = messages.map(msg => ({
+        sender: msg.type === 'user' ? 'user' : 'assistant',
+        content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+        timestamp: msg.timestamp,
+        confidence: msg.metadata?.confidence,
+        projectContext: msg.projectContext
+      }))
+      
+      await exportChatAsPDF(messagesForExport, `work-buddy-chat-${new Date().toISOString().split('T')[0]}.pdf`)
+    } catch (error) {
+      console.error('Failed to export PDF:', error)
+    }
+  }
+
+  const handleExportExcel = () => {
+    try {
+      const messagesForExport = messages.map(msg => ({
+        sender: msg.type === 'user' ? 'user' : 'assistant',
+        content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+        timestamp: msg.timestamp,
+        confidence: msg.metadata?.confidence,
+        projectContext: msg.projectContext
+      }))
+      
+      exportChatAsExcel(messagesForExport, `work-buddy-chat-${new Date().toISOString().split('T')[0]}.xlsx`)
+    } catch (error) {
+      console.error('Failed to export Excel:', error)
+    }
+  }
+
+  // Voice control functions
+  const handleVoiceToggle = () => {
+    if (isListening) {
+      stopListening()
+    } else {
+      resetTranscript()
+      startListening()
+    }
+  }
+
   const handleCopyMessage = async (messageId: string, content: string | object) => {
     try {
       const textContent = typeof content === 'string' ? content : JSON.stringify(content)
@@ -521,6 +580,44 @@ export function FigmaLeadershipCopilot({
                   <Trash2 className="w-3 h-3" />
                 </motion.div>
                 <span>Clear Chat</span>
+              </Button>
+            </motion.div>
+          )}
+
+          {/* Export Buttons */}
+          {messages.length > 1 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+              className="flex space-x-2"
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleExportPDF}
+                className={`flex items-center space-x-2 px-3 py-2 h-8 text-xs font-medium transition-all duration-200 hover:scale-105 backdrop-blur-sm border border-white/20 dark:border-gray-700/50 ${
+                  theme === 'dark' 
+                    ? 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 hover:text-blue-300' 
+                    : 'bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700'
+                }`}
+              >
+                <FileText className="w-3 h-3" />
+                <span>PDF</span>
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleExportExcel}
+                className={`flex items-center space-x-2 px-3 py-2 h-8 text-xs font-medium transition-all duration-200 hover:scale-105 backdrop-blur-sm border border-white/20 dark:border-gray-700/50 ${
+                  theme === 'dark' 
+                    ? 'bg-green-500/10 hover:bg-green-500/20 text-green-400 hover:text-green-300' 
+                    : 'bg-green-50 hover:bg-green-100 text-green-600 hover:text-green-700'
+                }`}
+              >
+                <FileSpreadsheet className="w-3 h-3" />
+                <span>Excel</span>
               </Button>
             </motion.div>
           )}
@@ -783,6 +880,34 @@ export function FigmaLeadershipCopilot({
               />
             </motion.div>
           </div>
+          
+          {/* Voice-to-text Button */}
+          {isSupported && (
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Button
+                onClick={handleVoiceToggle}
+                className={`h-[52px] w-[52px] rounded-2xl transition-all duration-300 backdrop-blur-xl border-2 shadow-xl ${
+                  isListening
+                    ? theme === 'dark'
+                      ? 'bg-gradient-to-r from-red-500 to-pink-600 border-red-400/60 text-white hover:from-red-600 hover:to-pink-700 shadow-red-500/25'
+                      : 'bg-gradient-to-r from-red-500 to-pink-600 border-red-400/60 text-white hover:from-red-600 hover:to-pink-700 shadow-red-500/25'
+                    : theme === 'dark'
+                      ? 'bg-gradient-to-r from-gray-600 to-gray-700 border-gray-500/60 text-gray-300 hover:from-gray-500 hover:to-gray-600 shadow-gray-500/25'
+                      : 'bg-gradient-to-r from-gray-400 to-gray-500 border-gray-300/60 text-white hover:from-gray-500 hover:to-gray-600 shadow-gray-400/25'
+                }`}
+              >
+                <motion.div
+                  animate={isListening ? { scale: [1, 1.2, 1] } : {}}
+                  transition={{ duration: 1, repeat: isListening ? Infinity : 0 }}
+                >
+                  {isListening ? <Square className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                </motion.div>
+              </Button>
+            </motion.div>
+          )}
           
           <motion.div
             whileHover={{ scale: 1.05 }}
