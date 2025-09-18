@@ -81,8 +81,17 @@ class IntelligentAIEngine:
         is_jira_query = any(keyword in query_lower for keyword in jira_keywords)
         
         # Priority keywords that ALWAYS trigger Confluence search first
-        confluence_priority_keywords = ['confluence', 'wiki', 'document']
+        confluence_priority_keywords = ['confluence', 'wiki', 'document', 'insurance', 'eligibility', 'entertainment', 'partners', 'lab', 'results', 'emr', 'careexpand']
+        
+        # Explicit Confluence check phrases
+        confluence_check_phrases = [
+            'check in confluence', 'check confluence', 'look in confluence', 'search confluence',
+            'check wiki', 'look in wiki', 'search wiki', 'check documentation', 'look in documentation',
+            'search documentation', 'check docs', 'look in docs', 'search docs'
+        ]
+        
         has_confluence_priority = any(keyword in query_lower for keyword in confluence_priority_keywords)
+        has_confluence_check = any(phrase in query_lower for phrase in confluence_check_phrases)
         
         # If it's explicitly a Confluence query, or if it's not clearly a Jira query and contains common document/page terms
         document_terms = ['results', 'report', 'analysis', 'findings', 'study', 'research', 'data', 'information', 'content']
@@ -100,7 +109,8 @@ class IntelligentAIEngine:
         # Determine if this should be a Confluence-first search
         # Priority: If user mentions confluence/wiki/document, ALWAYS search Confluence first
         should_search_confluence_first = (
-            has_confluence_priority or  # NEW: Priority keywords always trigger Confluence
+            has_confluence_priority or  # Priority keywords always trigger Confluence
+            has_confluence_check or     # NEW: Explicit "check in confluence" phrases
             is_confluence_query or 
             (has_confluence_pattern and not is_jira_query) or
             (has_document_terms and not is_jira_query and '=' not in query_lower and '-' not in query_lower)
@@ -109,6 +119,7 @@ class IntelligentAIEngine:
         # Debug logging
         logger.info(f"Confluence detection debug for query: '{user_query}'")
         logger.info(f"  - has_confluence_priority: {has_confluence_priority}")
+        logger.info(f"  - has_confluence_check: {has_confluence_check}")
         logger.info(f"  - is_confluence_query: {is_confluence_query}")
         logger.info(f"  - has_confluence_pattern: {has_confluence_pattern}")
         logger.info(f"  - is_jira_query: {is_jira_query}")
@@ -119,6 +130,8 @@ class IntelligentAIEngine:
         if should_search_confluence_first and self.confluence_client:
             if has_confluence_priority:
                 logger.info(f"Detected priority Confluence keywords in query: '{user_query}' - searching Confluence first")
+            elif has_confluence_check:
+                logger.info(f"Detected explicit Confluence check phrase in query: '{user_query}' - searching Confluence first")
             else:
                 logger.info(f"Detected document/Confluence query: '{user_query}' - searching Confluence first")
             confluence_result = await self._process_confluence_query(user_query)
@@ -1366,15 +1379,14 @@ Provide a comprehensive comparison analysis with strategic insights and clear re
         """Extract relevant search terms from Confluence queries"""
         import re
         
-        # Remove common Confluence keywords and stop words
-        confluence_keywords = ['confluence', 'documentation', 'wiki', 'page', 'article', 'knowledge base', 'doc', 'search', 'find', 'need', 'full', 'details', 'on', 'about', 'for', 'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by']
+        # Remove only very common stop words, keep important terms
+        stop_words = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were']
         
         # Clean the query
         query_lower = user_query.lower()
         
-        # Remove common phrases
-        query_lower = re.sub(r'\b(i need|i want|show me|find me|get me|give me)\b', '', query_lower)
-        query_lower = re.sub(r'\b(full document details?|document details?|details?)\b', '', query_lower)
+        # Remove common phrases but keep important content
+        query_lower = re.sub(r'\b(i need|i want|show me|find me|get me|give me|can you|please)\b', '', query_lower)
         
         # Split into words and filter
         words = query_lower.split()
@@ -1383,19 +1395,15 @@ Provide a comprehensive comparison analysis with strategic insights and clear re
         for word in words:
             # Remove punctuation and clean
             clean_word = re.sub(r'[^\w]', '', word)
-            if clean_word and clean_word not in confluence_keywords and len(clean_word) > 2:
+            if clean_word and clean_word not in stop_words and len(clean_word) > 1:
                 search_terms.append(clean_word)
         
         # If no meaningful terms found, try the original query
         if not search_terms:
-            # Extract potential key phrases (2-3 words)
-            phrases = re.findall(r'\b\w+\s+\w+\b', user_query.lower())
-            if phrases:
-                return phrases[0]  # Return first meaningful phrase
             return user_query
         
-        # Return individual keywords for broader search
-        return ' '.join(search_terms[:3])  # Limit to top 3 keywords
+        # Return meaningful terms for better search
+        return ' '.join(search_terms[:5])  # Allow more keywords for better results
     
     async def _generate_confluence_response(self, user_query: str, confluence_results: List[Dict]) -> str:
         """Generate AI response for Confluence search results"""
@@ -1410,7 +1418,9 @@ Provide a comprehensive comparison analysis with strategic insights and clear re
                 data_summary = f"Found {len(confluence_results)} Confluence pages:\n"
                 for i, result in enumerate(confluence_results[:5]):  # Show top 5
                     title = result.get('title', 'Untitled')
-                    space = result.get('space', {}).get('name', 'Unknown Space') if result.get('space') else 'Unknown Space'
+                    # Get space from resultGlobalContainer if available
+                    space_info = result.get('resultGlobalContainer', {})
+                    space = space_info.get('title', 'Unknown Space') if space_info else 'Unknown Space'
                     excerpt = result.get('excerpt', '')[:100] + "..." if result.get('excerpt') else "No excerpt available"
                     data_summary += f"{i+1}. {title} (in {space})\n   {excerpt}\n\n"
             
@@ -1452,7 +1462,7 @@ Please provide a helpful response about these Confluence search results."""
                     {"role": "user", "content": user_prompt}
                 ],
                 temperature=0.3,
-                max_tokens=800
+                max_tokens=1200
             )
             
             ai_response = response.choices[0].message.content.strip()
@@ -1474,7 +1484,9 @@ Please provide a helpful response about these Confluence search results."""
         
         for i, result in enumerate(confluence_results[:5]):  # Show top 5
             title = result.get('title', 'Untitled')
-            space = result.get('space', {}).get('name', 'Unknown Space') if result.get('space') else 'Unknown Space'
+            # Get space from resultGlobalContainer if available
+            space_info = result.get('resultGlobalContainer', {})
+            space = space_info.get('title', 'Unknown Space') if space_info else 'Unknown Space'
             excerpt = result.get('excerpt', '')[:150] + "..." if result.get('excerpt') else "No excerpt available"
             
             response += f"**{i+1}. {title}**\n"
