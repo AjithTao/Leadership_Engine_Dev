@@ -85,6 +85,12 @@ npm install
 echo "NEXT_PUBLIC_BACKEND_URL=http://localhost:8000" > .env.local
 ```
 
+#### 3.3 Copy Logo to Public Folder
+```bash
+# Copy logo to public folder for Next.js to serve it
+cp assets/company-logo.png public/company-logo.png
+```
+
 ### Step 4: Start the Application
 
 #### Option A: Quick Start (Recommended)

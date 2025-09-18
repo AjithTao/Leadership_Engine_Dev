@@ -15,6 +15,7 @@ Use this checklist to ensure you have everything set up correctly.
 - [ ] `backend/config.env` created with your OpenAI API key
 - [ ] Frontend dependencies installed (`npm install`)
 - [ ] Frontend `.env.local` created
+- [ ] Logo copied to `frontend/public/company-logo.png`
 
 ## 🚀 Running the Application
 - [ ] Backend started successfully (http://localhost:8000)
