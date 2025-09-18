@@ -169,28 +169,36 @@ export const useVoiceToText = () => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [isSupported, setIsSupported] = useState(false);
+  const [recognition, setRecognition] = useState<any>(null);
 
   useEffect(() => {
     // Check if speech recognition is supported
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     setIsSupported(!!SpeechRecognition);
+    
+    // Cleanup on unmount
+    return () => {
+      if (recognition) {
+        recognition.stop();
+      }
+    };
   }, []);
 
   const startListening = () => {
-    if (!isSupported) return;
+    if (!isSupported || isListening) return;
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
+    const newRecognition = new SpeechRecognition();
     
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    newRecognition.continuous = true;
+    newRecognition.interimResults = true;
+    newRecognition.lang = 'en-US';
 
-    recognition.onstart = () => {
+    newRecognition.onstart = () => {
       setIsListening(true);
     };
 
-    recognition.onresult = (event) => {
+    newRecognition.onresult = (event) => {
       let finalTranscript = '';
       let interimTranscript = '';
 
@@ -206,20 +214,27 @@ export const useVoiceToText = () => {
       setTranscript(finalTranscript + interimTranscript);
     };
 
-    recognition.onerror = (event) => {
+    newRecognition.onerror = (event) => {
       console.error('Speech recognition error:', event.error);
       setIsListening(false);
+      setRecognition(null);
     };
 
-    recognition.onend = () => {
+    newRecognition.onend = () => {
       setIsListening(false);
+      setRecognition(null);
     };
 
-    recognition.start();
+    setRecognition(newRecognition);
+    newRecognition.start();
   };
 
   const stopListening = () => {
+    if (recognition) {
+      recognition.stop();
+    }
     setIsListening(false);
+    setRecognition(null);
   };
 
   const resetTranscript = () => {
