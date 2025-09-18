@@ -41,13 +41,23 @@ import {
   FileSpreadsheet,
   Mic,
   MicOff,
-  Square
+  Square,
+  Send,
+  MoreVertical,
+  Search,
+  Filter,
+  ChevronDown,
+  ChevronUp,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX
 } from 'lucide-react'
 
 interface Message {
   id: string
   type: 'user' | 'assistant'
-  content: string | object  // Allow both string and object content
+  content: string | object
   timestamp: Date
   projectContext?: string
   metadata?: {
@@ -91,6 +101,8 @@ export function FigmaLeadershipCopilot({
   const [projectContext, setProjectContext] = useState<ProjectContext[]>([])
   const [lastMentionedProject, setLastMentionedProject] = useState<string | null>(null)
   const [cachedProjects, setCachedProjects] = useState<Record<string, any>>({})
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   
@@ -110,7 +122,7 @@ export function FigmaLeadershipCopilot({
     setMessages([{
       id: '1',
       type: 'assistant',
-        content: `Hello ${userName} 👋! I'm your AI Work Buddy. I can help you analyze team performance, provide strategic insights, and answer questions about your projects. What would you like to know?`,
+      content: `Hello ${userName}! 👋 I'm your AI Work Buddy, ready to help you with team insights, project analysis, and strategic recommendations. What would you like to explore today?`,
       timestamp: new Date(),
       metadata: {
         type: 'insight',
@@ -124,7 +136,7 @@ export function FigmaLeadershipCopilot({
     if (messages.length > 0 && messages[0].type === 'assistant') {
       setMessages(prev => [{
         ...prev[0],
-        content: `Hello ${userData.name} 👋! I'm your AI Work Buddy. I can help you analyze team performance, provide strategic insights, and answer questions about your projects. What would you like to know?`
+        content: `Hello ${userData.name}! 👋 I'm your AI Work Buddy, ready to help you with team insights, project analysis, and strategic recommendations. What would you like to explore today?`
       }, ...prev.slice(1)])
     }
   }, [userData.name])
@@ -162,229 +174,86 @@ export function FigmaLeadershipCopilot({
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.style.height = 'auto'
-      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 100) + 'px'
+      inputRef.current.style.height = inputRef.current.scrollHeight + 'px'
     }
   }, [inputValue])
 
-  // Function to detect project context from user input
-  const detectProjectContext = (userInput: string, previousMessages: Message[]): string | null => {
-    const input = userInput.toLowerCase()
-    
-    // Check for explicit project mentions
-    const projectPatterns = [
-      /ces-?\d+/i,
-      /ccm-?\d+/i,
-      /hcat-?\d+/i,
-      /project\s+ces/i,
-      /project\s+ccm/i,
-      /project\s+hcat/i,
-      /ces\s+project/i,
-      /ccm\s+project/i,
-      /hcat\s+project/i
-    ]
-    
-    for (const pattern of projectPatterns) {
-      const match = input.match(pattern)
-      if (match) {
-        const projectKey = match[0].toUpperCase().replace(/\s+/g, '')
-        return projectKey
-      }
+  // Auto-send quick action prompt
+  React.useEffect(() => {
+    if (quickActionPrompt && onPromptSent) {
+      setInputValue(quickActionPrompt)
+      handleSendMessage()
+      onPromptSent()
     }
-    
-    // Check for "all" projects
-    if (input.includes('all') || input.includes('every') || input.includes('combined')) {
-      return 'ALL'
-    }
-    
-    // Check for "this" or "that" - use last mentioned project
-    if (input.includes('this') || input.includes('that') || input.includes('it')) {
-      return lastMentionedProject
-    }
-    
-    // Check previous messages for project context
-    for (let i = previousMessages.length - 1; i >= 0; i--) {
-      const msg = previousMessages[i]
-      if (msg.type === 'user' && msg.projectContext) {
-        return msg.projectContext
-      }
-    }
-    
-    return null
-  }
-
-  // Function to cache project details
-  const cacheProjectDetails = async (projectKey: string) => {
-    if (cachedProjects[projectKey]) {
-      return cachedProjects[projectKey]
-    }
-    
-    try {
-      const response = await fetch('http://localhost:8000/api/jira/project-details', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ projectKey }),
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setCachedProjects(prev => ({
-          ...prev,
-          [projectKey]: data
-        }))
-        return data
-      }
-    } catch (error) {
-      console.error('Error caching project details:', error)
-    }
-    
-    return null
-  }
-
-  // Function to get project context for search
-  const getProjectContextForSearch = (detectedProject: string | null): string => {
-    if (detectedProject === 'ALL') {
-      return 'all'
-    } else if (detectedProject && detectedProject !== 'ALL') {
-      return detectedProject
-    } else if (lastMentionedProject) {
-      return lastMentionedProject
-    }
-    return 'all'
-  }
+  }, [quickActionPrompt, onPromptSent])
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim()) return
-
-    // Detect project context
-    const detectedProject = detectProjectContext(inputValue, messages)
+    if (!inputValue.trim() || isTyping) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
       content: inputValue,
       timestamp: new Date(),
-      projectContext: detectedProject || undefined
-    }
-
-    // Update last mentioned project
-    if (detectedProject && detectedProject !== 'ALL') {
-      setLastMentionedProject(detectedProject)
+      projectContext: lastMentionedProject || undefined
     }
 
     setMessages(prev => [...prev, userMessage])
     setInputValue('')
-    
-    // Small delay to ensure user message appears first
-    setTimeout(async () => {
     setIsTyping(true)
-      setShowAvatarAnimation(true)
-      
-      // Set conversational loading messages
-      const loadingMessages = [
-        "I am thinking...",
-        "Answering in few seconds",
-        "Thanks for the Patience"
-      ]
-      
-      // Cycle through loading messages
-      let messageIndex = 0
-      const messageInterval = setInterval(() => {
-        setLoadingMessage(loadingMessages[messageIndex])
-        messageIndex = (messageIndex + 1) % loadingMessages.length
-      }, 1500)
-      
-      // Set initial message
-      setLoadingMessage(loadingMessages[0])
+    setLoadingMessage('Analyzing your request...')
 
-      try {
-        // Cache project details if needed
-        if (detectedProject && detectedProject !== 'ALL') {
-          await cacheProjectDetails(detectedProject)
-        }
-
-        const projectContextForSearch = getProjectContextForSearch(detectedProject)
-        
-      // Call the real backend API
-      const response = await fetch('http://localhost:8000/api/chat', {
+    try {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           message: inputValue,
-            context: 'leadership_copilot',
-            projectContext: projectContextForSearch,
-            cachedProjects: cachedProjects,
-            conversation_history: messages.slice(-5).map(msg => ({
-              role: msg.type === 'user' ? 'user' : 'assistant',
-              content: msg.content
-            }))
-        })
+          project_context: lastMentionedProject
+        }),
       })
 
-      if (response.ok) {
-        const data = await response.json()
-          console.log('Backend response data:', data) // Debug logging
-        
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          type: 'assistant',
-            content: typeof data.response === 'string' ? data.response : 
-                     typeof data.message === 'string' ? data.message :
-                     typeof data.response === 'object' && data.response.content ? data.response.content :
-                     JSON.stringify(data.response) || 'I received your message but couldn\'t generate a response.',
-          timestamp: new Date(),
-            projectContext: detectedProject || undefined,
-          metadata: {
-              type: data.type || 'analysis',
-              confidence: data.confidence || 0.9,
-            sources: ['AI Engine', 'Jira Data']
-          }
-        }
-
-        setMessages(prev => [...prev, assistantMessage])
-      } else {
-        throw new Error('Failed to get response from backend')
+      if (!response.ok) {
+        throw new Error('Failed to get response')
       }
-    } catch (error) {
-      console.error('Error calling backend API:', error)
-      
-      // Fallback to simulated response if backend is not available
-      const responses = [
-        {
-          content: "I'm having trouble connecting to the backend API. Please make sure the backend server is running on port 8000. For now, here's a simulated response: Based on your team's current sprint data, I can see that velocity has increased by 12% compared to last sprint.",
-          metadata: { type: 'analysis' as const, confidence: 0.88, sources: ['Simulated Data', 'Fallback Response'] }
-        },
-        {
-          content: "Backend connection failed. Please check if the server is running. Simulated recommendation: Focus on the code review process to optimize your workflow.",
-          metadata: { type: 'recommendation' as const, confidence: 0.92, sources: ['Fallback Response'] }
-        }
-      ]
 
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)]
+      const data = await response.json()
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: randomResponse.content,
+        content: data.response || 'I apologize, but I encountered an issue processing your request.',
         timestamp: new Date(),
-        metadata: randomResponse.metadata
+        metadata: {
+          type: data.intent || 'analysis',
+          confidence: data.confidence || 0.8,
+          sources: data.sources || []
+        }
       }
 
       setMessages(prev => [...prev, assistantMessage])
-    } finally {
-        clearInterval(messageInterval)
-      setIsTyping(false)
-        setLoadingMessage('')
-        
-        // Show "done" animation briefly
-        setTimeout(() => {
-          setShowAvatarAnimation(false)
-        }, 1000)
+      setShowAvatarAnimation(true)
+      setTimeout(() => setShowAvatarAnimation(false), 2000)
+
+    } catch (error) {
+      console.error('Error sending message:', error)
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: 'I apologize, but I encountered an issue processing your request. Please try again.',
+        timestamp: new Date(),
+        metadata: {
+          type: 'analysis',
+          confidence: 0.1
+        }
       }
-    }, 100)
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsTyping(false)
+      setLoadingMessage('')
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -398,7 +267,7 @@ export function FigmaLeadershipCopilot({
     setMessages([{
       id: '1',
       type: 'assistant',
-      content: `Hello ${userData.name} 👋! I'm your AI Work Buddy. I can help you analyze team performance, provide strategic insights, and answer questions about your projects. What would you like to know?`,
+      content: `Hello ${userData.name}! 👋 I'm your AI Work Buddy, ready to help you with team insights, project analysis, and strategic recommendations. What would you like to explore today?`,
       timestamp: new Date(),
       metadata: {
         type: 'insight',
@@ -477,157 +346,159 @@ export function FigmaLeadershipCopilot({
     }
   }
 
-  // Auto-send quick action prompt
-  React.useEffect(() => {
-    if (quickActionPrompt && onPromptSent) {
-      setInputValue(quickActionPrompt)
-      // Small delay to ensure the input is set before sending
-      setTimeout(() => {
-        handleSendMessage()
-        onPromptSent() // Clear the prompt after sending
-      }, 100)
-    }
-  }, [quickActionPrompt, onPromptSent])
+  const getConfidenceColor = (confidence?: number) => {
+    if (!confidence) return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+    if (confidence >= 0.8) return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+    if (confidence >= 0.6) return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+    return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+  }
 
-  const quickActions = [
-    { icon: TrendingUp, label: "Performance", prompt: "Analyze our team's performance metrics for this sprint", subtext: "Track productivity trends" },
-    { icon: Users, label: "Team Insights", prompt: "Provide insights about team collaboration and communication", subtext: "Understand team workload" },
-    { icon: Target, label: "Goal Tracking", prompt: "How are we progressing towards our quarterly goals?", subtext: "Monitor OKRs & KPIs" },
-    { icon: Calendar, label: "Sprint Planning", prompt: "Help me plan the next sprint based on current capacity", subtext: "Organize agile sprints" }
-  ]
+  const getConfidenceText = (confidence?: number) => {
+    if (!confidence) return 'Unknown'
+    if (confidence >= 0.8) return 'High'
+    if (confidence >= 0.6) return 'Medium'
+    return 'Low'
+  }
 
   return (
-    <div className={`h-full flex flex-col transition-all duration-500 ease-in-out ${
-      theme === 'dark' ? 'bg-[var(--bg-primary)]' : 'bg-white'
-    }`}>
-      {/* Compact Header */}
-      <motion.div
+    <div className={`h-full flex flex-col ${theme === 'dark' ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100'}`}>
+      {/* Modern Header */}
+      <motion.div 
+        className={`relative overflow-hidden ${theme === 'dark' ? 'bg-slate-900/80' : 'bg-white/80'} backdrop-blur-xl border-b ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200/50'} shadow-lg`}
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="flex-shrink-0 p-3"
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <motion.div
-              className="relative p-3 rounded-2xl bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 shadow-xl backdrop-blur-sm"
-              animate={{ 
-                rotate: [0, 8, -8, 0],
-                scale: [1, 1.08, 1]
-              }}
-              transition={{ 
-                duration: 4,
-                repeat: Infinity,
-                repeatDelay: 3,
-                ease: "easeInOut"
-              }}
-              whileHover={{ 
-                scale: 1.1,
-                rotate: [0, 5, -5, 0],
-                transition: { duration: 0.3 }
-              }}
-            >
+        {/* Background Pattern */}
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-indigo-500/5" />
+        
+        <div className="relative px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* Left Section */}
+            <div className="flex items-center space-x-4">
               <motion.div
-                className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 to-transparent"
-                animate={{ opacity: [0.3, 0.7, 0.3] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-              <Command className="w-4 h-4 text-white relative z-10" />
-            </motion.div>
-            <div className="space-y-1">
-              <motion.h1 
-                className={`text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 dark:from-blue-400 dark:via-purple-400 dark:to-indigo-400 bg-clip-text text-transparent`}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2, duration: 0.6 }}
+                className="relative"
+                whileHover={{ scale: 1.05 }}
+                transition={{ duration: 0.2 }}
               >
-                Work Buddy
-              </motion.h1>
-              <motion.p 
-                className={`text-sm font-medium ${
-                  theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                }`}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4, duration: 0.6 }}
-              >
-                Your intelligent AI assistant for work insights
-              </motion.p>
+                <div className={`w-12 h-12 rounded-2xl ${theme === 'dark' ? 'bg-gradient-to-br from-blue-500 to-purple-600' : 'bg-gradient-to-br from-blue-500 to-purple-600'} flex items-center justify-center shadow-lg`}>
+                  <motion.div
+                    animate={showAvatarAnimation ? { rotate: [0, 10, -10, 0] } : {}}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <Bot className="w-6 h-6 text-white" />
+                  </motion.div>
+                </div>
+                <motion.div
+                  className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-slate-900"
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                />
+              </motion.div>
+              
+              <div>
+                <motion.h1 
+                  className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  Work Buddy
+                </motion.h1>
+                <motion.p 
+                  className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  AI-powered work insights & analysis
+                </motion.p>
+              </div>
+            </div>
+
+            {/* Right Section - Actions */}
+            <div className="flex items-center space-x-3">
+              {/* Export Menu */}
+              {messages.length > 1 && (
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    className={`h-10 px-4 ${theme === 'dark' ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export
+                    <ChevronDown className="w-4 h-4 ml-2" />
+                  </Button>
+                  
+                  <AnimatePresence>
+                    {showExportMenu && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        className={`absolute right-0 top-full mt-2 w-48 ${theme === 'dark' ? 'bg-slate-800' : 'bg-white'} rounded-xl shadow-xl border ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'} backdrop-blur-xl z-50`}
+                      >
+                        <div className="p-2">
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              handleExportPDF()
+                              setShowExportMenu(false)
+                            }}
+                            className="w-full justify-start h-10"
+                          >
+                            <FileText className="w-4 h-4 mr-3 text-blue-500" />
+                            Export as PDF
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              handleExportExcel()
+                              setShowExportMenu(false)
+                            }}
+                            className="w-full justify-start h-10"
+                          >
+                            <FileSpreadsheet className="w-4 h-4 mr-3 text-green-500" />
+                            Export as Excel
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+
+              {/* Clear Chat */}
+              {messages.length > 1 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearChat}
+                  className={`h-10 px-4 ${theme === 'dark' ? 'hover:bg-red-900/20 text-red-400 hover:text-red-300' : 'hover:bg-red-50 text-red-600 hover:text-red-700'}`}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Clear
+                </Button>
+              )}
+
+              {/* Connection Status */}
+              <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-100/50'}`}>
+                <div className={`w-2 h-2 rounded-full ${hasActiveConnections ? 'bg-green-500' : 'bg-red-500'}`} />
+                <span className={`text-xs font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>
+                  {hasActiveConnections ? 'Connected' : 'Disconnected'}
+                </span>
+              </div>
             </div>
           </div>
-          
-          {/* Clear Chat Button */}
-          {messages.length > 1 && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClearChat}
-                className={`flex items-center space-x-2 px-3 py-2 h-8 text-xs font-medium transition-all duration-200 hover:scale-105 backdrop-blur-sm border border-white/20 dark:border-gray-700/50 ${
-                  theme === 'dark' 
-                    ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300' 
-                    : 'bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700'
-                }`}
-              >
-                <motion.div
-                  animate={{ rotate: [0, 10, -10, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-                >
-                  <Trash2 className="w-3 h-3" />
-                </motion.div>
-                <span>Clear Chat</span>
-              </Button>
-            </motion.div>
-          )}
-
-          {/* Export Buttons */}
-          {messages.length > 1 && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-              className="flex space-x-2"
-            >
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleExportPDF}
-                className={`flex items-center space-x-2 px-3 py-2 h-8 text-xs font-medium transition-all duration-200 hover:scale-105 backdrop-blur-sm border border-white/20 dark:border-gray-700/50 ${
-                  theme === 'dark' 
-                    ? 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 hover:text-blue-300' 
-                    : 'bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700'
-                }`}
-              >
-                <FileText className="w-3 h-3" />
-                <span>PDF</span>
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleExportExcel}
-                className={`flex items-center space-x-2 px-3 py-2 h-8 text-xs font-medium transition-all duration-200 hover:scale-105 backdrop-blur-sm border border-white/20 dark:border-gray-700/50 ${
-                  theme === 'dark' 
-                    ? 'bg-green-500/10 hover:bg-green-500/20 text-green-400 hover:text-green-300' 
-                    : 'bg-green-50 hover:bg-green-100 text-green-600 hover:text-green-700'
-                }`}
-              >
-                <FileSpreadsheet className="w-3 h-3" />
-                <span>Excel</span>
-              </Button>
-            </motion.div>
-          )}
         </div>
       </motion.div>
 
-      {/* Messages */}
-      <div className="flex-1 min-h-0">
+      {/* Messages Area */}
+      <div className="flex-1 min-h-0 relative">
         <ScrollArea className="h-full">
-          <div className="p-3 space-y-3">
+          <div className="p-6 space-y-6">
             <AnimatePresence>
               {messages.map((message, index) => (
                 <motion.div
@@ -635,305 +506,253 @@ export function FigmaLeadershipCopilot({
                   initial={{ opacity: 0, y: 20, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ 
-                    duration: 0.5, 
-                    delay: index * 0.1,
-                    type: "spring",
-                    stiffness: 100
+                    duration: 0.4,
+                    delay: index * 0.1
                   }}
                   className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`flex items-start space-x-3 max-w-[85%] ${
-                    message.type === 'user' ? 'flex-row-reverse space-x-reverse' : ''
-                  }`}>
-                    <motion.div 
-                      className={`w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full ${
-                        message.type === 'user' 
-                          ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg' 
-                          : 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg'
-                      }`}
-                      whileHover={{ scale: 1.1, rotate: 5 }}
-                      transition={{ type: "spring", stiffness: 300 }}
-                    >
-                      {message.type === 'user' ? (
-                        <User className="w-4 h-4" />
-                      ) : (
-                        <Bot className="w-4 h-4" />
-                      )}
-                    </motion.div>
-                    <motion.div 
-                      className={`rounded-2xl p-4 transition-all duration-300 shadow-xl backdrop-blur-xl border ${
+                  <div className={`max-w-[80%] ${message.type === 'user' ? 'order-2' : 'order-1'}`}>
+                    {/* Message Bubble */}
+                    <motion.div
+                      className={`relative p-4 rounded-2xl shadow-lg backdrop-blur-sm ${
                         message.type === 'user'
-                          ? 'bg-gradient-to-br from-blue-500/90 to-blue-600/90 text-white border-blue-400/30 shadow-blue-500/25'
-                          : theme === 'dark' 
-                            ? 'bg-gradient-to-br from-slate-800/80 to-slate-700/80 border-slate-600/40 shadow-slate-900/50'
-                            : 'bg-gradient-to-br from-white/80 to-gray-50/80 border-gray-200/60 shadow-gray-200/50'
+                          ? theme === 'dark'
+                            ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white'
+                            : 'bg-gradient-to-br from-blue-500 to-purple-600 text-white'
+                          : theme === 'dark'
+                            ? 'bg-slate-800/80 border border-slate-700/50 text-slate-100'
+                            : 'bg-white/80 border border-slate-200/50 text-slate-900'
                       }`}
-                      whileHover={{ 
-                        scale: 1.02,
-                        y: -2,
-                        transition: { duration: 0.2 }
-                      }}
+                      whileHover={{ scale: 1.02 }}
+                      transition={{ duration: 0.2 }}
                     >
-                      <div className={`text-sm leading-relaxed whitespace-pre-line ${
-                        message.type === 'user' ? 'text-white' : 'text-[var(--text-primary)]'
-                      }`}>
-                        {typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}
+                      {/* Message Content */}
+                      <div className="prose prose-sm max-w-none">
+                        <p className={`whitespace-pre-wrap ${theme === 'dark' ? 'prose-invert' : ''}`}>
+                          {typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}
+                        </p>
                       </div>
-                      {message.metadata && (
-                        <div className="mt-3 space-y-2">
-                          <div className="flex items-center justify-between">
-                            {message.metadata.confidence && (
-                          <div className="flex items-center space-x-2">
-                                <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                  message.metadata.confidence >= 0.9 
-                                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                                    : message.metadata.confidence >= 0.8
-                                    ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                                    : 'bg-red-500/20 text-red-400 border border-red-500/30'
-                                }`}>
-                                  {Math.round(message.metadata.confidence * 100)}% Confidence
-                                </div>
-                              </div>
+
+                      {/* Message Metadata */}
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
+                        <div className="flex items-center space-x-3">
+                          <Badge 
+                            variant="secondary" 
+                            className={`text-xs ${getConfidenceColor(message.metadata?.confidence)}`}
+                          >
+                            {getConfidenceText(message.metadata?.confidence)}
+                          </Badge>
+                          <span className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                            {message.timestamp.toLocaleTimeString()}
+                          </span>
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex items-center space-x-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCopyMessage(message.id, message.content)}
+                            className={`h-8 w-8 p-0 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}
+                          >
+                            {copiedMessageId === message.id ? (
+                              <CheckCircle className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
                             )}
-                          </div>
-                          {message.metadata.sources && (
-                            <div className="text-xs text-[var(--text-muted)] flex items-center space-x-1">
-                              <Database className="w-3 h-3" />
-                              <span className="font-medium">Sources:</span> 
-                              <span>{message.metadata.sources.join(', ')}</span>
-                            </div>
+                          </Button>
+                          
+                          {message.type === 'assistant' && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-8 w-8 p-0 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}
+                              >
+                                <ThumbsUp className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-8 w-8 p-0 ${theme === 'dark' ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}
+                              >
+                                <ThumbsDown className="w-4 h-4" />
+                              </Button>
+                            </>
                           )}
                         </div>
-                      )}
-                      <div className="flex items-center justify-between mt-3">
-                        {message.type === 'assistant' && (
-                          <div className="flex items-center space-x-2">
-                            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className={`h-9 w-9 p-0 rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/20 dark:border-gray-700/50 ${
-                                  theme === 'dark' 
-                                    ? 'bg-green-500/10 hover:bg-green-500/20 text-green-400 hover:text-green-300' 
-                                    : 'bg-green-50 hover:bg-green-100 text-green-600 hover:text-green-700'
-                                }`}
-                              >
-                                <motion.div
-                                  animate={{ rotate: [0, 5, -5, 0] }}
-                                  transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
-                                >
-                                  <ThumbsUp className="w-4 h-4" />
-                                </motion.div>
-                              </Button>
-                            </motion.div>
-                            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className={`h-9 w-9 p-0 rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/20 dark:border-gray-700/50 ${
-                                  theme === 'dark' 
-                                    ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300' 
-                                    : 'bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700'
-                                }`}
-                              >
-                                <motion.div
-                                  animate={{ rotate: [0, -5, 5, 0] }}
-                                  transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
-                                >
-                                  <ThumbsDown className="w-4 h-4" />
-                                </motion.div>
-                              </Button>
-                            </motion.div>
-                            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className={`h-9 w-9 p-0 rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/20 dark:border-gray-700/50 ${
-                                  copiedMessageId === message.id 
-                                    ? 'text-blue-500 bg-blue-500/10' 
-                                    : theme === 'dark' 
-                                      ? 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 hover:text-blue-300' 
-                                      : 'bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700'
-                                }`}
-                                onClick={() => handleCopyMessage(message.id, message.content)}
-                              >
-                                <motion.div
-                                  animate={{ rotate: copiedMessageId === message.id ? [0, 360] : [0, 10, -10, 0] }}
-                                  transition={{ duration: copiedMessageId === message.id ? 0.5 : 2, repeat: Infinity, repeatDelay: 4 }}
-                                >
-                                  {copiedMessageId === message.id ? (
-                                    <CheckCircle className="w-4 h-4" />
-                                  ) : (
-                                    <Copy className="w-4 h-4" />
-                                  )}
-                                </motion.div>
-                              </Button>
-                            </motion.div>
-                          </div>
-                        )}
                       </div>
                     </motion.div>
+
+                    {/* User Avatar */}
+                    {message.type === 'user' && (
+                      <motion.div
+                        className="flex items-center justify-end mt-2"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.2 }}
+                      >
+                        <div className={`w-8 h-8 rounded-full ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-200'} flex items-center justify-center`}>
+                          <User className="w-4 h-4" />
+                        </div>
+                      </motion.div>
+                    )}
                   </div>
                 </motion.div>
               ))}
             </AnimatePresence>
 
             {/* Typing Indicator */}
-            <AnimatePresence>
-              {isTyping && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="flex justify-start"
-                >
-                  <div className="flex items-start space-x-2 max-w-[85%]">
-                    <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+            {isTyping && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex justify-start"
+              >
+                <div className={`p-4 rounded-2xl ${theme === 'dark' ? 'bg-slate-800/80 border border-slate-700/50' : 'bg-white/80 border border-slate-200/50'} shadow-lg backdrop-blur-sm`}>
+                  <div className="flex items-center space-x-2">
+                    <div className="flex space-x-1">
                       <motion.div
-                        className="w-6 h-6 flex items-center justify-center"
-                        animate={showAvatarAnimation ? {
-                          scale: [1, 1.1, 1],
-                          boxShadow: [
-                            "0 0 0px rgba(251, 191, 36, 0)",
-                            "0 0 12px rgba(251, 191, 36, 0.8)",
-                            "0 0 0px rgba(251, 191, 36, 0)"
-                          ]
-                        } : {
-                          scale: [1.2, 1]
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: showAvatarAnimation ? Infinity : 0,
-                          ease: "easeInOut"
-                        }}
-                      >
-                        <Lightbulb className="w-4 h-4 text-yellow-400" />
-                      </motion.div>
+                        className="w-2 h-2 bg-blue-500 rounded-full"
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                      />
+                      <motion.div
+                        className="w-2 h-2 bg-blue-500 rounded-full"
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                      />
+                      <motion.div
+                        className="w-2 h-2 bg-blue-500 rounded-full"
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                      />
                     </div>
-                    <div className={`rounded-2xl p-4 transition-all duration-300 shadow-lg ${
-                      theme === 'dark' 
-                        ? 'bg-gradient-to-br from-slate-800/90 to-slate-700/90 border border-slate-600/30 backdrop-blur-sm shadow-slate-900/50'
-                        : 'bg-gradient-to-br from-white to-gray-50/90 border border-gray-200/60 backdrop-blur-sm shadow-gray-200/50'
-                    }`}>
-                      <div className="flex items-center space-x-2">
-                        <div className="flex space-x-1">
-                          <motion.div
-                            className="w-2 h-2 bg-yellow-400 rounded-full"
-                            animate={{ opacity: [0.4, 1, 0.4] }}
-                            transition={{ duration: 1.5, repeat: Infinity, delay: 0 }}
-                          />
-                          <motion.div
-                            className="w-2 h-2 bg-yellow-400 rounded-full"
-                            animate={{ opacity: [0.4, 1, 0.4] }}
-                            transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
-                          />
-                          <motion.div
-                            className="w-2 h-2 bg-yellow-400 rounded-full"
-                            animate={{ opacity: [0.4, 1, 0.4] }}
-                            transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
-                          />
-                        </div>
-                        <span className="text-sm text-[var(--text-muted)] font-medium">{loadingMessage}</span>
-                      </div>
-                    </div>
+                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                      {loadingMessage}
+                    </span>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                </div>
+              </motion.div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
       </div>
 
-      {/* Enhanced Input Area */}
+      {/* Modern Input Area */}
       <motion.div
+        className={`relative ${theme === 'dark' ? 'bg-slate-900/80' : 'bg-white/80'} backdrop-blur-xl border-t ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200/50'} shadow-lg`}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.4 }}
-        className="flex-shrink-0 p-4"
       >
-        <div className="flex items-end space-x-3">
-          <div className="flex-1 relative">
-            <motion.div
-              className="relative"
-              whileFocus={{ scale: 1.02 }}
-              transition={{ duration: 0.2 }}
-            >
-              <textarea
-                ref={inputRef}
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Ask Work Buddy anything about your team, projects, or work insights..."
-                className={`w-full py-4 px-5 rounded-2xl resize-none min-h-[52px] max-h-[140px] text-sm font-medium transition-all duration-300 backdrop-blur-xl border-2 shadow-xl ${
-                  theme === 'dark' 
-                    ? 'bg-gradient-to-br from-slate-800/90 to-slate-700/90 border-slate-600/60 text-white placeholder:text-slate-300 focus:border-blue-400/80 focus:outline-none focus:ring-4 focus:ring-blue-400/20 shadow-slate-900/50' 
-                    : 'bg-gradient-to-br from-white/95 to-gray-50/95 border-gray-200/80 text-gray-900 placeholder:text-gray-500 focus:border-blue-500/80 focus:outline-none focus:ring-4 focus:ring-blue-500/20 shadow-gray-200/50'
-                }`}
-                disabled={isTyping}
-                rows={1}
-              />
+        <div className="p-6">
+          <div className="flex items-end space-x-4">
+            {/* Input Container */}
+            <div className="flex-1 relative">
               <motion.div
-                className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-indigo-500/5 pointer-events-none"
-                animate={{ opacity: [0.3, 0.6, 0.3] }}
-                transition={{ duration: 3, repeat: Infinity }}
-              />
-            </motion.div>
-          </div>
-          
-          {/* Voice-to-text Button */}
-          {isSupported && (
+                className="relative"
+                whileFocus={{ scale: 1.02 }}
+                transition={{ duration: 0.2 }}
+              >
+                <textarea
+                  ref={inputRef}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Ask Work Buddy anything about your team, projects, or work insights..."
+                  className={`w-full py-4 px-6 rounded-2xl resize-none min-h-[56px] max-h-[140px] text-sm font-medium transition-all duration-300 backdrop-blur-xl border-2 shadow-xl ${
+                    theme === 'dark' 
+                      ? 'bg-slate-800/50 border-slate-600/60 text-white placeholder:text-slate-400 focus:border-blue-400/80 focus:outline-none focus:ring-4 focus:ring-blue-400/20' 
+                      : 'bg-white/50 border-slate-200/80 text-slate-900 placeholder:text-slate-500 focus:border-blue-500/80 focus:outline-none focus:ring-4 focus:ring-blue-500/20'
+                  }`}
+                  disabled={isTyping}
+                  rows={1}
+                />
+                
+                {/* Animated Background */}
+                <motion.div
+                  className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-indigo-500/5 pointer-events-none"
+                  animate={{ opacity: [0.3, 0.6, 0.3] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                />
+              </motion.div>
+            </div>
+
+            {/* Voice Button */}
+            {isSupported && (
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Button
+                  onClick={handleVoiceToggle}
+                  className={`h-14 w-14 rounded-2xl transition-all duration-300 backdrop-blur-xl border-2 shadow-xl ${
+                    isListening
+                      ? theme === 'dark'
+                        ? 'bg-gradient-to-r from-red-500 to-pink-600 border-red-400/60 text-white hover:from-red-600 hover:to-pink-700 shadow-red-500/25'
+                        : 'bg-gradient-to-r from-red-500 to-pink-600 border-red-400/60 text-white hover:from-red-600 hover:to-pink-700 shadow-red-500/25'
+                      : theme === 'dark'
+                        ? 'bg-slate-700/50 border-slate-600/60 text-slate-300 hover:bg-slate-600/50'
+                        : 'bg-slate-200/50 border-slate-300/60 text-slate-600 hover:bg-slate-300/50'
+                  }`}
+                >
+                  <motion.div
+                    animate={isListening ? { scale: [1, 1.2, 1] } : {}}
+                    transition={{ duration: 1, repeat: isListening ? Infinity : 0 }}
+                  >
+                    {isListening ? <Square className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                  </motion.div>
+                </Button>
+              </motion.div>
+            )}
+
+            {/* Send Button */}
             <motion.div
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
               <Button
-                onClick={handleVoiceToggle}
-                className={`h-[52px] w-[52px] rounded-2xl transition-all duration-300 backdrop-blur-xl border-2 shadow-xl ${
-                  isListening
+                onClick={handleSendMessage}
+                disabled={!inputValue.trim() || isTyping}
+                className={`h-14 px-8 rounded-2xl font-semibold text-sm transition-all duration-300 backdrop-blur-xl border-2 shadow-xl ${
+                  !inputValue.trim() || isTyping
                     ? theme === 'dark'
-                      ? 'bg-gradient-to-r from-red-500 to-pink-600 border-red-400/60 text-white hover:from-red-600 hover:to-pink-700 shadow-red-500/25'
-                      : 'bg-gradient-to-r from-red-500 to-pink-600 border-red-400/60 text-white hover:from-red-600 hover:to-pink-700 shadow-red-500/25'
+                      ? 'bg-slate-700/50 border-slate-600/50 text-slate-500 cursor-not-allowed'
+                      : 'bg-slate-200/50 border-slate-300/50 text-slate-400 cursor-not-allowed'
                     : theme === 'dark'
-                      ? 'bg-gradient-to-r from-gray-600 to-gray-700 border-gray-500/60 text-gray-300 hover:from-gray-500 hover:to-gray-600 shadow-gray-500/25'
-                      : 'bg-gradient-to-r from-gray-400 to-gray-500 border-gray-300/60 text-white hover:from-gray-500 hover:to-gray-600 shadow-gray-400/25'
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 border-blue-400/60 text-white hover:from-blue-600 hover:to-purple-700 shadow-blue-500/25'
+                      : 'bg-gradient-to-r from-blue-500 to-purple-600 border-blue-400/60 text-white hover:from-blue-600 hover:to-purple-700 shadow-blue-500/25'
                 }`}
               >
                 <motion.div
-                  animate={isListening ? { scale: [1, 1.2, 1] } : {}}
-                  transition={{ duration: 1, repeat: isListening ? Infinity : 0 }}
+                  animate={isTyping ? { rotate: 360 } : { rotate: 0 }}
+                  transition={{ duration: 1, repeat: isTyping ? Infinity : 0 }}
                 >
-                  {isListening ? <Square className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                  <Send className="w-5 h-5" />
                 </motion.div>
               </Button>
             </motion.div>
-          )}
-          
+          </div>
+
+          {/* Input Footer */}
           <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            className="flex items-center justify-between mt-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
           >
-            <Button
-              onClick={handleSendMessage}
-              disabled={!inputValue.trim() || isTyping}
-              className={`h-[52px] px-6 rounded-2xl font-semibold text-sm transition-all duration-300 backdrop-blur-xl border-2 shadow-xl ${
-                !inputValue.trim() || isTyping
-                  ? theme === 'dark'
-                    ? 'bg-gray-700/50 border-gray-600/50 text-gray-500 cursor-not-allowed'
-                    : 'bg-gray-200/50 border-gray-300/50 text-gray-400 cursor-not-allowed'
-                  : theme === 'dark'
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 border-blue-400/60 text-white hover:from-blue-600 hover:to-purple-700 shadow-blue-500/25'
-                    : 'bg-gradient-to-r from-blue-500 to-purple-600 border-blue-400/60 text-white hover:from-blue-600 hover:to-purple-700 shadow-blue-500/25'
-              }`}
-            >
-              <motion.div
-                animate={isTyping ? { rotate: 360 } : { rotate: 0 }}
-                transition={{ duration: 1, repeat: isTyping ? Infinity : 0 }}
-              >
-                <Zap className="w-4 h-4 mr-2" />
-              </motion.div>
-              Send
-            </Button>
+            <div className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+              Press Enter to send, Shift+Enter for new line
+            </div>
+            
+            {isSupported && (
+              <div className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                {isListening ? 'Listening...' : 'Click mic to speak'}
+              </div>
+            )}
           </motion.div>
         </div>
       </motion.div>
