@@ -37,8 +37,13 @@ import {
   Server,
   CheckCircle,
   X,
-  Globe
+  Globe,
+  Palette,
+  Sun,
+  Moon
 } from 'lucide-react'
+import { ThemeSelector } from '../ui/ThemeSelector'
+import { useTheme } from '../../contexts/ThemeContext'
 
 interface Connection {
   name: string
@@ -104,6 +109,10 @@ export function FigmaLeftSidebar({
   }, [])
   const [integrationsExpanded, setIntegrationsExpanded] = useState(true)
   const [showWelcome, setShowWelcome] = useState(true)
+  const [showThemeSelector, setShowThemeSelector] = useState(false)
+  
+  // Theme context
+  const { currentTheme, isDarkMode, toggleDarkMode } = useTheme()
 
   // Fade out welcome message after 3 seconds
   useEffect(() => {
@@ -209,23 +218,13 @@ export function FigmaLeftSidebar({
   return (
     <>
       <motion.aside 
-        className={`w-56 min-w-[200px] max-w-[240px] flex-shrink-0 backdrop-blur-xl border-r flex flex-col h-full overflow-hidden relative transition-all duration-500 ease-in-out ${
-        theme === 'dark' 
-            ? 'bg-[var(--bg-secondary)]/60 border-[var(--border-subtle)]/50' 
-            : 'bg-[var(--bg-secondary)]/95 border-[var(--border-subtle)]/30'
-      }`}
+        className="w-56 min-w-[200px] max-w-[240px] flex-shrink-0 backdrop-blur-xl border-r flex flex-col h-full overflow-hidden relative transition-all duration-500 ease-in-out"
         style={{
-          background: theme === 'dark' 
-            ? 'linear-gradient(135deg, rgba(26, 28, 31, 0.8) 0%, rgba(34, 37, 42, 0.6) 100%)'
-            : 'linear-gradient(135deg, rgba(240, 248, 255, 0.98) 0%, rgba(219, 234, 254, 0.9) 100%)',
+          background: `linear-gradient(135deg, ${currentTheme.colors.surface}CC, ${currentTheme.colors.background}CC)`,
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          border: theme === 'dark' 
-            ? '1px solid rgba(59, 130, 246, 0.1)' 
-            : '1px solid rgba(30, 64, 175, 0.08)',
-          boxShadow: theme === 'dark'
-            ? '0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-            : '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)'
+          border: `1px solid ${currentTheme.colors.border}40`,
+          boxShadow: `0 8px 32px ${currentTheme.colors.primary}20, inset 0 1px 0 ${currentTheme.colors.surface}80`
         }}
       variants={sidebarVariants}
       initial="initial"
@@ -237,8 +236,9 @@ export function FigmaLeftSidebar({
         {[...Array(16)].map((_, i) => (
           <motion.div
             key={`bg-particle-${i}`}
-            className="absolute w-1.5 h-1.5 bg-blue-400/30 rounded-full"
+            className="absolute w-1.5 h-1.5 rounded-full"
             style={{
+              backgroundColor: `${currentTheme.colors.primary}30`,
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
             }}
@@ -440,12 +440,13 @@ export function FigmaLeftSidebar({
                 {[...Array(8)].map((_, i) => (
             <motion.div
                     key={i}
-                    className="absolute w-1.5 h-1.5 bg-blue-400 rounded-full"
-                    style={{
-                      left: "50%",
-                      top: "50%",
-                      transformOrigin: "0 0"
-                    }}
+                    className="absolute w-1.5 h-1.5 rounded-full"
+            style={{
+              backgroundColor: currentTheme.colors.accent,
+              left: "50%",
+              top: "50%",
+              transformOrigin: "0 0"
+            }}
                     animate={{
                       x: [0, Math.cos(i * 45 * Math.PI / 180) * 40],
                       y: [0, Math.sin(i * 45 * Math.PI / 180) * 40],
@@ -521,10 +522,16 @@ export function FigmaLeftSidebar({
                   transition: { duration: 1, ease: "easeOut" }
                 }}
               >
-                <h2 className={`text-sm font-semibold ${
-                            theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-[var(--text-primary)]'
-                }`}>Welcome back,</h2>
-                <h3 className="text-sm font-semibold bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] bg-clip-text text-transparent">
+                <h2 
+                  className="text-sm font-semibold"
+                  style={{ color: currentTheme.colors.text }}
+                >Welcome back,</h2>
+                <h3 
+                  className="text-sm font-semibold bg-clip-text text-transparent"
+                  style={{
+                    background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`
+                  }}
+                >
                   {userData.name}! 👋
                 </h3>
               </motion.div>
@@ -543,9 +550,10 @@ export function FigmaLeftSidebar({
             animate="animate"
             className="space-y-2"
           >
-            <h4 className={`text-xs font-semibold uppercase tracking-wider px-2 mb-2 ${
-              theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-[var(--text-muted)]'
-            }`}>
+            <h4 
+              className="text-xs font-semibold uppercase tracking-wider px-2 mb-2"
+              style={{ color: currentTheme.colors.textSecondary }}
+            >
               Navigation
             </h4>
             
@@ -660,9 +668,10 @@ export function FigmaLeftSidebar({
             className="space-y-2"
           >
             <div className="flex items-center justify-between">
-              <h4 className={`text-xs font-semibold uppercase tracking-wider px-2 ${
-                theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-[var(--text-muted)]'
-              }`}>
+              <h4 
+                className="text-xs font-semibold uppercase tracking-wider px-2"
+                style={{ color: currentTheme.colors.textSecondary }}
+              >
                 Integrations
               </h4>
               <div className="flex items-center space-x-1">
@@ -673,6 +682,14 @@ export function FigmaLeftSidebar({
                   className="h-5 w-5 p-0 text-[var(--text-muted)] hover:shadow-lg hover:shadow-blue-500/20"
                 >
                   <Settings className="w-3 h-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowThemeSelector(true)}
+                  className="h-5 w-5 p-0 text-[var(--text-muted)] hover:shadow-lg hover:shadow-purple-500/20"
+                >
+                  <Palette className="w-3 h-3" />
                 </Button>
                 <Button
                   variant="ghost"
@@ -942,9 +959,10 @@ export function FigmaLeftSidebar({
             animate="animate"
             className="space-y-2"
           >
-            <h4 className={`text-xs font-semibold uppercase tracking-wider px-2 ${
-              theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-[var(--text-muted)]'
-            }`}>
+            <h4 
+              className="text-xs font-semibold uppercase tracking-wider px-2"
+              style={{ color: currentTheme.colors.textSecondary }}
+            >
               Quick Actions
             </h4>
 
@@ -1261,6 +1279,12 @@ export function FigmaLeftSidebar({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Theme Selector */}
+      <ThemeSelector 
+        isOpen={showThemeSelector} 
+        onClose={() => setShowThemeSelector(false)} 
+      />
     </>
   )
 }

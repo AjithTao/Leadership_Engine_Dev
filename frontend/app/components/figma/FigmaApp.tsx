@@ -8,6 +8,7 @@ import { FigmaDashboard } from './Dashboard'
 import InsightsDashboard from './InsightsDashboard'
 import { FigmaLeadershipCopilot } from './LeadershipCopilot'
 import { FigmaConnectionSettings } from './ConnectionSettings'
+import { useTheme } from '../../contexts/ThemeContext'
 
 export type ActiveView = 'copilot' | 'insights' | 'leadership'
 export type Theme = 'light' | 'dark'
@@ -19,9 +20,9 @@ export interface Connection {
 }
 
 export default function FigmaApp() {
+  const { currentTheme, isDarkMode } = useTheme();
   const [activeView, setActiveView] = useState<ActiveView>('copilot')
   const [showSettings, setShowSettings] = useState(false)
-  const [theme, setTheme] = useState<Theme>('dark')
   const [quickActionPrompt, setQuickActionPrompt] = useState<string | null>(null)
   const [connections, setConnections] = useState<Connection[]>([
     { name: 'Atlassian Workspace', status: 'disconnected', type: 'atlassian' },
@@ -100,18 +101,18 @@ export default function FigmaApp() {
       case 'copilot':
         return <FigmaLeadershipCopilot 
           hasActiveConnections={hasActiveConnections} 
-          theme={theme}
+          theme={isDarkMode ? 'dark' : 'light'}
           quickActionPrompt={quickActionPrompt}
           onPromptSent={clearQuickActionPrompt}
         />
       case 'insights':
         return <InsightsDashboard />
       case 'leadership':
-        return <FigmaDashboard hasActiveConnections={hasActiveConnections} theme={theme} />
+        return <FigmaDashboard hasActiveConnections={hasActiveConnections} theme={isDarkMode ? 'dark' : 'light'} />
       default:
         return <FigmaLeadershipCopilot 
           hasActiveConnections={hasActiveConnections} 
-          theme={theme}
+          theme={isDarkMode ? 'dark' : 'light'}
           quickActionPrompt={quickActionPrompt}
           onPromptSent={clearQuickActionPrompt}
         />
@@ -119,11 +120,14 @@ export default function FigmaApp() {
   }
 
   return (
-    <div className={`h-screen overflow-hidden transition-colors duration-500 ${theme === 'dark' ? 'dark' : 'light'}`}>
-      <div className={`h-full ${theme === 'dark' 
-        ? 'bg-[var(--bg-primary)]' 
-        : 'bg-white'
-      }`}>
+    <div 
+      className="h-screen overflow-hidden transition-all duration-500"
+      style={{ backgroundColor: currentTheme.colors.background }}
+    >
+      <div 
+        className="h-full"
+        style={{ backgroundColor: currentTheme.colors.background }}
+      >
         {/* Fixed Left Sidebar */}
         <div className="fixed left-0 top-0 w-56 min-w-[200px] max-w-[240px] h-screen z-30 flex-shrink-0">
           <FigmaLeftSidebar
@@ -133,7 +137,7 @@ export default function FigmaApp() {
             toggleConnection={toggleConnection}
             hasActiveConnections={hasActiveConnections}
             setShowSettings={setShowSettings}
-            theme={theme}
+            theme={isDarkMode ? 'dark' : 'light'}
             onConnect={onConnect}
             onQuickAction={handleQuickAction}
           />
@@ -141,7 +145,7 @@ export default function FigmaApp() {
         
         {/* Fixed Header */}
         <div className="fixed top-0 right-0 left-56 min-left-[200px] max-left-[240px] h-12 z-50">
-          <FigmaHeader theme={theme} setTheme={setTheme} />
+          <FigmaHeader theme={isDarkMode ? 'dark' : 'light'} setTheme={() => {}} />
         </div>
         
         {/* Main Content Area */}
@@ -169,7 +173,7 @@ export default function FigmaApp() {
             connections={connections}
             setConnections={setConnections}
             onClose={() => setShowSettings(false)}
-            theme={theme}
+            theme={isDarkMode ? 'dark' : 'light'}
           />
         )}
       </div>

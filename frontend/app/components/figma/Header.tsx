@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
+import { useTheme } from '../../contexts/ThemeContext'
 import { 
   ChevronDown, 
   User, 
@@ -27,6 +28,7 @@ interface HeaderProps {
 }
 
 export function FigmaHeader({ theme, setTheme }: HeaderProps) {
+  const { currentTheme, isDarkMode, toggleDarkMode } = useTheme();
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [userData, setUserData] = useState({
@@ -99,24 +101,14 @@ export function FigmaHeader({ theme, setTheme }: HeaderProps) {
 
   return (
     <motion.header 
-        className={`fixed top-0 left-56 right-0 z-50 backdrop-blur-xl border-b shadow-sm transition-all duration-500 ease-in-out ${
-        theme === 'dark' 
-          ? 'bg-[var(--bg-primary)]/60 border-[var(--border-subtle)]/50' 
-          : 'bg-[var(--bg-primary)]/95 border-[var(--border-subtle)]/30'
-      }`}
-      style={{
-        background: theme === 'dark' 
-          ? 'linear-gradient(135deg, rgba(15, 15, 35, 0.8) 0%, rgba(26, 28, 31, 0.6) 100%)'
-          : 'linear-gradient(135deg, rgba(240, 248, 255, 0.98) 0%, rgba(219, 234, 254, 0.9) 100%)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        border: theme === 'dark' 
-          ? '1px solid rgba(59, 130, 246, 0.1)' 
-          : '1px solid rgba(30, 64, 175, 0.08)',
-        boxShadow: theme === 'dark'
-          ? '0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-          : '0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9)'
-      }}
+        className="fixed top-0 left-56 right-0 z-50 backdrop-blur-xl border-b shadow-sm transition-all duration-500 ease-in-out"
+        style={{
+          background: `linear-gradient(135deg, ${currentTheme.colors.surface}CC, ${currentTheme.colors.background}CC)`,
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: `1px solid ${currentTheme.colors.border}40`,
+          boxShadow: `0 8px 32px ${currentTheme.colors.primary}20, inset 0 1px 0 ${currentTheme.colors.surface}80`
+        }}
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
@@ -316,21 +308,21 @@ export function FigmaHeader({ theme, setTheme }: HeaderProps) {
             transition={{ duration: 0.4, delay: 0.2 }}
           >
             <motion.div
-              className={`relative w-12 h-6 rounded-full cursor-pointer transition-all duration-300 ${
-                theme === 'dark' 
-                  ? 'bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)]' 
-                  : 'bg-gray-300'
-              }`}
-              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+              className="relative w-12 h-6 rounded-full cursor-pointer transition-all duration-300"
+              style={{
+                background: isDarkMode 
+                  ? `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})` 
+                  : currentTheme.colors.border
+              }}
+              onClick={toggleDarkMode}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
               <motion.div
-                className={`absolute top-0.5 w-5 h-5 rounded-full shadow-lg ${
-                  theme === 'dark' ? 'bg-white' : 'bg-white'
-                }`}
+                className="absolute top-0.5 w-5 h-5 rounded-full shadow-lg flex items-center justify-center"
+                style={{ backgroundColor: currentTheme.colors.background }}
                 animate={{
-                  x: theme === 'dark' ? 26 : 2,
+                  x: isDarkMode ? 26 : 2,
                 }}
                 transition={{
                   type: "spring",
@@ -341,17 +333,23 @@ export function FigmaHeader({ theme, setTheme }: HeaderProps) {
               <motion.div
                   className="flex items-center justify-center w-full h-full"
                   animate={{
-                    rotate: theme === 'dark' ? 0 : 180,
+                    rotate: isDarkMode ? 0 : 180,
                   }}
                   transition={{
                     duration: 0.3,
                     ease: "easeInOut"
                   }}
                 >
-                  {theme === 'dark' ? (
-                    <Moon className="w-3 h-3 text-gray-600" />
+                  {isDarkMode ? (
+                    <Moon 
+                      className="w-3 h-3" 
+                      style={{ color: currentTheme.colors.textSecondary }}
+                    />
                   ) : (
-                    <Sun className="w-3 h-3 text-yellow-500" />
+                    <Sun 
+                      className="w-3 h-3" 
+                      style={{ color: currentTheme.colors.accent }}
+                    />
                 )}
               </motion.div>
               </motion.div>

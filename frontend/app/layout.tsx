@@ -29,7 +29,7 @@ export default function RootLayout({
         <ThemeProvider>
           <UserProvider>
             <ChatProvider>
-              <div className="min-h-screen bg-gray-900 transition-colors duration-200">
+              <div className="min-h-screen transition-colors duration-300" style={{ backgroundColor: 'var(--color-background)' }}>
                 {/* Main Content Area */}
                 <main>
                   {children}

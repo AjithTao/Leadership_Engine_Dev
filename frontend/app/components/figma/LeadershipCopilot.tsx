@@ -8,6 +8,7 @@ import { Input } from '../ui/input'
 import { ScrollArea } from '../ui/scroll-area'
 import { Badge } from '../ui/badge'
 import { exportChatAsPDF, exportChatAsExcel, useVoiceToText } from '../../utils/exportUtils'
+import { useTheme } from '../../contexts/ThemeContext'
 import { 
   Bot, 
   User, 
@@ -77,6 +78,7 @@ export function FigmaLeadershipCopilot({
   quickActionPrompt, 
   onPromptSent 
 }: FigmaLeadershipCopilotProps) {
+  const { currentTheme } = useTheme();
   const [userData, setUserData] = useState({
     name: "Alex",
     email: "alex.chen@company.com",
@@ -522,9 +524,10 @@ export function FigmaLeadershipCopilot({
   ]
 
   return (
-    <div className={`h-full flex flex-col transition-all duration-500 ease-in-out ${
-      theme === 'dark' ? 'bg-[var(--bg-primary)]' : 'bg-white'
-    }`}>
+    <div 
+      className="h-full flex flex-col transition-all duration-500 ease-in-out"
+      style={{ backgroundColor: currentTheme.colors.background }}
+    >
       {/* Compact Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -535,7 +538,10 @@ export function FigmaLeadershipCopilot({
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <motion.div
-              className="relative p-3 rounded-2xl bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 shadow-xl backdrop-blur-sm"
+              className="relative p-3 rounded-2xl shadow-xl backdrop-blur-sm"
+              style={{
+                background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary}, ${currentTheme.colors.accent})`
+              }}
               animate={{
                 rotate: [0, 8, -8, 0],
                 scale: [1, 1.08, 1]
@@ -560,24 +566,26 @@ export function FigmaLeadershipCopilot({
               <Command className="w-4 h-4 text-white relative z-10" />
             </motion.div>
             <div className="space-y-1">
-              <motion.h1 
-                className={`text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 dark:from-blue-400 dark:via-purple-400 dark:to-indigo-400 bg-clip-text text-transparent`}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2, duration: 0.6 }}
-              >
-                Work Buddy
-              </motion.h1>
-              <motion.p 
-                className={`text-sm font-medium ${
-                  theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                }`}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4, duration: 0.6 }}
-              >
-                Your intelligent AI assistant for work insights
-              </motion.p>
+               <motion.h1 
+                 className="text-xl font-bold bg-clip-text text-transparent"
+                 style={{
+                   background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary}, ${currentTheme.colors.accent})`
+                 }}
+                 initial={{ opacity: 0, x: -20 }}
+                 animate={{ opacity: 1, x: 0 }}
+                 transition={{ delay: 0.2, duration: 0.6 }}
+               >
+                 Work Buddy
+               </motion.h1>
+               <motion.p 
+                 className="text-sm font-medium"
+                 style={{ color: currentTheme.colors.textSecondary }}
+                 initial={{ opacity: 0, x: -20 }}
+                 animate={{ opacity: 1, x: 0 }}
+                 transition={{ delay: 0.4, duration: 0.6 }}
+               >
+                 Your intelligent AI assistant for work insights
+               </motion.p>
           </div>
         </div>
 
@@ -671,11 +679,13 @@ export function FigmaLeadershipCopilot({
                     message.type === 'user' ? 'flex-row-reverse space-x-reverse' : ''
                   }`}>
                     <motion.div 
-                      className={`w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full ${
-                      message.type === 'user' 
-                          ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg' 
-                          : 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg'
-                      }`}
+                      className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full shadow-lg"
+                      style={{
+                        background: message.type === 'user' 
+                          ? `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`
+                          : `linear-gradient(135deg, ${currentTheme.colors.secondary}, ${currentTheme.colors.accent})`,
+                        color: currentTheme.colors.background
+                      }}
                       whileHover={{ scale: 1.1, rotate: 5 }}
                       transition={{ type: "spring", stiffness: 300 }}
                     >
@@ -686,22 +696,35 @@ export function FigmaLeadershipCopilot({
                       )}
                     </motion.div>
                     <motion.div 
-                      className={`rounded-2xl p-4 transition-all duration-300 shadow-xl backdrop-blur-xl border ${
-                      message.type === 'user'
-                          ? 'bg-gradient-to-br from-blue-500/90 to-blue-600/90 text-white border-blue-400/30 shadow-blue-500/25'
-                          : theme === 'dark' 
-                            ? 'bg-gradient-to-br from-slate-800/80 to-slate-700/80 border-slate-600/40 shadow-slate-900/50'
-                            : 'bg-gradient-to-br from-white/80 to-gray-50/80 border-gray-200/60 shadow-gray-200/50'
-                      }`}
+                      className="rounded-2xl p-4 transition-all duration-300 shadow-xl backdrop-blur-xl border"
+                      style={{
+                        background: message.type === 'user'
+                          ? `linear-gradient(135deg, ${currentTheme.colors.primary}CC, ${currentTheme.colors.secondary}CC)`
+                          : `linear-gradient(135deg, ${currentTheme.colors.surface}CC, ${currentTheme.colors.background}CC)`,
+                        borderColor: message.type === 'user' 
+                          ? `${currentTheme.colors.primary}40`
+                          : `${currentTheme.colors.border}40`,
+                        boxShadow: message.type === 'user'
+                          ? `0 8px 25px ${currentTheme.colors.primary}30`
+                          : `0 8px 25px ${currentTheme.colors.primary}20`,
+                        color: message.type === 'user' 
+                          ? currentTheme.colors.background 
+                          : currentTheme.colors.text
+                      }}
                       whileHover={{ 
                         scale: 1.02,
                         y: -2,
                         transition: { duration: 0.2 }
                       }}
                     >
-                      <div className={`text-sm leading-relaxed whitespace-pre-line ${
-                        message.type === 'user' ? 'text-white' : 'text-[var(--text-primary)]'
-                      }`}>
+                      <div 
+                        className="text-sm leading-relaxed whitespace-pre-line"
+                        style={{ 
+                          color: message.type === 'user' 
+                            ? currentTheme.colors.background 
+                            : currentTheme.colors.text 
+                        }}
+                      >
                         {typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}
                       </div>
                       {message.metadata && (
@@ -890,16 +913,21 @@ export function FigmaLeadershipCopilot({
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
                 placeholder="Ask Work Buddy anything about your team, projects, or work insights..."
-                className={`w-full py-4 px-5 rounded-2xl resize-none min-h-[52px] max-h-[140px] text-sm font-medium transition-all duration-300 backdrop-blur-xl border-2 shadow-xl ${
-                  theme === 'dark' 
-                    ? 'bg-gradient-to-br from-slate-800/90 to-slate-700/90 border-slate-600/60 text-white placeholder:text-slate-300 focus:border-blue-400/80 focus:outline-none focus:ring-4 focus:ring-blue-400/20 shadow-slate-900/50' 
-                    : 'bg-gradient-to-br from-white/95 to-gray-50/95 border-gray-200/80 text-gray-900 placeholder:text-gray-500 focus:border-blue-500/80 focus:outline-none focus:ring-4 focus:ring-blue-500/20 shadow-gray-200/50'
-                }`}
+                className="w-full py-4 px-5 rounded-2xl resize-none min-h-[52px] max-h-[140px] text-sm font-medium transition-all duration-300 backdrop-blur-xl border-2 shadow-xl focus:outline-none focus:ring-4"
+                style={{
+                  background: `linear-gradient(135deg, ${currentTheme.colors.surface}CC, ${currentTheme.colors.background}CC)`,
+                  borderColor: `${currentTheme.colors.border}80`,
+                  color: currentTheme.colors.text,
+                  boxShadow: `0 8px 25px ${currentTheme.colors.primary}20`
+                }}
               disabled={isTyping}
                 rows={1}
               />
               <motion.div
-                className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-indigo-500/5 pointer-events-none"
+                className="absolute inset-0 rounded-2xl pointer-events-none"
+                style={{
+                  background: `linear-gradient(135deg, ${currentTheme.colors.primary}05, ${currentTheme.colors.secondary}05, ${currentTheme.colors.accent}05)`
+                }}
                 animate={{ opacity: [0.3, 0.6, 0.3] }}
                 transition={{ duration: 3, repeat: Infinity }}
               />
@@ -914,15 +942,19 @@ export function FigmaLeadershipCopilot({
             >
               <Button
                 onClick={handleVoiceToggle}
-                className={`h-[52px] w-[52px] rounded-2xl transition-all duration-300 backdrop-blur-xl border-2 shadow-xl ${
-                  isListening
-                    ? theme === 'dark'
-                      ? 'bg-gradient-to-r from-red-500 to-pink-600 border-red-400/60 text-white hover:from-red-600 hover:to-pink-700 shadow-red-500/25'
-                      : 'bg-gradient-to-r from-red-500 to-pink-600 border-red-400/60 text-white hover:from-red-600 hover:to-pink-700 shadow-red-500/25'
-                    : theme === 'dark'
-                      ? 'bg-gradient-to-r from-gray-600 to-gray-700 border-gray-500/60 text-gray-300 hover:from-gray-500 hover:to-gray-600 shadow-gray-500/25'
-                      : 'bg-gradient-to-r from-gray-400 to-gray-500 border-gray-300/60 text-white hover:from-gray-500 hover:to-gray-600 shadow-gray-400/25'
-                }`}
+                className="h-[52px] w-[52px] rounded-2xl transition-all duration-300 backdrop-blur-xl border-2 shadow-xl"
+                style={{
+                  background: isListening
+                    ? `linear-gradient(135deg, ${currentTheme.colors.error}, ${currentTheme.colors.accent})`
+                    : `linear-gradient(135deg, ${currentTheme.colors.border}, ${currentTheme.colors.textSecondary})`,
+                  borderColor: isListening 
+                    ? `${currentTheme.colors.error}60`
+                    : `${currentTheme.colors.border}60`,
+                  color: currentTheme.colors.background,
+                  boxShadow: isListening
+                    ? `0 8px 25px ${currentTheme.colors.error}30`
+                    : `0 8px 25px ${currentTheme.colors.primary}20`
+                }}
               >
                 <motion.div
                   animate={isListening ? { scale: [1, 1.2, 1] } : {}}
@@ -941,15 +973,22 @@ export function FigmaLeadershipCopilot({
             <Button
               onClick={handleSendMessage}
               disabled={!inputValue.trim() || isTyping}
-              className={`h-[52px] px-6 rounded-2xl font-semibold text-sm transition-all duration-300 backdrop-blur-xl border-2 shadow-xl ${
-                !inputValue.trim() || isTyping
-                  ? theme === 'dark'
-                    ? 'bg-gray-700/50 border-gray-600/50 text-gray-500 cursor-not-allowed'
-                    : 'bg-gray-200/50 border-gray-300/50 text-gray-400 cursor-not-allowed'
-                  : theme === 'dark'
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 border-blue-400/60 text-white hover:from-blue-600 hover:to-purple-700 shadow-blue-500/25'
-                    : 'bg-gradient-to-r from-blue-500 to-purple-600 border-blue-400/60 text-white hover:from-blue-600 hover:to-purple-700 shadow-blue-500/25'
-              }`}
+              className="h-[52px] px-6 rounded-2xl font-semibold text-sm transition-all duration-300 backdrop-blur-xl border-2 shadow-xl"
+              style={{
+                background: !inputValue.trim() || isTyping
+                  ? `${currentTheme.colors.border}50`
+                  : `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+                borderColor: !inputValue.trim() || isTyping
+                  ? `${currentTheme.colors.border}50`
+                  : `${currentTheme.colors.primary}60`,
+                color: !inputValue.trim() || isTyping
+                  ? currentTheme.colors.textSecondary
+                  : currentTheme.colors.background,
+                boxShadow: !inputValue.trim() || isTyping
+                  ? `0 8px 25px ${currentTheme.colors.border}20`
+                  : `0 8px 25px ${currentTheme.colors.primary}30`,
+                cursor: !inputValue.trim() || isTyping ? 'not-allowed' : 'pointer'
+              }}
             >
               <motion.div
                 animate={isTyping ? { rotate: 360 } : { rotate: 0 }}

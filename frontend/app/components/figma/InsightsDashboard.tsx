@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '../ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { RefreshCw, TrendingUp, Users, Clock, Target, AlertTriangle, CheckCircle, BarChart3, PieChart, Activity, Zap, Sparkles, ArrowUpRight, Trophy, Crown, Star, Medal, Award, Download, FileText } from 'lucide-react';
 import { exportInsightsAsPDF } from '../../utils/exportUtils';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface Project {
   id: string;
@@ -56,6 +57,7 @@ interface Performer {
 }
 
 export default function InsightsDashboard() {
+  const { currentTheme } = useTheme();
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [jiraMetrics, setJiraMetrics] = useState<JiraMetrics | null>(null);
@@ -341,7 +343,13 @@ export default function InsightsDashboard() {
   }
 
   return (
-    <div id="insights-dashboard" className="h-full overflow-auto bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <div 
+      id="insights-dashboard" 
+      className="h-full overflow-auto transition-all duration-300"
+      style={{ 
+        background: `linear-gradient(135deg, ${currentTheme.colors.background}, ${currentTheme.colors.surface})`
+      }}
+    >
       <div className="p-6 space-y-8">
         {/* Header with Glassmorphism */}
         <motion.div 
@@ -352,7 +360,10 @@ export default function InsightsDashboard() {
         >
           <div className="space-y-2">
             <motion.h1 
-              className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 dark:from-blue-400 dark:via-purple-400 dark:to-indigo-400 bg-clip-text text-transparent"
+              className="text-4xl font-bold bg-clip-text text-transparent"
+              style={{
+                background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary}, ${currentTheme.colors.accent})`
+              }}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
@@ -360,7 +371,8 @@ export default function InsightsDashboard() {
               Analytics Dashboard
             </motion.h1>
             <motion.p 
-              className="text-gray-700 dark:text-gray-300 text-lg"
+              className="text-lg"
+              style={{ color: currentTheme.colors.textSecondary }}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}
@@ -393,7 +405,11 @@ export default function InsightsDashboard() {
               <Button 
                 onClick={refreshData} 
                 disabled={isRefreshing}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg border-0"
+                className="text-white shadow-lg border-0"
+                style={{
+                  background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+                  boxShadow: `0 4px 14px 0 ${currentTheme.colors.primary}40`
+                }}
                 size="sm"
               >
                 <motion.div
@@ -409,7 +425,11 @@ export default function InsightsDashboard() {
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button 
                 onClick={handleExportPDF}
-                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg border-0"
+                className="text-white shadow-lg border-0"
+                style={{
+                  background: `linear-gradient(135deg, ${currentTheme.colors.success}, ${currentTheme.colors.accent})`,
+                  boxShadow: `0 4px 14px 0 ${currentTheme.colors.success}40`
+                }}
                 size="sm"
               >
                 <FileText className="h-4 w-4 mr-2" />
@@ -461,26 +481,45 @@ export default function InsightsDashboard() {
             whileHover={{ scale: 1.02, y: -5 }}
             transition={{ type: "spring", stiffness: 300 }}
           >
-            <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-white/20 dark:border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300">
+            <Card 
+              className="backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300"
+              style={{
+                backgroundColor: `${currentTheme.colors.surface}CC`,
+                borderColor: `${currentTheme.colors.border}80`,
+                boxShadow: `0 10px 25px ${currentTheme.colors.primary}20`
+              }}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-gray-700 dark:text-gray-300">Total Issues</CardTitle>
+                <CardTitle 
+                  className="text-sm font-semibold"
+                  style={{ color: currentTheme.colors.textSecondary }}
+                >
+                  Total Issues
+                </CardTitle>
                 <motion.div
                   animate={{ rotate: [0, 10, -10, 0] }}
                   transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
                 >
-                  <BarChart3 className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+                  <BarChart3 
+                    className="h-5 w-5" 
+                    style={{ color: currentTheme.colors.primary }}
+                  />
                 </motion.div>
               </CardHeader>
               <CardContent>
                 <motion.div 
-                  className="text-3xl font-bold text-gray-900 dark:text-white"
+                  className="text-3xl font-bold"
+                  style={{ color: currentTheme.colors.text }}
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: 1.2, type: "spring", stiffness: 200 }}
                 >
                   {jiraMetrics?.totalIssues || 0}
                 </motion.div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 flex items-center">
+                <p 
+                  className="text-xs mt-2 flex items-center"
+                  style={{ color: currentTheme.colors.textSecondary }}
+                >
                   <Zap className="h-3 w-3 mr-1" />
                   Across all projects
                 </p>
@@ -525,26 +564,45 @@ export default function InsightsDashboard() {
             whileHover={{ scale: 1.02, y: -5 }}
             transition={{ type: "spring", stiffness: 300 }}
           >
-            <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-white/20 dark:border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300">
+            <Card 
+              className="backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300"
+              style={{
+                backgroundColor: `${currentTheme.colors.surface}CC`,
+                borderColor: `${currentTheme.colors.border}80`,
+                boxShadow: `0 10px 25px ${currentTheme.colors.secondary}20`
+              }}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-gray-700 dark:text-gray-300">Story Points</CardTitle>
+                <CardTitle 
+                  className="text-sm font-semibold"
+                  style={{ color: currentTheme.colors.textSecondary }}
+                >
+                  Story Points
+                </CardTitle>
                 <motion.div
                   animate={{ rotate: [0, 15, -15, 0] }}
                   transition={{ duration: 3, repeat: Infinity, repeatDelay: 1 }}
                 >
-                  <Target className="h-5 w-5 text-purple-500 dark:text-purple-400" />
+                  <Target 
+                    className="h-5 w-5" 
+                    style={{ color: currentTheme.colors.secondary }}
+                  />
                 </motion.div>
               </CardHeader>
               <CardContent>
                 <motion.div 
-                  className="text-3xl font-bold text-gray-900 dark:text-white"
+                  className="text-3xl font-bold"
+                  style={{ color: currentTheme.colors.text }}
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: 1.6, type: "spring", stiffness: 200 }}
                 >
                   {jiraMetrics?.storyPoints || 0}
                 </motion.div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 flex items-center">
+                <p 
+                  className="text-xs mt-2 flex items-center"
+                  style={{ color: currentTheme.colors.textSecondary }}
+                >
                   <TrendingUp className="h-3 w-3 mr-1" />
                   Sprint velocity: {jiraMetrics?.sprintVelocity || 0}
                 </p>
@@ -557,26 +615,45 @@ export default function InsightsDashboard() {
             whileHover={{ scale: 1.02, y: -5 }}
             transition={{ type: "spring", stiffness: 300 }}
           >
-            <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-white/20 dark:border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300">
+            <Card 
+              className="backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300"
+              style={{
+                backgroundColor: `${currentTheme.colors.surface}CC`,
+                borderColor: `${currentTheme.colors.border}80`,
+                boxShadow: `0 10px 25px ${currentTheme.colors.warning}20`
+              }}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-gray-700 dark:text-gray-300">Avg Resolution</CardTitle>
+                <CardTitle 
+                  className="text-sm font-semibold"
+                  style={{ color: currentTheme.colors.textSecondary }}
+                >
+                  Avg Resolution
+                </CardTitle>
                 <motion.div
                   animate={{ rotate: 360 }}
                   transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
                 >
-                  <Clock className="h-5 w-5 text-orange-500 dark:text-orange-400" />
+                  <Clock 
+                    className="h-5 w-5" 
+                    style={{ color: currentTheme.colors.warning }}
+                  />
                 </motion.div>
               </CardHeader>
               <CardContent>
                 <motion.div 
-                  className="text-3xl font-bold text-gray-900 dark:text-white"
+                  className="text-3xl font-bold"
+                  style={{ color: currentTheme.colors.text }}
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: 1.8, type: "spring", stiffness: 200 }}
                 >
                   {jiraMetrics?.avgResolutionTime || 0}d
                 </motion.div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 flex items-center">
+                <p 
+                  className="text-xs mt-2 flex items-center"
+                  style={{ color: currentTheme.colors.textSecondary }}
+                >
                   <Activity className="h-3 w-3 mr-1" />
                   Days to resolve
                 </p>
@@ -596,58 +673,139 @@ export default function InsightsDashboard() {
             whileHover={{ scale: 1.01 }}
             transition={{ type: "spring", stiffness: 300 }}
           >
-            <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-white/20 dark:border-slate-700/50 shadow-xl">
+            <Card 
+              className="backdrop-blur-xl shadow-xl"
+              style={{
+                backgroundColor: `${currentTheme.colors.surface}CC`,
+                borderColor: `${currentTheme.colors.border}80`,
+                boxShadow: `0 10px 25px ${currentTheme.colors.primary}20`
+              }}
+            >
               <CardHeader>
-                <CardTitle className="flex items-center text-gray-800 dark:text-gray-200">
-                  <PieChart className="h-5 w-5 mr-2 text-blue-500 dark:text-blue-400" />
+                <CardTitle 
+                  className="flex items-center"
+                  style={{ color: currentTheme.colors.text }}
+                >
+                  <PieChart 
+                    className="h-5 w-5 mr-2" 
+                    style={{ color: currentTheme.colors.primary }}
+                  />
                   Issue Types
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <motion.div 
-                    className="flex items-center justify-between p-3 rounded-lg bg-blue-50/50 dark:bg-blue-900/20"
+                    className="flex items-center justify-between p-3 rounded-lg"
+                    style={{ backgroundColor: `${currentTheme.colors.primary}10` }}
                     whileHover={{ x: 5 }}
                     transition={{ type: "spring", stiffness: 300 }}
                   >
                     <div className="flex items-center">
-                      <div className="w-4 h-4 bg-blue-500 rounded-full mr-3"></div>
-                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200">Tasks</span>
+                      <div 
+                        className="w-4 h-4 rounded-full mr-3"
+                        style={{ backgroundColor: currentTheme.colors.primary }}
+                      ></div>
+                      <span 
+                        className="text-sm font-medium"
+                        style={{ color: currentTheme.colors.text }}
+                      >
+                        Tasks
+                      </span>
                     </div>
-                    <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200">{jiraMetrics?.tasks || 0}</Badge>
+                    <Badge 
+                      variant="secondary" 
+                      style={{
+                        backgroundColor: `${currentTheme.colors.primary}20`,
+                        color: currentTheme.colors.primary
+                      }}
+                    >
+                      {jiraMetrics?.tasks || 0}
+                    </Badge>
                   </motion.div>
                   <motion.div 
-                    className="flex items-center justify-between p-3 rounded-lg bg-green-50/50 dark:bg-green-900/20"
+                    className="flex items-center justify-between p-3 rounded-lg"
+                    style={{ backgroundColor: `${currentTheme.colors.success}10` }}
                     whileHover={{ x: 5 }}
                     transition={{ type: "spring", stiffness: 300 }}
                   >
                     <div className="flex items-center">
-                      <div className="w-4 h-4 bg-green-500 rounded-full mr-3"></div>
-                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200">Stories</span>
+                      <div 
+                        className="w-4 h-4 rounded-full mr-3"
+                        style={{ backgroundColor: currentTheme.colors.success }}
+                      ></div>
+                      <span 
+                        className="text-sm font-medium"
+                        style={{ color: currentTheme.colors.text }}
+                      >
+                        Stories
+                      </span>
                     </div>
-                    <Badge variant="secondary" className="bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200">{jiraMetrics?.stories || 0}</Badge>
+                    <Badge 
+                      variant="secondary" 
+                      style={{
+                        backgroundColor: `${currentTheme.colors.success}20`,
+                        color: currentTheme.colors.success
+                      }}
+                    >
+                      {jiraMetrics?.stories || 0}
+                    </Badge>
                   </motion.div>
                   <motion.div 
-                    className="flex items-center justify-between p-3 rounded-lg bg-red-50/50 dark:bg-red-900/20"
+                    className="flex items-center justify-between p-3 rounded-lg"
+                    style={{ backgroundColor: `${currentTheme.colors.error}10` }}
                     whileHover={{ x: 5 }}
                     transition={{ type: "spring", stiffness: 300 }}
                   >
                     <div className="flex items-center">
-                      <div className="w-4 h-4 bg-red-500 rounded-full mr-3"></div>
-                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200">Bugs</span>
+                      <div 
+                        className="w-4 h-4 rounded-full mr-3"
+                        style={{ backgroundColor: currentTheme.colors.error }}
+                      ></div>
+                      <span 
+                        className="text-sm font-medium"
+                        style={{ color: currentTheme.colors.text }}
+                      >
+                        Bugs
+                      </span>
                     </div>
-                    <Badge variant="secondary" className="bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-200">{jiraMetrics?.bugs || 0}</Badge>
+                    <Badge 
+                      variant="secondary" 
+                      style={{
+                        backgroundColor: `${currentTheme.colors.error}20`,
+                        color: currentTheme.colors.error
+                      }}
+                    >
+                      {jiraMetrics?.bugs || 0}
+                    </Badge>
                   </motion.div>
                   <motion.div 
-                    className="flex items-center justify-between p-3 rounded-lg bg-purple-50/50 dark:bg-purple-900/20"
+                    className="flex items-center justify-between p-3 rounded-lg"
+                    style={{ backgroundColor: `${currentTheme.colors.secondary}10` }}
                     whileHover={{ x: 5 }}
                     transition={{ type: "spring", stiffness: 300 }}
                   >
                     <div className="flex items-center">
-                      <div className="w-4 h-4 bg-purple-500 rounded-full mr-3"></div>
-                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200">Epics</span>
+                      <div 
+                        className="w-4 h-4 rounded-full mr-3"
+                        style={{ backgroundColor: currentTheme.colors.secondary }}
+                      ></div>
+                      <span 
+                        className="text-sm font-medium"
+                        style={{ color: currentTheme.colors.text }}
+                      >
+                        Epics
+                      </span>
                     </div>
-                    <Badge variant="secondary" className="bg-purple-100 dark:bg-purple-800 text-purple-800 dark:text-purple-200">{jiraMetrics?.epics || 0}</Badge>
+                    <Badge 
+                      variant="secondary" 
+                      style={{
+                        backgroundColor: `${currentTheme.colors.secondary}20`,
+                        color: currentTheme.colors.secondary
+                      }}
+                    >
+                      {jiraMetrics?.epics || 0}
+                    </Badge>
                   </motion.div>
                 </div>
               </CardContent>
