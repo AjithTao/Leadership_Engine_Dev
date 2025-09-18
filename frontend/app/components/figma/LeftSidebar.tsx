@@ -573,7 +573,7 @@ export function FigmaLeftSidebar({
                   <div className="text-left flex-1 min-w-0">
                     <h4 className={`font-medium text-sm truncate ${
                       theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-[var(--text-primary)]'
-                    }`}>Copilot</h4>
+                    }`}>Work Buddy</h4>
                     <p className={`text-xs truncate ${
                       theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-[var(--text-muted)]'
                     }`}>AI Assistant</p>
