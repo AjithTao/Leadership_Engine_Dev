@@ -10,6 +10,7 @@ interface ThemeContextType {
   setTheme: (themeName: string) => void;
   toggleDarkMode: () => void;
   availableThemes: Theme[];
+  isThemeLoaded: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -21,6 +22,7 @@ interface ThemeProviderProps {
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [themeName, setThemeName] = useState<string>('oceanBreeze');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [isThemeLoaded, setIsThemeLoaded] = useState<boolean>(false);
 
   // Load theme preferences from localStorage
   useEffect(() => {
@@ -33,6 +35,9 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     if (savedDarkMode !== null) {
       setIsDarkMode(JSON.parse(savedDarkMode));
     }
+    
+    // Mark theme as loaded
+    setIsThemeLoaded(true);
   }, []);
 
   // Get current theme
@@ -81,6 +86,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     setTheme,
     toggleDarkMode,
     availableThemes,
+    isThemeLoaded,
   };
 
   return (

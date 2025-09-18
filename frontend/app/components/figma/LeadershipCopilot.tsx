@@ -78,7 +78,7 @@ export function FigmaLeadershipCopilot({
   quickActionPrompt, 
   onPromptSent 
 }: FigmaLeadershipCopilotProps) {
-  const { currentTheme } = useTheme();
+  const { currentTheme, isThemeLoaded } = useTheme();
   const [userData, setUserData] = useState({
     name: "Alex",
     email: "alex.chen@company.com",
@@ -526,7 +526,7 @@ export function FigmaLeadershipCopilot({
   return (
     <div 
       className="h-full flex flex-col transition-all duration-500 ease-in-out"
-      style={{ backgroundColor: currentTheme.colors.background }}
+      style={{ backgroundColor: currentTheme?.colors?.background || '#ffffff' }}
     >
       {/* Compact Header */}
       <motion.div
@@ -563,13 +563,16 @@ export function FigmaLeadershipCopilot({
                 animate={{ opacity: [0.3, 0.7, 0.3] }}
                 transition={{ duration: 2, repeat: Infinity }}
               />
-              <Command className="w-4 h-4 text-white relative z-10" />
+              <Command 
+                className="w-4 h-4 relative z-10" 
+                style={{ color: currentTheme.colors.background }}
+              />
             </motion.div>
             <div className="space-y-1">
                <motion.h1 
-                 className="text-xl font-bold bg-clip-text text-transparent"
+                 className="text-xl font-bold"
                  style={{
-                   background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary}, ${currentTheme.colors.accent})`
+                   color: currentTheme?.colors?.primary || '#3b82f6'
                  }}
                  initial={{ opacity: 0, x: -20 }}
                  animate={{ opacity: 1, x: 0 }}
@@ -726,7 +729,7 @@ export function FigmaLeadershipCopilot({
                         }}
                       >
                         {typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}
-                      </div>
+                    </div>
                       {message.metadata && (
                         <div className="mt-3 space-y-2">
                           <div className="flex items-center justify-between">

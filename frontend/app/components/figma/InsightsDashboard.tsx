@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { RefreshCw, TrendingUp, Users, Clock, Target, AlertTriangle, CheckCircle, BarChart3, PieChart, Activity, Zap, Sparkles, ArrowUpRight, Trophy, Crown, Star, Medal, Award, Download, FileText } from 'lucide-react';
 import { exportInsightsAsPDF } from '../../utils/exportUtils';
 import { useTheme } from '../../contexts/ThemeContext';
+import { getApiUrl } from '../../../lib/api-config';
 
 interface Project {
   id: string;
@@ -57,7 +58,7 @@ interface Performer {
 }
 
 export default function InsightsDashboard() {
-  const { currentTheme } = useTheme();
+  const { currentTheme, isThemeLoaded } = useTheme();
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [jiraMetrics, setJiraMetrics] = useState<JiraMetrics | null>(null);
@@ -120,41 +121,48 @@ export default function InsightsDashboard() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jira/projects`);
+      console.log('📋 Fetching projects from:', getApiUrl('/api/jira/projects'));
+      const response = await fetch(getApiUrl('/api/jira/projects'));
+      console.log('📋 Projects response status:', response.status);
       if (!response.ok) throw new Error('Failed to fetch projects');
       const data = await response.json();
+      console.log('📋 Projects data:', data);
       const projectsList = data.projects?.detailed || [];
       setProjects(projectsList);
       return projectsList;
     } catch (error) {
-      console.error('Error fetching projects:', error);
+      console.error('❌ Error fetching projects:', error);
       throw error;
     }
   };
 
   const fetchMetrics = async (projectKey: string | null) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/jira/metrics`, {
+      console.log('📊 Fetching metrics for project:', projectKey);
+      console.log('📊 Metrics URL:', getApiUrl('/api/jira/metrics'));
+      const response = await fetch(getApiUrl('/api/jira/metrics'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectKey })
       });
+      console.log('📊 Metrics response status:', response.status);
       if (!response.ok) throw new Error('Failed to fetch metrics');
       const data = await response.json();
+      console.log('📊 Metrics data:', data);
       if (data.success) {
         setJiraMetrics(data.metrics);
         return data.metrics;
       }
       throw new Error(data.message || 'Failed to fetch metrics');
     } catch (error) {
-      console.error('Error fetching metrics:', error);
+      console.error('❌ Error fetching metrics:', error);
       throw error;
     }
   };
 
   const fetchActivities = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/activities/recent`);
+      const response = await fetch(getApiUrl('/api/activities/recent'));
       if (!response.ok) throw new Error('Failed to fetch activities');
       const data = await response.json();
       setRecentActivities(data.activities || []);
@@ -169,6 +177,9 @@ export default function InsightsDashboard() {
     setLoading(true);
     setError(null);
     
+    console.log('🔄 Starting data fetch...');
+    console.log('📡 API URL:', getApiUrl('/api/jira/projects'));
+    
     try {
       const [projectsData, metricsData, activitiesData] = await Promise.all([
         fetchProjects(),
@@ -176,14 +187,20 @@ export default function InsightsDashboard() {
         fetchActivities()
       ]);
       
+      console.log('✅ Data fetched successfully:', {
+        projects: projectsData?.length || 0,
+        metrics: metricsData ? 'loaded' : 'failed',
+        activities: activitiesData?.length || 0
+      });
+      
       // Fetch best performers after metrics are loaded
       await fetchBestPerformers();
       
       cacheData(projectsData, metricsData, activitiesData);
       setLastRefresh(new Date());
     } catch (error) {
+      console.error('❌ Error fetching data:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch data');
-      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
@@ -347,7 +364,7 @@ export default function InsightsDashboard() {
       id="insights-dashboard" 
       className="h-full overflow-auto transition-all duration-300"
       style={{ 
-        background: `linear-gradient(135deg, ${currentTheme.colors.background}, ${currentTheme.colors.surface})`
+        background: `linear-gradient(135deg, ${currentTheme?.colors?.background || '#ffffff'}, ${currentTheme?.colors?.surface || '#f8fafc'})`
       }}
     >
       <div className="p-6 space-y-8">
@@ -360,9 +377,9 @@ export default function InsightsDashboard() {
         >
           <div className="space-y-2">
             <motion.h1 
-              className="text-4xl font-bold bg-clip-text text-transparent"
+              className="text-4xl font-bold"
               style={{
-                background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary}, ${currentTheme.colors.accent})`
+                color: currentTheme?.colors?.primary || '#3b82f6'
               }}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -372,7 +389,7 @@ export default function InsightsDashboard() {
             </motion.h1>
             <motion.p 
               className="text-lg"
-              style={{ color: currentTheme.colors.textSecondary }}
+              style={{ color: currentTheme?.colors?.textSecondary || '#64748b' }}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}

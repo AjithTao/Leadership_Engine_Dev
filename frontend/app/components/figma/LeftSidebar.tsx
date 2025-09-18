@@ -527,9 +527,9 @@ export function FigmaLeftSidebar({
                   style={{ color: currentTheme.colors.text }}
                 >Welcome back,</h2>
                 <h3 
-                  className="text-sm font-semibold bg-clip-text text-transparent"
+                  className="text-sm font-semibold"
                   style={{
-                    background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`
+                    color: currentTheme.colors.primary
                   }}
                 >
                   {userData.name}! 👋
@@ -571,19 +571,41 @@ export function FigmaLeftSidebar({
                 variant={activeView === 'copilot' ? 'default' : 'ghost'}
                 className={`w-full justify-start h-9 px-2 rounded-lg transition-all duration-300 relative overflow-hidden group nav-item ${
                   activeView === 'copilot' 
-                    ? 'active text-white shadow-lg' 
-                    : 'text-[var(--text-primary)] hover:shadow-lg hover:shadow-blue-500/20 border border-transparent'
+                    ? 'active shadow-lg' 
+                    : 'hover:shadow-lg hover:shadow-blue-500/20 border border-transparent'
                 }`}
+                style={{
+                  color: activeView === 'copilot' 
+                    ? currentTheme.colors.background 
+                    : currentTheme.colors.text,
+                  backgroundColor: activeView === 'copilot' 
+                    ? `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`
+                    : 'transparent'
+                }}
                 onClick={() => setActiveView('copilot')}
               >
                 <div className="flex items-center space-x-2 w-full relative z-10">
                   <div className="text-left flex-1 min-w-0">
-                    <h4 className={`font-medium text-sm truncate ${
-                      theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-[var(--text-primary)]'
-                    }`}>Work Buddy</h4>
-                    <p className={`text-xs truncate ${
-                      theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-[var(--text-muted)]'
-                    }`}>AI Assistant</p>
+                    <h4 
+                      className="font-medium text-sm truncate"
+                      style={{ 
+                        color: activeView === 'copilot' 
+                          ? currentTheme.colors.background 
+                          : currentTheme.colors.text 
+                      }}
+                    >
+                      Work Buddy
+                    </h4>
+                    <p 
+                      className="text-xs truncate"
+                      style={{ 
+                        color: activeView === 'copilot' 
+                          ? `${currentTheme.colors.background}CC` 
+                          : currentTheme.colors.textSecondary 
+                      }}
+                    >
+                      AI Assistant
+                    </p>
                   </div>
                 </div>
               </Button>
@@ -603,19 +625,41 @@ export function FigmaLeftSidebar({
                 variant={activeView === 'insights' ? 'default' : 'ghost'}
                 className={`w-full justify-start h-9 px-2 rounded-lg transition-all duration-300 relative overflow-hidden group nav-item ${
                   activeView === 'insights' 
-                    ? 'active text-white shadow-lg' 
-                    : 'text-[var(--text-primary)] hover:shadow-lg hover:shadow-emerald-500/20 border border-transparent'
+                    ? 'active shadow-lg' 
+                    : 'hover:shadow-lg hover:shadow-emerald-500/20 border border-transparent'
                 }`}
+                style={{
+                  color: activeView === 'insights' 
+                    ? currentTheme.colors.background 
+                    : currentTheme.colors.text,
+                  backgroundColor: activeView === 'insights' 
+                    ? `linear-gradient(135deg, ${currentTheme.colors.success}, ${currentTheme.colors.accent})`
+                    : 'transparent'
+                }}
                 onClick={() => setActiveView('insights')}
               >
                 <div className="flex items-center space-x-2 w-full relative z-10">
                   <div className="text-left flex-1 min-w-0">
-                    <h4 className={`font-medium text-sm truncate ${
-                      theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-[var(--text-primary)]'
-                    }`}>Insights</h4>
-                    <p className={`text-xs truncate ${
-                      theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-[var(--text-muted)]'
-                    }`}>Analytics</p>
+                    <h4 
+                      className="font-medium text-sm truncate"
+                      style={{ 
+                        color: activeView === 'insights' 
+                          ? currentTheme.colors.background 
+                          : currentTheme.colors.text 
+                      }}
+                    >
+                      Insights
+                    </h4>
+                    <p 
+                      className="text-xs truncate"
+                      style={{ 
+                        color: activeView === 'insights' 
+                          ? `${currentTheme.colors.background}CC` 
+                          : currentTheme.colors.textSecondary 
+                      }}
+                    >
+                      Analytics
+                    </p>
                   </div>
                 </div>
               </Button>
@@ -636,19 +680,41 @@ export function FigmaLeftSidebar({
                 disabled={true}
                 className={`w-full justify-start h-9 px-2 rounded-lg transition-all duration-300 relative overflow-hidden group nav-item ${
                   activeView === 'leadership' 
-                    ? 'active text-white shadow-lg' 
-                    : 'text-[var(--text-muted)] opacity-60 cursor-not-allowed border border-transparent'
+                    ? 'active shadow-lg' 
+                    : 'opacity-60 cursor-not-allowed border border-transparent'
                 }`}
+                style={{
+                  color: activeView === 'leadership' 
+                    ? currentTheme.colors.background 
+                    : currentTheme.colors.textSecondary,
+                  backgroundColor: activeView === 'leadership' 
+                    ? `linear-gradient(135deg, ${currentTheme.colors.secondary}, ${currentTheme.colors.accent})`
+                    : 'transparent'
+                }}
                 onClick={() => setActiveView('leadership')}
               >
                 <div className="flex items-center space-x-2 w-full relative z-10">
                   <div className="text-left flex-1 min-w-0">
-                    <h4 className={`font-medium text-sm truncate ${
-                      theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-[var(--text-muted)]'
-                    }`}>Access</h4>
-                    <p className={`text-xs truncate ${
-                      theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-[var(--text-muted)]'
-                    }`}>Premium</p>
+                    <h4 
+                      className="font-medium text-sm truncate"
+                      style={{ 
+                        color: activeView === 'leadership' 
+                          ? currentTheme.colors.background 
+                          : currentTheme.colors.textSecondary 
+                      }}
+                    >
+                      Access
+                    </h4>
+                    <p 
+                      className="text-xs truncate"
+                      style={{ 
+                        color: activeView === 'leadership' 
+                          ? `${currentTheme.colors.background}CC` 
+                          : currentTheme.colors.textSecondary 
+                      }}
+                    >
+                      Premium
+                    </p>
                   </div>
                   <Badge variant="outline" className="text-xs px-1.5 py-0 bg-[var(--accent-secondary)]/10 text-[var(--accent-secondary)] border-[var(--accent-secondary)]/30">
                     Soon
@@ -755,7 +821,13 @@ export function FigmaLeftSidebar({
                               size="sm"
                               onClick={() => handleConnect('atlassian')}
                               disabled={connecting === 'atlassian'}
-                              className="h-6 px-3 text-xs font-medium rounded-lg backdrop-blur-xl border border-white/20 bg-gradient-to-r from-[var(--accent-primary)]/20 to-[var(--accent-secondary)]/20 hover:from-[var(--accent-primary)]/40 hover:to-[var(--accent-secondary)]/40 hover:shadow-xl hover:shadow-[var(--accent-primary)]/40 text-white shadow-lg shadow-[var(--accent-primary)]/25 flex-shrink-0 relative overflow-hidden transition-all duration-300"
+                              className="h-6 px-3 text-xs font-medium rounded-lg backdrop-blur-xl border flex-shrink-0 relative overflow-hidden transition-all duration-300"
+                              style={{
+                                borderColor: `${currentTheme.colors.primary}20`,
+                                background: `linear-gradient(135deg, ${currentTheme.colors.primary}20, ${currentTheme.colors.secondary}20)`,
+                                color: currentTheme.colors.primary,
+                                boxShadow: `0 4px 14px ${currentTheme.colors.primary}25`
+                              }}
                             >
                               {connecting === 'atlassian' ? (
                                 <RefreshCw className="w-3 h-3 animate-spin mr-1" />
@@ -881,7 +953,12 @@ export function FigmaLeftSidebar({
             <Button
                     size="sm"
               onClick={() => setShowSettings(true)}
-                    className="w-full h-8 bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] hover:from-[var(--accent-primary)]/90 hover:to-[var(--accent-secondary)]/90 hover:shadow-xl hover:shadow-[var(--accent-primary)]/40 text-white font-medium rounded-lg shadow-lg text-center overflow-hidden transition-all duration-300"
+                    className="w-full h-8 font-medium rounded-lg text-center overflow-hidden transition-all duration-300"
+                    style={{
+                      background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+                      color: currentTheme.colors.background,
+                      boxShadow: `0 4px 14px ${currentTheme.colors.primary}40`
+                    }}
                   >
                   <Plug className="w-3 h-3 mr-1.5 flex-shrink-0" />
                   <span className="text-xs truncate min-w-0">Connect</span>
@@ -994,18 +1071,28 @@ export function FigmaLeftSidebar({
                       onQuickAction(action.prompt)
                     }}
                   >
-                    <div className={`w-5 h-5 rounded-md bg-gradient-to-r ${action.color} flex items-center justify-center mr-2 flex-shrink-0`}>
-                      <action.icon className="w-3 h-3 text-white" />
+                    <div 
+                      className="w-5 h-5 rounded-md flex items-center justify-center mr-2 flex-shrink-0"
+                      style={{
+                        background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`
+                      }}
+                    >
+                      <action.icon 
+                        className="w-3 h-3" 
+                        style={{ color: currentTheme.colors.background }}
+                      />
                     </div>
                     <div className="flex-1 min-w-0 text-left">
-                      <div className={`text-xs font-medium truncate ${
-                        theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-[var(--text-primary)]'
-                      }`}>
+                      <div 
+                        className="text-xs font-medium truncate"
+                        style={{ color: currentTheme.colors.text }}
+                      >
                         {action.label}
                       </div>
-                      <div className={`text-xs truncate ${
-                        theme === 'dark' ? 'text-[var(--text-muted)]' : 'text-[var(--text-muted)]'
-                      }`}>
+                      <div 
+                        className="text-xs truncate"
+                        style={{ color: currentTheme.colors.textSecondary }}
+                      >
                         {action.subtext}
                       </div>
                     </div>
@@ -1059,18 +1146,28 @@ export function FigmaLeftSidebar({
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                   transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
-                  className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center"
+                  className="w-8 h-8 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: `${currentTheme.colors.success}20` }}
                   >
                     <div>
-                      <CheckCircle className="w-5 h-5 text-white" />
+                      <CheckCircle 
+                        className="w-5 h-5" 
+                        style={{ color: currentTheme.colors.success }}
+                      />
                     </div>
                 </motion.div>
                 <div>
-                  <h3 className="text-white font-semibold text-sm">
+                  <h3 
+                    className="font-semibold text-sm"
+                    style={{ color: currentTheme.colors.text }}
+                  >
                     {showConnectedPopup === 'atlassian' ? 'Atlassian' : 
                      showConnectedPopup === 'github' ? 'GitHub' : 'Slack'} Connected!
                   </h3>
-                  <p className="text-white/80 text-xs">
+                  <p 
+                    className="text-xs"
+                    style={{ color: currentTheme.colors.textSecondary }}
+                  >
                     Integration is now active
                   </p>
                 </div>
