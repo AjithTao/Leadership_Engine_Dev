@@ -935,7 +935,7 @@ export function FigmaLeftSidebar({
           </motion.div>
 
           {/* Quick Actions Section */}
-            <motion.div
+                <motion.div
             custom={4}
             variants={itemVariants}
             initial="initial"
@@ -950,7 +950,7 @@ export function FigmaLeftSidebar({
 
             <div className="space-y-1.5">
               {quickActions.map((action, index) => (
-                <motion.div
+                  <motion.div
                   key={action.label}
                   custom={index}
                   variants={itemVariants}
@@ -992,7 +992,7 @@ export function FigmaLeftSidebar({
                       </div>
                     </div>
                   </Button>
-                </motion.div>
+                  </motion.div>
               ))}
             </div>
                   </motion.div>
