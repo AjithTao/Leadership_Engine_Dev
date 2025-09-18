@@ -4,6 +4,10 @@ A comprehensive AI-powered leadership management tool that integrates with Jira 
 
 ## 🚀 Quick Start
 
+### For New Users
+**First time setup?** See our comprehensive [NEW_USER_GUIDE.md](NEW_USER_GUIDE.md) for step-by-step instructions.
+
+### Quick Start (After Setup)
 ### Windows
 ```bash
 start.bat
