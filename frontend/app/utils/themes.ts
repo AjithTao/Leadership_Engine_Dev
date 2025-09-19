@@ -1,4 +1,4 @@
-// Theme system with multiple beautiful themes
+// Theme system with 6 beautiful professional themes
 export interface Theme {
   name: string;
   displayName: string;
@@ -31,62 +31,126 @@ export interface Theme {
 }
 
 export const themes: Record<string, Theme> = {
-  // Theme 1: Ocean Breeze
-  oceanBreeze: {
-    name: 'oceanBreeze',
-    displayName: 'Ocean Breeze',
-    description: 'Calm and refreshing blue tones',
+  // Theme 1: Current UI (Orange/Black/White) - Default
+  currentUI: {
+    name: 'currentUI',
+    displayName: 'Current UI',
+    description: 'The original orange, black, and white design',
     colors: {
-      primary: '#0ea5e9', // sky-500
-      secondary: '#06b6d4', // cyan-500
-      accent: '#8b5cf6', // violet-500
-      background: '#f0f9ff', // sky-50
-      surface: '#ffffff',
-      text: '#0f172a', // slate-900
-      textSecondary: '#64748b', // slate-500
-      border: '#e2e8f0', // slate-200
-      success: '#10b981', // emerald-500
-      warning: '#f59e0b', // amber-500
-      error: '#ef4444', // red-500
-      info: '#3b82f6', // blue-500
+      primary: '#FF4500', // Orange Red
+      secondary: '#E03E00', // Darker Orange
+      accent: '#FF6B35', // Lighter Orange
+      background: '#FFFFFF', // Pure White
+      surface: '#F8F9FA', // Light Gray
+      text: '#000000', // Pure Black
+      textSecondary: '#6B7280', // Gray
+      border: '#E5E7EB', // Light Gray Border
+      success: '#10B981', // Green
+      warning: '#F59E0B', // Amber
+      error: '#EF4444', // Red
+      info: '#3B82F6', // Blue
     },
     gradients: {
-      primary: 'from-sky-500 to-cyan-500',
-      secondary: 'from-blue-500 to-violet-500',
-      background: 'from-sky-50 to-cyan-50',
-      surface: 'from-white to-sky-50',
+      primary: 'from-[#FF4500] to-[#E03E00]',
+      secondary: 'from-[#FF6B35] to-[#FF4500]',
+      background: 'from-white to-gray-50',
+      surface: 'from-white to-gray-100',
     },
     shadows: {
-      small: 'shadow-sky-200/50',
-      medium: 'shadow-sky-300/50',
-      large: 'shadow-sky-400/50',
+      small: 'shadow-gray-200/50',
+      medium: 'shadow-gray-300/50',
+      large: 'shadow-gray-400/50',
     },
   },
 
-  // Theme 2: Forest Green
-  forestGreen: {
-    name: 'forestGreen',
-    displayName: 'Forest Green',
-    description: 'Natural and earthy green tones',
+  // Theme 2: Warm Professional
+  warmProfessional: {
+    name: 'warmProfessional',
+    displayName: 'Warm Professional',
+    description: 'Deep navy blue with soft orange accents',
     colors: {
-      primary: '#059669', // emerald-600
-      secondary: '#16a34a', // green-600
-      accent: '#84cc16', // lime-500
-      background: '#f0fdf4', // green-50
-      surface: '#ffffff',
-      text: '#14532d', // green-900
-      textSecondary: '#65a30d', // lime-600
-      border: '#bbf7d0', // green-200
-      success: '#22c55e', // green-500
-      warning: '#eab308', // yellow-500
-      error: '#dc2626', // red-600
-      info: '#0ea5e9', // sky-500
+      primary: '#1E3A8A', // Deep Navy Blue
+      secondary: '#F97316', // Soft Orange
+      accent: '#6B7280', // Warm Gray
+      background: '#FAFAFA', // Off-white
+      surface: '#F8FAFC', // Light Blue-tinted White
+      text: '#1F2937', // Dark Gray (instead of black)
+      textSecondary: '#4B5563', // Medium Gray
+      border: '#E5E7EB', // Light Gray Border
+      success: '#059669', // Emerald
+      warning: '#D97706', // Amber
+      error: '#DC2626', // Red
+      info: '#2563EB', // Blue
     },
     gradients: {
-      primary: 'from-emerald-500 to-green-500',
-      secondary: 'from-green-500 to-lime-500',
-      background: 'from-green-50 to-emerald-50',
-      surface: 'from-white to-green-50',
+      primary: 'from-[#1E3A8A] to-[#1E40AF]',
+      secondary: 'from-[#F97316] to-[#EA580C]',
+      background: 'from-[#FAFAFA] to-[#F8FAFC]',
+      surface: 'from-white to-[#F8FAFC]',
+    },
+    shadows: {
+      small: 'shadow-blue-200/50',
+      medium: 'shadow-blue-300/50',
+      large: 'shadow-blue-400/50',
+    },
+  },
+
+  // Theme 3: Modern Corporate
+  modernCorporate: {
+    name: 'modernCorporate',
+    displayName: 'Modern Corporate',
+    description: 'Slate blue with coral accents for professional appeal',
+    colors: {
+      primary: '#475569', // Slate Blue
+      secondary: '#F87171', // Coral
+      accent: '#374151', // Charcoal
+      background: '#F1F5F9', // Light Gray
+      surface: '#E2E8F0', // Slate Gray
+      text: '#1F2937', // Dark Gray
+      textSecondary: '#4B5563', // Medium Gray
+      border: '#CBD5E1', // Slate Border
+      success: '#059669', // Emerald
+      warning: '#D97706', // Amber
+      error: '#DC2626', // Red
+      info: '#2563EB', // Blue
+    },
+    gradients: {
+      primary: 'from-[#475569] to-[#334155]',
+      secondary: 'from-[#F87171] to-[#EF4444]',
+      background: 'from-[#F1F5F9] to-[#E2E8F0]',
+      surface: 'from-[#E2E8F0] to-[#CBD5E1]',
+    },
+    shadows: {
+      small: 'shadow-slate-200/50',
+      medium: 'shadow-slate-300/50',
+      large: 'shadow-slate-400/50',
+    },
+  },
+
+  // Theme 4: Elegant Minimalist
+  elegantMinimalist: {
+    name: 'elegantMinimalist',
+    displayName: 'Elegant Minimalist',
+    description: 'Forest green with amber accents for calming elegance',
+    colors: {
+      primary: '#059669', // Forest Green
+      secondary: '#D97706', // Amber
+      accent: '#4B5563', // Dark Gray
+      background: '#FFFBEB', // Cream
+      surface: '#FEF3C7', // Light Cream
+      text: '#1F2937', // Dark Gray
+      textSecondary: '#6B7280', // Medium Gray
+      border: '#D1D5DB', // Light Gray Border
+      success: '#059669', // Emerald
+      warning: '#D97706', // Amber
+      error: '#DC2626', // Red
+      info: '#2563EB', // Blue
+    },
+    gradients: {
+      primary: 'from-[#059669] to-[#047857]',
+      secondary: 'from-[#D97706] to-[#B45309]',
+      background: 'from-[#FFFBEB] to-[#FEF3C7]',
+      surface: 'from-[#FEF3C7] to-[#FDE68A]',
     },
     shadows: {
       small: 'shadow-green-200/50',
@@ -95,129 +159,161 @@ export const themes: Record<string, Theme> = {
     },
   },
 
-  // Theme 3: Sunset Orange
-  sunsetOrange: {
-    name: 'sunsetOrange',
-    displayName: 'Sunset Orange',
-    description: 'Warm and energetic orange tones',
+  // Theme 5: Tech Professional
+  techProfessional: {
+    name: 'techProfessional',
+    displayName: 'Tech Professional',
+    description: 'Indigo with rose accents for modern tech feel',
     colors: {
-      primary: '#ea580c', // orange-600
-      secondary: '#dc2626', // red-600
-      accent: '#f59e0b', // amber-500
-      background: '#fff7ed', // orange-50
-      surface: '#ffffff',
-      text: '#9a3412', // orange-800
-      textSecondary: '#c2410c', // orange-600
-      border: '#fed7aa', // orange-200
-      success: '#16a34a', // green-600
-      warning: '#eab308', // yellow-500
-      error: '#dc2626', // red-600
-      info: '#0ea5e9', // sky-500
+      primary: '#4338CA', // Indigo
+      secondary: '#E11D48', // Rose
+      accent: '#64748B', // Steel Gray
+      background: '#F8FAFC', // Blue-tinted White
+      surface: '#F1F5F9', // Light Blue Gray
+      text: '#1E293B', // Slate
+      textSecondary: '#475569', // Slate Gray
+      border: '#CBD5E1', // Slate Border
+      success: '#059669', // Emerald
+      warning: '#D97706', // Amber
+      error: '#DC2626', // Red
+      info: '#2563EB', // Blue
     },
     gradients: {
-      primary: 'from-orange-500 to-red-500',
-      secondary: 'from-red-500 to-amber-500',
-      background: 'from-orange-50 to-red-50',
-      surface: 'from-white to-orange-50',
+      primary: 'from-[#4338CA] to-[#3730A3]',
+      secondary: 'from-[#E11D48] to-[#BE123C]',
+      background: 'from-[#F8FAFC] to-[#F1F5F9]',
+      surface: 'from-[#F1F5F9] to-[#E2E8F0]',
     },
     shadows: {
-      small: 'shadow-orange-200/50',
-      medium: 'shadow-orange-300/50',
-      large: 'shadow-orange-400/50',
+      small: 'shadow-indigo-200/50',
+      medium: 'shadow-indigo-300/50',
+      large: 'shadow-indigo-400/50',
     },
   },
 
-  // Theme 4: Royal Purple
-  royalPurple: {
-    name: 'royalPurple',
-    displayName: 'Royal Purple',
-    description: 'Luxurious and sophisticated purple tones',
+  // Theme 6: Balanced Warmth
+  balancedWarmth: {
+    name: 'balancedWarmth',
+    displayName: 'Balanced Warmth',
+    description: 'Teal with burnt orange for balanced warmth',
     colors: {
-      primary: '#7c3aed', // violet-600
-      secondary: '#a855f7', // purple-500
-      accent: '#ec4899', // pink-500
-      background: '#faf5ff', // violet-50
-      surface: '#ffffff',
-      text: '#581c87', // violet-900
-      textSecondary: '#7c3aed', // violet-600
-      border: '#e9d5ff', // violet-200
-      success: '#16a34a', // green-600
-      warning: '#eab308', // yellow-500
-      error: '#dc2626', // red-600
-      info: '#0ea5e9', // sky-500
+      primary: '#0D9488', // Teal
+      secondary: '#C2410C', // Burnt Orange
+      accent: '#6B7280', // Warm Gray
+      background: '#FEFEFE', // Warm White
+      surface: '#FDFDFD', // Slightly Off-white
+      text: '#1F2937', // Dark Gray
+      textSecondary: '#4B5563', // Medium Gray
+      border: '#D1D5DB', // Light Gray Border
+      success: '#059669', // Emerald
+      warning: '#D97706', // Amber
+      error: '#DC2626', // Red
+      info: '#2563EB', // Blue
     },
     gradients: {
-      primary: 'from-violet-500 to-purple-500',
-      secondary: 'from-purple-500 to-pink-500',
-      background: 'from-violet-50 to-purple-50',
-      surface: 'from-white to-violet-50',
+      primary: 'from-[#0D9488] to-[#0F766E]',
+      secondary: 'from-[#C2410C] to-[#9A3412]',
+      background: 'from-[#FEFEFE] to-[#FDFDFD]',
+      surface: 'from-[#FDFDFD] to-[#F9FAFB]',
     },
     shadows: {
-      small: 'shadow-violet-200/50',
-      medium: 'shadow-violet-300/50',
-      large: 'shadow-violet-400/50',
-    },
-  },
-
-  // Theme 5: Midnight Blue
-  midnightBlue: {
-    name: 'midnightBlue',
-    displayName: 'Midnight Blue',
-    description: 'Deep and professional blue tones',
-    colors: {
-      primary: '#1e40af', // blue-700
-      secondary: '#3730a3', // indigo-700
-      accent: '#7c3aed', // violet-600
-      background: '#eff6ff', // blue-50
-      surface: '#ffffff',
-      text: '#1e3a8a', // blue-900
-      textSecondary: '#3730a3', // indigo-700
-      border: '#dbeafe', // blue-200
-      success: '#16a34a', // green-600
-      warning: '#eab308', // yellow-500
-      error: '#dc2626', // red-600
-      info: '#0ea5e9', // sky-500
-    },
-    gradients: {
-      primary: 'from-blue-600 to-indigo-600',
-      secondary: 'from-indigo-500 to-violet-500',
-      background: 'from-blue-50 to-indigo-50',
-      surface: 'from-white to-blue-50',
-    },
-    shadows: {
-      small: 'shadow-blue-200/50',
-      medium: 'shadow-blue-300/50',
-      large: 'shadow-blue-400/50',
+      small: 'shadow-teal-200/50',
+      medium: 'shadow-teal-300/50',
+      large: 'shadow-teal-400/50',
     },
   },
 };
 
 // Dark mode themes
 export const darkThemes: Record<string, Theme> = {
-  // Dark Ocean Breeze
-  oceanBreezeDark: {
-    name: 'oceanBreezeDark',
-    displayName: 'Ocean Breeze Dark',
-    description: 'Deep ocean blues with modern dark styling',
+  // Dark Current UI
+  currentUIDark: {
+    name: 'currentUIDark',
+    displayName: 'Current UI Dark',
+    description: 'The original design in dark mode',
     colors: {
-      primary: '#0ea5e9', // sky-500
-      secondary: '#06b6d4', // cyan-500
-      accent: '#8b5cf6', // violet-500
-      background: '#0f172a', // slate-900
-      surface: '#1e293b', // slate-800
-      text: '#f1f5f9', // slate-100
-      textSecondary: '#94a3b8', // slate-400
-      border: '#334155', // slate-700
-      success: '#10b981', // emerald-500
-      warning: '#f59e0b', // amber-500
-      error: '#ef4444', // red-500
-      info: '#3b82f6', // blue-500
+      primary: '#FF4500', // Orange Red
+      secondary: '#E03E00', // Darker Orange
+      accent: '#FF6B35', // Lighter Orange
+      background: '#111827', // Dark Gray
+      surface: '#1F2937', // Darker Gray
+      text: '#F9FAFB', // Light Gray
+      textSecondary: '#9CA3AF', // Medium Gray
+      border: '#374151', // Dark Border
+      success: '#10B981', // Green
+      warning: '#F59E0B', // Amber
+      error: '#EF4444', // Red
+      info: '#3B82F6', // Blue
     },
     gradients: {
-      primary: 'from-sky-500 to-cyan-500',
-      secondary: 'from-blue-500 to-violet-500',
-      background: 'from-slate-900 to-slate-800',
-      surface: 'from-slate-800 to-slate-700',
+      primary: 'from-[#FF4500] to-[#E03E00]',
+      secondary: 'from-[#FF6B35] to-[#FF4500]',
+      background: 'from-gray-900 to-gray-800',
+      surface: 'from-gray-800 to-gray-700',
+    },
+    shadows: {
+      small: 'shadow-gray-900/50',
+      medium: 'shadow-gray-800/50',
+      large: 'shadow-gray-700/50',
+    },
+  },
+
+  // Dark Warm Professional
+  warmProfessionalDark: {
+    name: 'warmProfessionalDark',
+    displayName: 'Warm Professional Dark',
+    description: 'Deep navy with warm accents in dark mode',
+    colors: {
+      primary: '#1E3A8A', // Deep Navy Blue
+      secondary: '#F97316', // Soft Orange
+      accent: '#6B7280', // Warm Gray
+      background: '#0F172A', // Dark Navy
+      surface: '#1E293B', // Slate
+      text: '#F1F5F9', // Light Gray
+      textSecondary: '#94A3B8', // Medium Gray
+      border: '#334155', // Dark Border
+      success: '#059669', // Emerald
+      warning: '#D97706', // Amber
+      error: '#DC2626', // Red
+      info: '#2563EB', // Blue
+    },
+    gradients: {
+      primary: 'from-[#1E3A8A] to-[#1E40AF]',
+      secondary: 'from-[#F97316] to-[#EA580C]',
+      background: 'from-[#0F172A] to-[#1E293B]',
+      surface: 'from-[#1E293B] to-[#334155]',
+    },
+    shadows: {
+      small: 'shadow-blue-900/50',
+      medium: 'shadow-blue-800/50',
+      large: 'shadow-blue-700/50',
+    },
+  },
+
+  // Dark Modern Corporate
+  modernCorporateDark: {
+    name: 'modernCorporateDark',
+    displayName: 'Modern Corporate Dark',
+    description: 'Professional slate with coral accents in dark mode',
+    colors: {
+      primary: '#475569', // Slate Blue
+      secondary: '#F87171', // Coral
+      accent: '#374151', // Charcoal
+      background: '#0F1419', // Dark Slate
+      surface: '#1E293B', // Slate
+      text: '#F1F5F9', // Light Gray
+      textSecondary: '#94A3B8', // Medium Gray
+      border: '#334155', // Dark Border
+      success: '#059669', // Emerald
+      warning: '#D97706', // Amber
+      error: '#DC2626', // Red
+      info: '#2563EB', // Blue
+    },
+    gradients: {
+      primary: 'from-[#475569] to-[#334155]',
+      secondary: 'from-[#F87171] to-[#EF4444]',
+      background: 'from-[#0F1419] to-[#1E293B]',
+      surface: 'from-[#1E293B] to-[#334155]',
     },
     shadows: {
       small: 'shadow-slate-900/50',
@@ -226,30 +322,30 @@ export const darkThemes: Record<string, Theme> = {
     },
   },
 
-  // Dark Forest Green
-  forestGreenDark: {
-    name: 'forestGreenDark',
-    displayName: 'Forest Green Dark',
-    description: 'Deep forest greens with natural dark tones',
+  // Dark Elegant Minimalist
+  elegantMinimalistDark: {
+    name: 'elegantMinimalistDark',
+    displayName: 'Elegant Minimalist Dark',
+    description: 'Forest green with amber in elegant dark mode',
     colors: {
-      primary: '#059669', // emerald-600
-      secondary: '#16a34a', // green-600
-      accent: '#84cc16', // lime-500
-      background: '#0f1419', // custom dark green
-      surface: '#1a2e1a', // custom dark green surface
-      text: '#f0fdf4', // green-50
-      textSecondary: '#86efac', // green-300
-      border: '#365314', // lime-800
-      success: '#22c55e', // green-500
-      warning: '#eab308', // yellow-500
-      error: '#dc2626', // red-600
-      info: '#0ea5e9', // sky-500
+      primary: '#059669', // Forest Green
+      secondary: '#D97706', // Amber
+      accent: '#4B5563', // Dark Gray
+      background: '#0F1419', // Dark Green
+      surface: '#1A2E1A', // Dark Green Surface
+      text: '#F0FDF4', // Light Green
+      textSecondary: '#86EFAC', // Medium Green
+      border: '#365314', // Dark Green Border
+      success: '#059669', // Emerald
+      warning: '#D97706', // Amber
+      error: '#DC2626', // Red
+      info: '#2563EB', // Blue
     },
     gradients: {
-      primary: 'from-emerald-500 to-green-500',
-      secondary: 'from-green-500 to-lime-500',
-      background: 'from-green-900 to-emerald-900',
-      surface: 'from-green-800 to-emerald-800',
+      primary: 'from-[#059669] to-[#047857]',
+      secondary: 'from-[#D97706] to-[#B45309]',
+      background: 'from-[#0F1419] to-[#1A2E1A]',
+      surface: 'from-[#1A2E1A] to-[#365314]',
     },
     shadows: {
       small: 'shadow-green-900/50',
@@ -258,99 +354,67 @@ export const darkThemes: Record<string, Theme> = {
     },
   },
 
-  // Dark Sunset Orange
-  sunsetOrangeDark: {
-    name: 'sunsetOrangeDark',
-    displayName: 'Sunset Orange Dark',
-    description: 'Warm dark oranges with cozy atmosphere',
+  // Dark Tech Professional
+  techProfessionalDark: {
+    name: 'techProfessionalDark',
+    displayName: 'Tech Professional Dark',
+    description: 'Indigo with rose in modern tech dark mode',
     colors: {
-      primary: '#ea580c', // orange-600
-      secondary: '#dc2626', // red-600
-      accent: '#f59e0b', // amber-500
-      background: '#1c1917', // custom dark orange
-      surface: '#292524', // custom dark orange surface
-      text: '#fff7ed', // orange-50
-      textSecondary: '#fed7aa', // orange-200
-      border: '#7c2d12', // orange-800
-      success: '#16a34a', // green-600
-      warning: '#eab308', // yellow-500
-      error: '#dc2626', // red-600
-      info: '#0ea5e9', // sky-500
+      primary: '#4338CA', // Indigo
+      secondary: '#E11D48', // Rose
+      accent: '#64748B', // Steel Gray
+      background: '#0F1419', // Dark Blue
+      surface: '#1E293B', // Slate
+      text: '#F1F5F9', // Light Gray
+      textSecondary: '#94A3B8', // Medium Gray
+      border: '#334155', // Dark Border
+      success: '#059669', // Emerald
+      warning: '#D97706', // Amber
+      error: '#DC2626', // Red
+      info: '#2563EB', // Blue
     },
     gradients: {
-      primary: 'from-orange-500 to-red-500',
-      secondary: 'from-red-500 to-amber-500',
-      background: 'from-orange-900 to-red-900',
-      surface: 'from-orange-800 to-red-800',
+      primary: 'from-[#4338CA] to-[#3730A3]',
+      secondary: 'from-[#E11D48] to-[#BE123C]',
+      background: 'from-[#0F1419] to-[#1E293B]',
+      surface: 'from-[#1E293B] to-[#334155]',
     },
     shadows: {
-      small: 'shadow-orange-900/50',
-      medium: 'shadow-orange-800/50',
-      large: 'shadow-orange-700/50',
+      small: 'shadow-indigo-900/50',
+      medium: 'shadow-indigo-800/50',
+      large: 'shadow-indigo-700/50',
     },
   },
 
-  // Dark Royal Purple
-  royalPurpleDark: {
-    name: 'royalPurpleDark',
-    displayName: 'Royal Purple Dark',
-    description: 'Rich dark purples with luxurious feel',
+  // Dark Balanced Warmth
+  balancedWarmthDark: {
+    name: 'balancedWarmthDark',
+    displayName: 'Balanced Warmth Dark',
+    description: 'Teal with burnt orange in warm dark mode',
     colors: {
-      primary: '#7c3aed', // violet-600
-      secondary: '#a855f7', // purple-500
-      accent: '#ec4899', // pink-500
-      background: '#1a0b2e', // custom dark purple
-      surface: '#2d1b69', // custom dark purple surface
-      text: '#faf5ff', // violet-50
-      textSecondary: '#c4b5fd', // violet-300
-      border: '#5b21b6', // violet-800
-      success: '#16a34a', // green-600
-      warning: '#eab308', // yellow-500
-      error: '#dc2626', // red-600
-      info: '#0ea5e9', // sky-500
+      primary: '#0D9488', // Teal
+      secondary: '#C2410C', // Burnt Orange
+      accent: '#6B7280', // Warm Gray
+      background: '#0F1419', // Dark Teal
+      surface: '#1A2E1A', // Dark Green Surface
+      text: '#F0FDF4', // Light Green
+      textSecondary: '#86EFAC', // Medium Green
+      border: '#365314', // Dark Green Border
+      success: '#059669', // Emerald
+      warning: '#D97706', // Amber
+      error: '#DC2626', // Red
+      info: '#2563EB', // Blue
     },
     gradients: {
-      primary: 'from-violet-500 to-purple-500',
-      secondary: 'from-purple-500 to-pink-500',
-      background: 'from-violet-900 to-purple-900',
-      surface: 'from-violet-800 to-purple-800',
+      primary: 'from-[#0D9488] to-[#0F766E]',
+      secondary: 'from-[#C2410C] to-[#9A3412]',
+      background: 'from-[#0F1419] to-[#1A2E1A]',
+      surface: 'from-[#1A2E1A] to-[#365314]',
     },
     shadows: {
-      small: 'shadow-violet-900/50',
-      medium: 'shadow-violet-800/50',
-      large: 'shadow-violet-700/50',
-    },
-  },
-
-  // Dark Midnight Blue
-  midnightBlueDark: {
-    name: 'midnightBlueDark',
-    displayName: 'Midnight Blue Dark',
-    description: 'Deep professional blues with corporate elegance',
-    colors: {
-      primary: '#1e40af', // blue-700
-      secondary: '#3730a3', // indigo-700
-      accent: '#7c3aed', // violet-600
-      background: '#0f1419', // custom dark blue
-      surface: '#1e293b', // slate-800
-      text: '#eff6ff', // blue-50
-      textSecondary: '#93c5fd', // blue-300
-      border: '#1e3a8a', // blue-900
-      success: '#16a34a', // green-600
-      warning: '#eab308', // yellow-500
-      error: '#dc2626', // red-600
-      info: '#0ea5e9', // sky-500
-    },
-    gradients: {
-      primary: 'from-blue-600 to-indigo-600',
-      secondary: 'from-indigo-500 to-violet-500',
-      background: 'from-blue-900 to-indigo-900',
-      surface: 'from-blue-800 to-indigo-800',
-    },
-    shadows: {
-      small: 'shadow-blue-900/50',
-      medium: 'shadow-blue-800/50',
-      large: 'shadow-blue-700/50',
+      small: 'shadow-teal-900/50',
+      medium: 'shadow-teal-800/50',
+      large: 'shadow-teal-700/50',
     },
   },
 };
@@ -362,7 +426,7 @@ export const getTheme = (themeName: string, isDark: boolean = false): Theme => {
   
   if (!theme) {
     // Fallback to default theme
-    return isDark ? darkThemes.oceanBreezeDark : themes.oceanBreeze;
+    return isDark ? darkThemes.currentUIDark : themes.currentUI;
   }
   
   return theme;

@@ -983,9 +983,16 @@ async def health_check():
 async def configure_jira(config: JiraConfigRequest):
     """Configure Jira connection"""
     try:
+        # Validate and fix URL format
+        url = config.url.strip()
+        if not url.startswith(('http://', 'https://')):
+            # Default to https for security
+            url = f"https://{url}"
+            logger.info(f"Added https:// protocol to URL: {url}")
+        
         # Create JiraConfig object
         jira_config = JiraConfig(
-            base_url=config.url,
+            base_url=url,
             email=config.email,
             api_token=config.api_token,
             board_id=config.board_id
@@ -1015,12 +1022,12 @@ async def configure_jira(config: JiraConfigRequest):
             from confluence_client import ConfluenceConfig, ConfluenceClient
             
             # Convert Jira URL to Confluence URL format
-            confluence_url = config.url
-            if '.atlassian.net' in config.url and not config.url.endswith('/wiki'):
+            confluence_url = url
+            if '.atlassian.net' in url and not url.endswith('/wiki'):
                 # Correct conversion: https://taodigital.atlassian.net -> https://taodigital.atlassian.net/wiki
-                confluence_url = config.url.rstrip('/') + '/wiki'
-            elif not config.url.endswith('/wiki'):
-                confluence_url = f"{config.url.rstrip('/')}/wiki"
+                confluence_url = url.rstrip('/') + '/wiki'
+            elif not url.endswith('/wiki'):
+                confluence_url = f"{url.rstrip('/')}/wiki"
             
             logger.info(f"Jira URL: {config.url}")
             logger.info(f"Converted Confluence URL: {confluence_url}")
@@ -2102,9 +2109,16 @@ async def semantic_search_endpoint(request: ChatRequest):
 async def test_jira_connection(config: JiraConfigRequest):
     """Test Jira connection"""
     try:
+        # Validate and fix URL format
+        url = config.url.strip()
+        if not url.startswith(('http://', 'https://')):
+            # Default to https for security
+            url = f"https://{url}"
+            logger.info(f"Added https:// protocol to URL: {url}")
+        
         # Create JiraConfig object
         jira_config = JiraConfig(
-            base_url=config.url,
+            base_url=url,
             email=config.email,
             api_token=config.api_token,
             board_id=config.board_id
@@ -2663,7 +2677,119 @@ async def test_confluence():
             "confluence_client_available": app_state.confluence_client is not None
         }
 
-@app.get("/api/activities/recent", tags=["ACTIVITIES"], summary="Get Recent Activities")
+@app.post("/api/jira/best-performers", tags=["JIRA"], summary="Get Best Performers")
+async def get_best_performers(request: Dict[str, Any]):
+    """Get best performing team members based on Jira data"""
+    if not app_state.jira_configured or not app_state.jira_client:
+        raise HTTPException(status_code=400, detail="Jira not configured")
+    
+    try:
+        project_key = request.get('projectKey')
+        
+        # Build JQL query
+        if project_key and project_key != 'null':
+            jql = f'project = "{project_key}"'
+        else:
+            jql = "project is not EMPTY"
+        
+        # Get issues with assignee information
+        fields = ['key', 'summary', 'status', 'assignee', 'priority', 'issuetype', 'project', 'created', 'updated', 'customfield_10016']
+        
+        issues = await app_state.jira_client.search_issues(jql, fields=fields, max_results=1000)
+        
+        # Calculate performance metrics for each assignee
+        performer_stats = {}
+        
+        for issue in issues:
+            if not issue or not issue.get('fields'):
+                continue
+                
+            assignee = issue.get('fields', {}).get('assignee')
+            if not assignee:
+                continue
+                
+            assignee_name = assignee.get('displayName', 'Unknown')
+            assignee_key = assignee.get('key', assignee_name)
+            
+            if assignee_key not in performer_stats:
+                performer_stats[assignee_key] = {
+                    'name': assignee_name,
+                    'email': assignee.get('emailAddress', ''),
+                    'issuesResolved': 0,
+                    'issuesCreated': 0,
+                    'storyPoints': 0,
+                    'bugsFixed': 0,
+                    'tasksCompleted': 0,
+                    'avgResolutionTime': 0,
+                    'performanceScore': 0,
+                    'rank': 0,
+                    'achievements': [],
+                    'streak': 0,
+                    'lastActive': ''
+                }
+            
+            # Count resolved issues
+            status = issue.get('fields', {}).get('status', {})
+            status_category = status.get('statusCategory', {})
+            if status_category and status_category.get('name') == 'Done':
+                performer_stats[assignee_key]['issuesResolved'] += 1
+            
+            # Count story points
+            story_points = issue.get('fields', {}).get('customfield_10016')
+            if story_points:
+                try:
+                    performer_stats[assignee_key]['storyPoints'] += int(story_points) or 0
+                except (ValueError, TypeError):
+                    pass
+            
+            # Count by issue type
+            issue_type = issue.get('fields', {}).get('issuetype', {})
+            if issue_type:
+                type_name = issue_type.get('name')
+                if type_name == 'Bug' and status_category and status_category.get('name') == 'Done':
+                    performer_stats[assignee_key]['bugsFixed'] += 1
+                elif type_name == 'Task' and status_category and status_category.get('name') == 'Done':
+                    performer_stats[assignee_key]['tasksCompleted'] += 1
+        
+        # Calculate performance scores and rank
+        performers = list(performer_stats.values())
+        
+        for performer in performers:
+            # Calculate performance score based on multiple factors
+            resolved_weight = performer['issuesResolved'] * 10
+            story_points_weight = performer['storyPoints'] * 2
+            bugs_weight = performer['bugsFixed'] * 5
+            tasks_weight = performer['tasksCompleted'] * 3
+            
+            performer['performanceScore'] = min(100, resolved_weight + story_points_weight + bugs_weight + tasks_weight)
+            
+            # Generate achievements
+            achievements = []
+            if performer['issuesResolved'] >= 10:
+                achievements.append('Issue Resolver')
+            if performer['storyPoints'] >= 50:
+                achievements.append('Story Point Master')
+            if performer['bugsFixed'] >= 5:
+                achievements.append('Bug Hunter')
+            if performer['performanceScore'] >= 80:
+                achievements.append('Top Performer')
+            
+            performer['achievements'] = achievements
+        
+        # Sort by performance score and assign ranks
+        performers.sort(key=lambda x: x['performanceScore'], reverse=True)
+        for i, performer in enumerate(performers):
+            performer['rank'] = i + 1
+        
+        return {
+            "success": True,
+            "performers": performers[:10]  # Return top 10 performers
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get best performers: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 async def get_recent_activities():
     """Get recent activities from both Jira and Confluence"""
     activities = []

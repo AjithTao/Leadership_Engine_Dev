@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { useState, useEffect } from 'react';
 
 // Export Work Buddy chat as PDF
@@ -73,32 +73,49 @@ export const exportChatAsPDF = async (messages: any[], filename: string = 'work-
 };
 
 // Export Work Buddy chat as Excel
-export const exportChatAsExcel = (messages: any[], filename: string = 'work-buddy-chat.xlsx') => {
-  const worksheetData = messages.map((message, index) => ({
-    'Message #': index + 1,
-    'Sender': message.sender === 'user' ? 'You' : 'Work Buddy',
-    'Content': message.content || '',
-    'Timestamp': message.timestamp ? new Date(message.timestamp).toLocaleString() : '',
-    'Confidence': message.confidence || '',
-    'Project Context': message.projectContext || ''
-  }));
+export const exportChatAsExcel = async (messages: any[], filename: string = 'work-buddy-chat.xlsx') => {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Chat Export');
 
-  const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Chat Export');
-
-  // Auto-size columns
-  const colWidths = [
-    { wch: 10 }, // Message #
-    { wch: 15 }, // Sender
-    { wch: 80 }, // Content
-    { wch: 20 }, // Timestamp
-    { wch: 12 }, // Confidence
-    { wch: 20 }  // Project Context
+  // Add headers
+  worksheet.columns = [
+    { header: 'Message #', key: 'messageNumber', width: 10 },
+    { header: 'Sender', key: 'sender', width: 15 },
+    { header: 'Content', key: 'content', width: 80 },
+    { header: 'Timestamp', key: 'timestamp', width: 20 },
+    { header: 'Confidence', key: 'confidence', width: 12 },
+    { header: 'Project Context', key: 'projectContext', width: 20 }
   ];
-  worksheet['!cols'] = colWidths;
 
-  XLSX.writeFile(workbook, filename);
+  // Add data rows
+  messages.forEach((message, index) => {
+    worksheet.addRow({
+      messageNumber: index + 1,
+      sender: message.sender === 'user' ? 'You' : 'Work Buddy',
+      content: message.content || '',
+      timestamp: message.timestamp ? new Date(message.timestamp).toLocaleString() : '',
+      confidence: message.confidence || '',
+      projectContext: message.projectContext || ''
+    });
+  });
+
+  // Style the header row
+  worksheet.getRow(1).font = { bold: true };
+  worksheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE6E6FA' }
+  };
+
+  // Save the file
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.URL.revokeObjectURL(url);
 };
 
 // Export Insights dashboard as PDF

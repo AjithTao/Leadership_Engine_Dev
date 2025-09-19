@@ -11,11 +11,11 @@ import {
   Moon, 
   Check, 
   Sparkles,
-  Droplets,
-  TreePine,
-  Sunset,
-  Crown,
-  Moon as MoonIcon
+  Flame,
+  Building2,
+  Leaf,
+  Cpu,
+  Waves
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Theme } from '../../utils/themes';
@@ -26,19 +26,21 @@ interface ThemeSelectorProps {
 }
 
 const themeIcons = {
-  oceanBreeze: Droplets,
-  forestGreen: TreePine,
-  sunsetOrange: Sunset,
-  royalPurple: Crown,
-  midnightBlue: MoonIcon,
+  currentUI: Flame,
+  warmProfessional: Building2,
+  modernCorporate: Building2,
+  elegantMinimalist: Leaf,
+  techProfessional: Cpu,
+  balancedWarmth: Waves,
 };
 
 const themeIconsDark = {
-  oceanBreezeDark: Droplets,
-  forestGreenDark: TreePine,
-  sunsetOrangeDark: Sunset,
-  royalPurpleDark: Crown,
-  midnightBlueDark: MoonIcon,
+  currentUIDark: Flame,
+  warmProfessionalDark: Building2,
+  modernCorporateDark: Building2,
+  elegantMinimalistDark: Leaf,
+  techProfessionalDark: Cpu,
+  balancedWarmthDark: Waves,
 };
 
 export const ThemeSelector: React.FC<ThemeSelectorProps> = ({ isOpen, onClose }) => {

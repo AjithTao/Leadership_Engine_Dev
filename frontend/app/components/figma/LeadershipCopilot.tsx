@@ -443,7 +443,7 @@ export function FigmaLeadershipCopilot({
     }
   }
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     try {
       const messagesForExport = messages.map(msg => ({
         sender: msg.type === 'user' ? 'user' : 'assistant',
@@ -453,7 +453,7 @@ export function FigmaLeadershipCopilot({
         projectContext: msg.projectContext
       }))
       
-      exportChatAsExcel(messagesForExport, `work-buddy-chat-${new Date().toISOString().split('T')[0]}.xlsx`)
+      await exportChatAsExcel(messagesForExport, `work-buddy-chat-${new Date().toISOString().split('T')[0]}.xlsx`)
     } catch (error) {
       console.error('Failed to export Excel:', error)
     }

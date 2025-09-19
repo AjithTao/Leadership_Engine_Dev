@@ -20,7 +20,7 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const [themeName, setThemeName] = useState<string>('oceanBreeze');
+  const [themeName, setThemeName] = useState<string>('modernCorporate');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [isThemeLoaded, setIsThemeLoaded] = useState<boolean>(false);
 
@@ -40,8 +40,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     setIsThemeLoaded(true);
   }, []);
 
-  // Get current theme
-  const currentTheme = getTheme(themeName, isDarkMode);
+  // Get current theme - ensure new object reference for React re-renders
+  const currentTheme = React.useMemo(() => getTheme(themeName, isDarkMode), [themeName, isDarkMode]);
   const availableThemes = getAllThemes(isDarkMode);
 
   // Apply theme CSS to document

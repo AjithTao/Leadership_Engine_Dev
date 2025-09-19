@@ -58,7 +58,7 @@ interface Performer {
 }
 
 export default function InsightsDashboard() {
-  const { currentTheme, isThemeLoaded } = useTheme();
+  const { currentTheme, isThemeLoaded, isDarkMode } = useTheme();
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [jiraMetrics, setJiraMetrics] = useState<JiraMetrics | null>(null);
@@ -325,7 +325,9 @@ export default function InsightsDashboard() {
 
   if (loading && !jiraMetrics) {
     return (
-      <div className="h-full flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      <div className={`h-full flex items-center justify-center transition-colors duration-300 ${
+        isDarkMode ? 'bg-gray-900' : 'bg-white'
+      }`}>
         <motion.div 
           className="text-center"
           initial={{ opacity: 0, y: 20 }}
@@ -336,10 +338,15 @@ export default function InsightsDashboard() {
             animate={{ rotate: 360 }}
             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           >
-            <RefreshCw className="h-12 w-12 mx-auto mb-6 text-blue-500 dark:text-blue-400" />
+            <RefreshCw 
+              className="h-12 w-12 mx-auto mb-6" 
+              style={{ color: currentTheme.colors.primary }}
+            />
           </motion.div>
           <motion.h2 
-            className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2"
+            className={`text-xl font-semibold mb-2 transition-colors duration-300 ${
+              isDarkMode ? 'text-white' : 'text-black'
+            }`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
@@ -347,7 +354,9 @@ export default function InsightsDashboard() {
             Loading Analytics
           </motion.h2>
           <motion.p 
-            className="text-gray-600 dark:text-gray-400"
+            className={`transition-colors duration-300 ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
@@ -362,10 +371,9 @@ export default function InsightsDashboard() {
   return (
     <div 
       id="insights-dashboard" 
-      className="h-full overflow-auto transition-all duration-300"
-      style={{ 
-        background: `linear-gradient(135deg, ${currentTheme?.colors?.background || '#ffffff'}, ${currentTheme?.colors?.surface || '#f8fafc'})`
-      }}
+      className={`h-full overflow-auto transition-all duration-300 ${
+        isDarkMode ? 'bg-gray-900' : 'bg-white'
+      }`}
     >
       <div className="p-6 space-y-8">
         {/* Header with Glassmorphism */}
@@ -377,9 +385,18 @@ export default function InsightsDashboard() {
         >
           <div className="space-y-2">
             <motion.h1 
-              className="text-5xl font-black tracking-tight bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent"
+           key={`dashboard-title-${currentTheme.name}-${isDarkMode}`}
+           className="text-4xl font-bold tracking-tight transition-colors duration-300"
               style={{
                 fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+             color: currentTheme.colors.primary,
+             background: `linear-gradient(90deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+             WebkitBackgroundClip: 'text',
+             WebkitTextFillColor: 'transparent',
+             backgroundClip: 'text',
+             textRendering: 'optimizeLegibility',
+             WebkitFontSmoothing: 'antialiased',
+             MozOsxFontSmoothing: 'grayscale',
                 textShadow: '0 4px 8px rgba(0,0,0,0.1)'
               }}
               initial={{ opacity: 0, x: -20 }}
@@ -389,9 +406,10 @@ export default function InsightsDashboard() {
               Analytics Dashboard
             </motion.h1>
             <motion.p 
-              className="text-xl font-medium tracking-wide"
+           className={`text-xl font-medium tracking-wide transition-colors duration-300 ${
+             isDarkMode ? 'text-gray-300' : 'text-gray-700'
+           }`}
               style={{ 
-                color: currentTheme?.colors?.textSecondary || '#64748b',
                 fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
               }}
               initial={{ opacity: 0, x: -20 }}
@@ -409,13 +427,42 @@ export default function InsightsDashboard() {
           >
             <div className="relative">
               <Select value={selectedProject} onValueChange={setSelectedProject}>
-                <SelectTrigger className="w-56 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl border-2 border-slate-300/50 dark:border-slate-600/50 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-2xl font-semibold">
-                  <SelectValue placeholder="Select project" />
+                <SelectTrigger 
+                  className={`w-56 backdrop-blur-xl border-2 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-2xl font-semibold ${
+                    isDarkMode
+                      ? 'bg-gray-800/90 border-gray-600/50 text-white'
+                      : 'bg-white/90 border-gray-300/50 text-black'
+                  }`}
+                >
+                  <SelectValue placeholder="All Projects" />
                 </SelectTrigger>
-                <SelectContent className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl border-2 border-slate-300/50 dark:border-slate-600/50 shadow-2xl rounded-2xl">
-                  <SelectItem value="all" className="text-gray-900 dark:text-gray-100 font-medium hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 rounded-xl mx-2 my-1">All Projects</SelectItem>
+                <SelectContent 
+                  className={`backdrop-blur-xl border-2 shadow-2xl rounded-2xl transition-colors duration-300 ${
+                    isDarkMode
+                      ? 'bg-gray-800/95 border-gray-600/50'
+                      : 'bg-white/95 border-gray-300/50'
+                  }`}
+                >
+                  <SelectItem 
+                    value="all" 
+                    className={`font-medium rounded-xl mx-2 my-1 transition-colors duration-300 ${
+                      isDarkMode
+                        ? 'text-gray-100 hover:bg-gray-700 hover:text-white'
+                        : 'text-gray-900 hover:bg-gray-50 hover:text-black'
+                    }`}
+                  >
+                    All Projects
+                  </SelectItem>
                   {Array.isArray(projects) && projects.map((project) => (
-                    <SelectItem key={project.id} value={project.key} className="text-gray-900 dark:text-gray-100 font-medium hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 rounded-xl mx-2 my-1">
+                    <SelectItem 
+                      key={project.id} 
+                      value={project.key} 
+                      className={`font-medium rounded-xl mx-2 my-1 transition-colors duration-300 ${
+                        isDarkMode
+                          ? 'text-gray-100 hover:bg-gray-700 hover:text-white'
+                          : 'text-gray-900 hover:bg-gray-50 hover:text-black'
+                      }`}
+                    >
                       {project.name}
                     </SelectItem>
                   ))}
@@ -428,9 +475,14 @@ export default function InsightsDashboard() {
                 disabled={isRefreshing}
                 className="text-white shadow-xl border-0 rounded-2xl font-semibold px-6 py-3 hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
                 style={{
-                  background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
-                  boxShadow: `0 8px 25px 0 ${currentTheme.colors.primary}50`,
+                  backgroundColor: currentTheme.colors.primary,
                   fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = currentTheme.colors.secondary;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = currentTheme.colors.primary;
                 }}
                 size="sm"
               >
@@ -449,9 +501,14 @@ export default function InsightsDashboard() {
                 onClick={handleExportPDF}
                 className="text-white shadow-xl border-0 rounded-2xl font-semibold px-6 py-3 hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
                 style={{
-                  background: `linear-gradient(135deg, ${currentTheme.colors.success}, ${currentTheme.colors.accent})`,
-                  boxShadow: `0 8px 25px 0 ${currentTheme.colors.success}50`,
+                  backgroundColor: currentTheme.colors.accent,
                   fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = currentTheme.colors.primary;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = currentTheme.colors.accent;
                 }}
                 size="sm"
               >
@@ -499,41 +556,45 @@ export default function InsightsDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1, duration: 0.6 }}
         >
-          {/* Total Issues - Floating Animation */}
+          {/* Total Issues - Professional Animation */}
           <motion.div
-            whileHover={{ scale: 1.05, y: -10 }}
-            animate={{ 
-              y: [0, -5, 0],
-              rotateY: [0, 2, 0]
-            }}
+            whileHover={{ scale: 1.01 }}
             transition={{ 
-              duration: 4,
-              repeat: Infinity,
-              ease: "easeInOut"
+              duration: 0.2,
+              ease: "easeOut"
             }}
           >
             <Card 
-              className="backdrop-blur-2xl shadow-2xl hover:shadow-3xl transition-all duration-500 rounded-3xl border-2 border-blue-200/50 dark:border-blue-700/50 bg-gradient-to-br from-blue-50/90 to-indigo-50/90 dark:from-blue-900/30 dark:to-indigo-900/30"
+              className={`shadow-xl hover:shadow-2xl transition-all duration-500 rounded-3xl border backdrop-blur-sm relative overflow-hidden ${
+                isDarkMode 
+                  ? 'bg-gray-800/95 border-gray-700/60' 
+                  : 'bg-white/98 border-gray-200/60'
+              }`}
               style={{
-                boxShadow: `0 20px 40px ${currentTheme.colors.primary}25, 0 0 0 1px ${currentTheme.colors.primary}10`
+                boxShadow: `0 25px 50px ${currentTheme.colors.primary}20, 0 0 0 1px ${currentTheme.colors.primary}10`
               }}
             >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              {/* Theme-colored background effect */}
+              <div 
+                className="absolute inset-0 opacity-15 transition-opacity duration-300"
+                style={{
+                  background: `linear-gradient(135deg, ${currentTheme.colors.primary}25, ${currentTheme.colors.secondary}25)`
+                }}
+              ></div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
                 <CardTitle 
-                  className="text-sm font-bold tracking-wide"
+                 className={`text-sm font-bold tracking-wide transition-colors duration-300 ${
+                   isDarkMode ? 'text-gray-200' : 'text-gray-700'
+                 }`}
                   style={{ 
-                    color: currentTheme.colors.textSecondary,
                     fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                   }}
                 >
                   Total Issues
                 </CardTitle>
                 <motion.div
-                  animate={{ 
-                    rotate: [0, 5, -5, 0],
-                    scale: [1, 1.1, 1]
-                  }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
                 >
                   <BarChart3 
                     className="h-6 w-6" 
@@ -541,9 +602,11 @@ export default function InsightsDashboard() {
                   />
                 </motion.div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="relative z-10">
                 <motion.div 
-                  className="text-4xl font-black tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
+                 className={`text-4xl font-black tracking-tight transition-colors duration-300 ${
+                   isDarkMode ? 'text-gray-100' : 'text-gray-900'
+                 }`}
                   style={{ 
                     fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                   }}
@@ -567,40 +630,54 @@ export default function InsightsDashboard() {
             </Card>
           </motion.div>
 
-          {/* Completion Rate - Pulse Animation */}
+          {/* Completion Rate - Professional Animation */}
           <motion.div
-            whileHover={{ scale: 1.05, rotate: 2 }}
-            animate={{ 
-              scale: [1, 1.02, 1],
-              boxShadow: [
-                "0 20px 40px rgba(34, 197, 94, 0.25)",
-                "0 25px 50px rgba(34, 197, 94, 0.35)",
-                "0 20px 40px rgba(34, 197, 94, 0.25)"
-              ]
-            }}
+            whileHover={{ scale: 1.01 }}
             transition={{ 
-              duration: 3,
-              repeat: Infinity,
-              ease: "easeInOut"
+              duration: 0.2,
+              ease: "easeOut"
             }}
           >
-            <Card className="backdrop-blur-2xl shadow-2xl hover:shadow-3xl transition-all duration-500 rounded-3xl border-2 border-green-200/50 dark:border-green-700/50 bg-gradient-to-br from-green-50/90 to-emerald-50/90 dark:from-green-900/30 dark:to-emerald-900/30">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-bold tracking-wide text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Completion Rate</CardTitle>
+            <Card className={`shadow-xl hover:shadow-2xl transition-all duration-500 rounded-3xl border backdrop-blur-sm relative overflow-hidden ${
+              isDarkMode 
+                ? 'bg-gray-800/95 border-gray-700/60' 
+                : 'bg-white/98 border-gray-200/60'
+            }`}
+            style={{
+              boxShadow: `0 25px 50px ${currentTheme.colors.success}20, 0 0 0 1px ${currentTheme.colors.success}10`
+            }}>
+              {/* Theme-colored background effect */}
+              <div 
+                className="absolute inset-0 opacity-15 transition-opacity duration-300"
+                style={{
+                  background: `linear-gradient(135deg, ${currentTheme.colors.success}25, ${currentTheme.colors.accent}25)`
+                }}
+              ></div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+                <CardTitle                  className={`text-sm font-bold tracking-wide transition-colors duration-300 ${
+                   isDarkMode ? 'text-gray-200' : 'text-gray-700'
+                 }`} style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Completion Rate</CardTitle>
                 <motion.div
-                  animate={{ 
-                    scale: [1, 1.2, 1],
-                    rotate: [0, 360]
-                  }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
                 >
-                  <CheckCircle className="h-6 w-6 text-green-500 dark:text-green-400" />
+                  <CheckCircle 
+                    className="h-6 w-6" 
+                    style={{ color: currentTheme.colors.success }}
+                  />
                 </motion.div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="relative z-10">
                 <motion.div 
-                  className="text-4xl font-black tracking-tight bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent"
-                  style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
+                  className="text-4xl font-black tracking-tight transition-colors duration-300"
+                  style={{ 
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                    color: currentTheme.colors.success,
+                    background: `linear-gradient(90deg, ${currentTheme.colors.success}, ${currentTheme.colors.accent})`,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text'
+                  }}
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ delay: 1.4, type: "spring", stiffness: 200, damping: 15 }}
@@ -615,41 +692,45 @@ export default function InsightsDashboard() {
             </Card>
           </motion.div>
 
-          {/* Story Points - Rotating Animation */}
+          {/* Story Points - Professional Animation */}
           <motion.div
-            whileHover={{ scale: 1.05, rotate: -2 }}
-            animate={{ 
-              rotate: [0, 1, -1, 0],
-              y: [0, -3, 0]
-            }}
+            whileHover={{ scale: 1.01 }}
             transition={{ 
-              duration: 5,
-              repeat: Infinity,
-              ease: "easeInOut"
+              duration: 0.2,
+              ease: "easeOut"
             }}
           >
             <Card 
-              className="backdrop-blur-2xl shadow-2xl hover:shadow-3xl transition-all duration-500 rounded-3xl border-2 border-purple-200/50 dark:border-purple-700/50 bg-gradient-to-br from-purple-50/90 to-pink-50/90 dark:from-purple-900/30 dark:to-pink-900/30"
+              className={`shadow-lg hover:shadow-xl transition-all duration-500 rounded-2xl border relative overflow-hidden ${
+                isDarkMode 
+                  ? 'bg-gray-800/95 border-gray-700/60' 
+                  : 'bg-white/98 border-gray-200/60'
+              }`}
               style={{
-                boxShadow: `0 20px 40px ${currentTheme.colors.secondary}25, 0 0 0 1px ${currentTheme.colors.secondary}10`
+                boxShadow: `0 20px 40px ${currentTheme.colors.secondary}20, 0 0 0 1px ${currentTheme.colors.secondary}10`
               }}
             >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              {/* Theme-colored background effect */}
+              <div 
+                className="absolute inset-0 opacity-15 transition-opacity duration-300"
+                style={{
+                  background: `linear-gradient(135deg, ${currentTheme.colors.secondary}25, ${currentTheme.colors.accent}25)`
+                }}
+              ></div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
                 <CardTitle 
-                  className="text-sm font-bold tracking-wide"
+                 className={`text-sm font-bold tracking-wide transition-colors duration-300 ${
+                   isDarkMode ? 'text-gray-200' : 'text-gray-700'
+                 }`}
                   style={{ 
-                    color: currentTheme.colors.textSecondary,
                     fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                   }}
                 >
                   Story Points
                 </CardTitle>
                 <motion.div
-                  animate={{ 
-                    rotate: [0, 15, -15, 0],
-                    scale: [1, 1.15, 1]
-                  }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
                 >
                   <Target 
                     className="h-6 w-6" 
@@ -657,11 +738,16 @@ export default function InsightsDashboard() {
                   />
                 </motion.div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="relative z-10">
                 <motion.div 
-                  className="text-4xl font-black tracking-tight bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"
+                  className="text-4xl font-black tracking-tight transition-colors duration-300"
                   style={{ 
-                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                    color: currentTheme.colors.secondary,
+                    background: `linear-gradient(90deg, ${currentTheme.colors.secondary}, ${currentTheme.colors.accent})`,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text'
                   }}
                   initial={{ scale: 0, rotate: 180 }}
                   animate={{ scale: 1, rotate: 0 }}
@@ -683,41 +769,45 @@ export default function InsightsDashboard() {
             </Card>
           </motion.div>
 
-          {/* Avg Resolution Time - Clock Animation */}
+          {/* Avg Resolution Time - Professional Animation */}
           <motion.div
-            whileHover={{ scale: 1.05, rotate: 1 }}
-            animate={{ 
-              rotate: [0, -1, 1, 0],
-              scale: [1, 1.01, 1]
-            }}
+            whileHover={{ scale: 1.01 }}
             transition={{ 
-              duration: 6,
-              repeat: Infinity,
-              ease: "easeInOut"
+              duration: 0.2,
+              ease: "easeOut"
             }}
           >
             <Card 
-              className="backdrop-blur-2xl shadow-2xl hover:shadow-3xl transition-all duration-500 rounded-3xl border-2 border-orange-200/50 dark:border-orange-700/50 bg-gradient-to-br from-orange-50/90 to-yellow-50/90 dark:from-orange-900/30 dark:to-yellow-900/30"
+              className={`shadow-lg hover:shadow-xl transition-all duration-500 rounded-2xl border relative overflow-hidden ${
+                isDarkMode 
+                  ? 'bg-gray-800/95 border-gray-700/60' 
+                  : 'bg-white/98 border-gray-200/60'
+              }`}
               style={{
-                boxShadow: `0 20px 40px ${currentTheme.colors.warning}25, 0 0 0 1px ${currentTheme.colors.warning}10`
+                boxShadow: `0 20px 40px ${currentTheme.colors.warning}20, 0 0 0 1px ${currentTheme.colors.warning}10`
               }}
             >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              {/* Theme-colored background effect */}
+              <div 
+                className="absolute inset-0 opacity-15 transition-opacity duration-300"
+                style={{
+                  background: `linear-gradient(135deg, ${currentTheme.colors.warning}25, ${currentTheme.colors.accent}25)`
+                }}
+              ></div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
                 <CardTitle 
-                  className="text-sm font-bold tracking-wide"
+                 className={`text-sm font-bold tracking-wide transition-colors duration-300 ${
+                   isDarkMode ? 'text-gray-200' : 'text-gray-700'
+                 }`}
                   style={{ 
-                    color: currentTheme.colors.textSecondary,
                     fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                   }}
                 >
                   Avg Resolution
                 </CardTitle>
                 <motion.div
-                  animate={{ 
-                    rotate: 360,
-                    scale: [1, 1.1, 1]
-                  }}
-                  transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
                 >
                   <Clock 
                     className="h-6 w-6" 
@@ -725,11 +815,16 @@ export default function InsightsDashboard() {
                   />
                 </motion.div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="relative z-10">
                 <motion.div 
-                  className="text-4xl font-black tracking-tight bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent"
+                  className="text-4xl font-black tracking-tight transition-colors duration-300"
                   style={{ 
-                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                    color: currentTheme.colors.warning,
+                    background: `linear-gradient(90deg, ${currentTheme.colors.warning}, ${currentTheme.colors.accent})`,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text'
                   }}
                   initial={{ scale: 0, rotate: -90 }}
                   animate={{ scale: 1, rotate: 0 }}
@@ -772,21 +867,30 @@ export default function InsightsDashboard() {
             }}
           >
             <Card 
-              className="backdrop-blur-2xl shadow-2xl rounded-3xl border-2 border-indigo-200/50 dark:border-indigo-700/50 bg-gradient-to-br from-indigo-50/90 to-blue-50/90 dark:from-indigo-900/30 dark:to-blue-900/30"
-              style={{
-                boxShadow: `0 20px 40px ${currentTheme.colors.primary}25, 0 0 0 1px ${currentTheme.colors.primary}10`
-              }}
+              className={`shadow-lg hover:shadow-xl transition-all duration-500 rounded-2xl border ${
+                isDarkMode 
+                  ? 'bg-gray-800 border-gray-700' 
+                  : 'bg-white border-gray-200'
+              }`}
             >
               <CardHeader>
                 <CardTitle 
-                  className="flex items-center text-xl font-bold tracking-wide"
+                 key={`issue-types-${currentTheme.name}-${isDarkMode}`}
+                 className="flex items-center text-lg font-semibold tracking-wide transition-colors duration-300"
                   style={{ 
-                    color: currentTheme.colors.text,
-                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                    color: currentTheme.colors.primary,
+                    background: `linear-gradient(90deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    textRendering: 'optimizeLegibility',
+                    WebkitFontSmoothing: 'antialiased',
+                    MozOsxFontSmoothing: 'grayscale'
                   }}
                 >
                   <PieChart 
-                    className="h-6 w-6 mr-3" 
+                    className="h-5 w-5 mr-3" 
                     style={{ color: currentTheme.colors.primary }}
                   />
                   Issue Types
@@ -813,7 +917,7 @@ export default function InsightsDashboard() {
                         cy="50"
                         r="40"
                         fill="none"
-                        stroke="#3b82f6"
+                        stroke={currentTheme.colors.primary}
                         strokeWidth="8"
                         strokeLinecap="round"
                         strokeDasharray={`${(jiraMetrics?.tasks || 0) * 2.51} 251`}
@@ -827,7 +931,7 @@ export default function InsightsDashboard() {
                         cy="50"
                         r="40"
                         fill="none"
-                        stroke="#10b981"
+                        stroke={currentTheme.colors.secondary}
                         strokeWidth="8"
                         strokeLinecap="round"
                         strokeDasharray={`${(jiraMetrics?.stories || 0) * 2.51} 251`}
@@ -842,7 +946,7 @@ export default function InsightsDashboard() {
                         cy="50"
                         r="40"
                         fill="none"
-                        stroke="#ef4444"
+                        stroke={currentTheme.colors.error}
                         strokeWidth="8"
                         strokeLinecap="round"
                         strokeDasharray={`${(jiraMetrics?.bugs || 0) * 2.51} 251`}
@@ -857,7 +961,7 @@ export default function InsightsDashboard() {
                         cy="50"
                         r="40"
                         fill="none"
-                        stroke="#8b5cf6"
+                        stroke={currentTheme.colors.warning}
                         strokeWidth="8"
                         strokeLinecap="round"
                         strokeDasharray={`${(jiraMetrics?.epics || 0) * 2.51} 251`}
@@ -888,44 +992,96 @@ export default function InsightsDashboard() {
                   {/* Legend */}
                   <div className="grid grid-cols-2 gap-3 w-full">
                     <motion.div 
-                      className="flex items-center space-x-2 p-2 rounded-xl bg-blue-50 dark:bg-blue-900/20"
+                      className={`flex items-center space-x-2 p-2 rounded-xl transition-colors duration-300 ${
+                        isDarkMode ? 'bg-gray-700' : 'bg-gray-50'
+                      }`}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 3.2 }}
                     >
-                      <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Tasks</span>
-                      <span className="text-xs font-bold text-blue-600 dark:text-blue-400 ml-auto" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{jiraMetrics?.tasks || 0}</span>
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: currentTheme.colors.primary }}
+                      ></div>
+                      <span className={`text-xs font-semibold transition-colors duration-300 ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`} style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Tasks</span>
+                      <span 
+                        className="text-xs font-bold ml-auto" 
+                        style={{ 
+                          color: currentTheme.colors.primary,
+                          fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' 
+                        }}
+                      >{jiraMetrics?.tasks || 0}</span>
                   </motion.div>
                   <motion.div 
-                      className="flex items-center space-x-2 p-2 rounded-xl bg-green-50 dark:bg-green-900/20"
+                      className={`flex items-center space-x-2 p-2 rounded-xl transition-colors duration-300 ${
+                        isDarkMode ? 'bg-gray-700' : 'bg-gray-50'
+                      }`}
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 3.4 }}
                     >
-                      <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Stories</span>
-                      <span className="text-xs font-bold text-green-600 dark:text-green-400 ml-auto" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{jiraMetrics?.stories || 0}</span>
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: currentTheme.colors.secondary }}
+                      ></div>
+                      <span className={`text-xs font-semibold transition-colors duration-300 ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`} style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Stories</span>
+                      <span 
+                        className="text-xs font-bold ml-auto" 
+                        style={{ 
+                          color: currentTheme.colors.secondary,
+                          fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' 
+                        }}
+                      >{jiraMetrics?.stories || 0}</span>
                   </motion.div>
                   <motion.div 
-                      className="flex items-center space-x-2 p-2 rounded-xl bg-red-50 dark:bg-red-900/20"
+                      className={`flex items-center space-x-2 p-2 rounded-xl transition-colors duration-300 ${
+                        isDarkMode ? 'bg-gray-700' : 'bg-gray-50'
+                      }`}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 3.6 }}
                     >
-                      <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Bugs</span>
-                      <span className="text-xs font-bold text-red-600 dark:text-red-400 ml-auto" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{jiraMetrics?.bugs || 0}</span>
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: currentTheme.colors.error }}
+                      ></div>
+                      <span className={`text-xs font-semibold transition-colors duration-300 ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`} style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Bugs</span>
+                      <span 
+                        className="text-xs font-bold ml-auto" 
+                        style={{ 
+                          color: currentTheme.colors.error,
+                          fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' 
+                        }}
+                      >{jiraMetrics?.bugs || 0}</span>
                   </motion.div>
                   <motion.div 
-                      className="flex items-center space-x-2 p-2 rounded-xl bg-purple-50 dark:bg-purple-900/20"
+                      className={`flex items-center space-x-2 p-2 rounded-xl transition-colors duration-300 ${
+                        isDarkMode ? 'bg-gray-700' : 'bg-gray-50'
+                      }`}
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 3.8 }}
                     >
-                      <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Epics</span>
-                      <span className="text-xs font-bold text-purple-600 dark:text-purple-400 ml-auto" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{jiraMetrics?.epics || 0}</span>
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: currentTheme.colors.warning }}
+                      ></div>
+                      <span className={`text-xs font-semibold transition-colors duration-300 ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`} style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Epics</span>
+                      <span 
+                        className="text-xs font-bold ml-auto" 
+                        style={{ 
+                          color: currentTheme.colors.warning,
+                          fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' 
+                        }}
+                      >{jiraMetrics?.epics || 0}</span>
                   </motion.div>
                   </div>
                 </div>
@@ -935,21 +1091,37 @@ export default function InsightsDashboard() {
 
           {/* Status Distribution - Slide Animation */}
           <motion.div
-            whileHover={{ scale: 1.01, rotate: -0.5 }}
-            animate={{ 
-              x: [0, 2, -2, 0],
-              y: [0, -1, 1, 0]
-            }}
+            whileHover={{ scale: 1.01 }}
             transition={{ 
-              duration: 5,
-              repeat: Infinity,
-              ease: "easeInOut"
+              duration: 0.2,
+              ease: "easeOut"
             }}
           >
-            <Card className="backdrop-blur-2xl border-2 border-emerald-200/50 dark:border-emerald-700/50 shadow-2xl rounded-3xl bg-gradient-to-br from-emerald-50/90 to-green-50/90 dark:from-emerald-900/30 dark:to-green-900/30">
+            <Card className={`shadow-xl hover:shadow-2xl transition-all duration-500 rounded-3xl border backdrop-blur-sm ${
+              isDarkMode 
+                ? 'bg-gray-800/90 border-gray-700/50' 
+                : 'bg-white/95 border-gray-200/50'
+            }`}>
               <CardHeader>
-                <CardTitle className="flex items-center text-xl font-bold tracking-wide text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
-                  <Activity className="h-6 w-6 mr-3 text-green-500 dark:text-green-400" />
+                <CardTitle 
+                  key={`status-distribution-${currentTheme.name}-${isDarkMode}`}
+                  className="flex items-center text-lg font-semibold tracking-wide transition-colors duration-300"
+                  style={{ 
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                    color: currentTheme.colors.primary,
+                    background: `linear-gradient(90deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    textRendering: 'optimizeLegibility',
+                    WebkitFontSmoothing: 'antialiased',
+                    MozOsxFontSmoothing: 'grayscale'
+                  }}
+                >
+                  <Activity 
+                    className="h-5 w-5 mr-3" 
+                    style={{ color: currentTheme.colors.primary }}
+                  />
                   Status Distribution
                 </CardTitle>
               </CardHeader>
@@ -958,14 +1130,39 @@ export default function InsightsDashboard() {
                   {/* Timeline Design */}
                   <div className="relative">
                     {/* Timeline Line */}
-                    <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-green-500 via-blue-500 to-yellow-500"></div>
+                    <div 
+                      className="absolute left-6 top-0 bottom-0 w-0.5 transition-colors duration-300"
+                      style={{
+                        background: `linear-gradient(to bottom, ${currentTheme.colors.success}, ${currentTheme.colors.info}, ${currentTheme.colors.warning})`
+                      }}
+                    ></div>
                     
                     {getStatusDistribution().map(([status, count], index) => {
                       const statusConfig = {
-                        'Done': { color: 'green', bg: 'bg-green-500', text: 'text-green-600 dark:text-green-400', icon: '✓' },
-                        'In Progress': { color: 'blue', bg: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400', icon: '⚡' },
-                        'To Do': { color: 'yellow', bg: 'bg-yellow-500', text: 'text-yellow-600 dark:text-yellow-400', icon: '📋' },
-                        'default': { color: 'gray', bg: 'bg-gray-500', text: 'text-gray-600 dark:text-gray-400', icon: '⏳' }
+                        'Done': { 
+                          color: currentTheme.colors.success, 
+                          bg: currentTheme.colors.success, 
+                          text: currentTheme.colors.success, 
+                          icon: '✓' 
+                        },
+                        'In Progress': { 
+                          color: currentTheme.colors.info, 
+                          bg: currentTheme.colors.info, 
+                          text: currentTheme.colors.info, 
+                          icon: '⚡' 
+                        },
+                        'To Do': { 
+                          color: currentTheme.colors.warning, 
+                          bg: currentTheme.colors.warning, 
+                          text: currentTheme.colors.warning, 
+                          icon: '📋' 
+                        },
+                        'default': { 
+                          color: currentTheme.colors.textSecondary, 
+                          bg: currentTheme.colors.textSecondary, 
+                          text: currentTheme.colors.textSecondary, 
+                          icon: '⏳' 
+                        }
                       };
                       const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.default;
                       
@@ -978,7 +1175,10 @@ export default function InsightsDashboard() {
                           transition={{ delay: 2.2 + index * 0.2, type: "spring", stiffness: 300 }}
                         >
                           {/* Timeline Dot */}
-                          <div className={`relative z-10 w-12 h-12 ${config.bg} rounded-full flex items-center justify-center text-white text-lg font-bold shadow-lg`}>
+                          <div 
+                            className="relative z-10 w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-lg transition-colors duration-300"
+                            style={{ backgroundColor: config.bg }}
+                          >
                             {config.icon}
                       </div>
                           
@@ -994,9 +1194,13 @@ export default function InsightsDashboard() {
                             </div>
                             
                             {/* Progress Bar */}
-                            <div className="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div 
+                              className="w-24 h-2 rounded-full overflow-hidden transition-colors duration-300"
+                              style={{ backgroundColor: isDarkMode ? currentTheme.colors.surface : `${currentTheme.colors.border}40` }}
+                            >
                               <motion.div
-                                className={`h-full bg-gradient-to-r ${config.bg} rounded-full`}
+                                className="h-full rounded-full transition-colors duration-300"
+                                style={{ backgroundColor: config.bg }}
                                 initial={{ width: 0 }}
                                 animate={{ width: `${(count / Math.max(...getStatusDistribution().map(([,c]) => c))) * 100}%` }}
                                 transition={{ delay: 2.4 + index * 0.2, duration: 1, ease: "easeOut" }}
@@ -1014,28 +1218,67 @@ export default function InsightsDashboard() {
                   </div>
                   
                   {/* Summary Stats */}
-                  <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div 
+                    className="grid grid-cols-3 gap-4 pt-4 border-t transition-colors duration-300"
+                    style={{ borderColor: currentTheme.colors.border }}
+                  >
                     <div className="text-center">
-                      <div className="text-2xl font-black text-green-600 dark:text-green-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                      <div 
+                        className="text-2xl font-black transition-colors duration-300" 
+                        style={{ 
+                          fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                          color: currentTheme.colors.success
+                        }}
+                      >
                         {getStatusDistribution().find(([status]) => status === 'Done')?.[1] || 0}
                       </div>
-                      <div className="text-xs font-semibold text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                      <div 
+                        className="text-xs font-semibold transition-colors duration-300" 
+                        style={{ 
+                          fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                          color: currentTheme.colors.textSecondary
+                        }}
+                      >
                         Completed
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-black text-blue-600 dark:text-blue-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                      <div 
+                        className="text-2xl font-black transition-colors duration-300" 
+                        style={{ 
+                          fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                          color: currentTheme.colors.info
+                        }}
+                      >
                         {getStatusDistribution().find(([status]) => status === 'In Progress')?.[1] || 0}
                       </div>
-                      <div className="text-xs font-semibold text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                      <div 
+                        className="text-xs font-semibold transition-colors duration-300" 
+                        style={{ 
+                          fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                          color: currentTheme.colors.textSecondary
+                        }}
+                      >
                         Active
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-black text-yellow-600 dark:text-yellow-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                      <div 
+                        className="text-2xl font-black transition-colors duration-300" 
+                        style={{ 
+                          fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                          color: currentTheme.colors.warning
+                        }}
+                      >
                         {getStatusDistribution().find(([status]) => status === 'To Do')?.[1] || 0}
                       </div>
-                      <div className="text-xs font-semibold text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                      <div 
+                        className="text-xs font-semibold transition-colors duration-300" 
+                        style={{ 
+                          fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                          color: currentTheme.colors.textSecondary
+                        }}
+                      >
                         Pending
                       </div>
                     </div>
@@ -1054,35 +1297,72 @@ export default function InsightsDashboard() {
           transition={{ delay: 2.5, duration: 0.6 }}
         >
           <motion.div
-            whileHover={{ scale: 1.01, rotate: 0.5 }}
-            animate={{ 
-              y: [0, -3, 0],
-              scale: [1, 1.005, 1]
-            }}
+            whileHover={{ scale: 1.01 }}
             transition={{ 
-              duration: 3,
-              repeat: Infinity,
-              ease: "easeInOut"
+              duration: 0.2,
+              ease: "easeOut"
             }}
           >
-            <Card className="backdrop-blur-2xl border-2 border-purple-200/50 dark:border-purple-700/50 shadow-2xl rounded-3xl bg-gradient-to-br from-purple-50/90 to-pink-50/90 dark:from-purple-900/30 dark:to-pink-900/30">
+            <Card className={`shadow-xl hover:shadow-2xl transition-all duration-500 rounded-3xl border backdrop-blur-sm ${
+              isDarkMode 
+                ? 'bg-gray-800/90 border-gray-700/50' 
+                : 'bg-white/95 border-gray-200/50'
+            }`}>
               <CardHeader>
-                <CardTitle className="flex items-center text-xl font-bold tracking-wide text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
-                  <Users className="h-6 w-6 mr-3 text-purple-500 dark:text-purple-400" />
+                <CardTitle 
+                  key={`team-workload-${currentTheme.name}-${isDarkMode}`}
+                  className="flex items-center text-lg font-semibold tracking-wide transition-colors duration-300"
+                  style={{ 
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                    color: currentTheme.colors.primary,
+                    background: `linear-gradient(90deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    textRendering: 'optimizeLegibility',
+                    WebkitFontSmoothing: 'antialiased',
+                    MozOsxFontSmoothing: 'grayscale'
+                  }}
+                >
+                  <Users 
+                    className="h-5 w-5 mr-3" 
+                    style={{ color: currentTheme.colors.primary }}
+                  />
                   Team Workload
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {/* Leaderboard Header */}
-                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-slate-100 to-gray-100 dark:from-slate-800 dark:to-gray-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                  <div 
+                    className="flex items-center justify-between p-3 rounded-2xl border transition-colors duration-300"
+                    style={{
+                      background: `linear-gradient(90deg, ${currentTheme.colors.primary}10, ${currentTheme.colors.secondary}10)`,
+                      borderColor: `${currentTheme.colors.primary}20`
+                    }}
+                  >
                     <div className="flex items-center space-x-2">
-                      <Trophy className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                      <span className="text-sm font-bold text-slate-800 dark:text-slate-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                      <Trophy 
+                        className="h-5 w-5" 
+                        style={{ color: currentTheme.colors.accent }}
+                      />
+                      <span 
+                        className="text-sm font-bold transition-colors duration-300"
+                        style={{ 
+                          fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                          color: currentTheme.colors.text
+                        }}
+                      >
                         Team Leaderboard
                       </span>
                     </div>
-                    <div className="text-xs font-semibold text-slate-600 dark:text-slate-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                    <div 
+                      className="text-xs font-semibold transition-colors duration-300"
+                      style={{ 
+                        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                        color: currentTheme.colors.textSecondary
+                      }}
+                    >
                       Issues Assigned
                     </div>
                   </div>
@@ -1090,24 +1370,51 @@ export default function InsightsDashboard() {
                   {/* Leaderboard Items */}
                   {getTopAssignees().map(([assignee, count], index) => {
                     const rankColors = {
-                      0: { bg: 'from-amber-400 to-yellow-500', border: 'border-amber-300', text: 'text-amber-900', rank: '🥇' },
-                      1: { bg: 'from-slate-400 to-slate-600', border: 'border-slate-300', text: 'text-slate-900', rank: '🥈' },
-                      2: { bg: 'from-orange-400 to-amber-500', border: 'border-orange-300', text: 'text-orange-900', rank: '🥉' },
-                      default: { bg: 'from-indigo-400 to-blue-500', border: 'border-indigo-300', text: 'text-indigo-900', rank: `${index + 1}` }
+                      0: { 
+                        bg: `linear-gradient(135deg, ${currentTheme.colors.accent}, ${currentTheme.colors.warning})`, 
+                        border: `${currentTheme.colors.accent}40`, 
+                        text: currentTheme.colors.text, 
+                        rank: '🥇' 
+                      },
+                      1: { 
+                        bg: `linear-gradient(135deg, ${currentTheme.colors.secondary}, ${currentTheme.colors.primary})`, 
+                        border: `${currentTheme.colors.secondary}40`, 
+                        text: currentTheme.colors.text, 
+                        rank: '🥈' 
+                      },
+                      2: { 
+                        bg: `linear-gradient(135deg, ${currentTheme.colors.warning}, ${currentTheme.colors.accent})`, 
+                        border: `${currentTheme.colors.warning}40`, 
+                        text: currentTheme.colors.text, 
+                        rank: '🥉' 
+                      },
+                      default: { 
+                        bg: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`, 
+                        border: `${currentTheme.colors.primary}40`, 
+                        text: currentTheme.colors.text, 
+                        rank: `${index + 1}` 
+                      }
                     };
                     const rankConfig = rankColors[index as keyof typeof rankColors] || rankColors.default;
                     
                     return (
                      <motion.div 
                        key={assignee} 
-                        className={`relative flex items-center space-x-4 p-4 rounded-2xl border-2 ${rankConfig.border} bg-gradient-to-r ${rankConfig.bg} text-white shadow-lg`}
-                        whileHover={{ scale: 1.02, y: -2 }}
+                        className="relative flex items-center space-x-4 p-4 rounded-2xl border-2 shadow-lg transition-all duration-300"
+                        style={{
+                          background: rankConfig.bg,
+                          borderColor: rankConfig.border,
+                          color: rankConfig.text
+                        }}
+                        whileHover={{ scale: 1.01 }}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                        transition={{ delay: 2.7 + index * 0.1, type: "spring", stiffness: 300 }}
                      >
                         {/* Rank Badge */}
-                        <div className="flex-shrink-0 w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-lg font-bold">
+                        <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold transition-colors duration-300 ${
+                          isDarkMode ? 'bg-gray-700 text-white' : 'bg-white/20 text-black'
+                        }`}>
                           {rankConfig.rank}
                         </div>
                         
@@ -1210,21 +1517,37 @@ export default function InsightsDashboard() {
 
           {/* Priority Distribution - Shake Animation */}
           <motion.div
-            whileHover={{ scale: 1.01, rotate: -0.5 }}
-            animate={{ 
-              x: [0, 1, -1, 0],
-              rotate: [0, 0.5, -0.5, 0]
-            }}
+            whileHover={{ scale: 1.01 }}
             transition={{ 
-              duration: 4,
-              repeat: Infinity,
-              ease: "easeInOut"
+              duration: 0.2,
+              ease: "easeOut"
             }}
           >
-            <Card className="backdrop-blur-2xl border-2 border-orange-200/50 dark:border-orange-700/50 shadow-2xl rounded-3xl bg-gradient-to-br from-orange-50/90 to-red-50/90 dark:from-orange-900/30 dark:to-red-900/30">
+            <Card className={`shadow-xl hover:shadow-2xl transition-all duration-500 rounded-3xl border backdrop-blur-sm ${
+              isDarkMode 
+                ? 'bg-gray-800/90 border-gray-700/50' 
+                : 'bg-white/95 border-gray-200/50'
+            }`}>
               <CardHeader>
-                <CardTitle className="flex items-center text-xl font-bold tracking-wide text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
-                  <TrendingUp className="h-6 w-6 mr-3 text-orange-500 dark:text-orange-400" />
+                <CardTitle 
+                  key={`priority-distribution-${currentTheme.name}-${isDarkMode}`}
+                  className="flex items-center text-lg font-semibold tracking-wide transition-colors duration-300"
+                  style={{ 
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                    color: currentTheme.colors.primary,
+                    background: `linear-gradient(90deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    textRendering: 'optimizeLegibility',
+                    WebkitFontSmoothing: 'antialiased',
+                    MozOsxFontSmoothing: 'grayscale'
+                  }}
+                >
+                  <TrendingUp 
+                    className="h-5 w-5 mr-3" 
+                    style={{ color: currentTheme.colors.primary }}
+                  />
                   Priority Distribution
                 </CardTitle>
               </CardHeader>
@@ -1235,40 +1558,40 @@ export default function InsightsDashboard() {
                     {getPriorityDistribution().map(([priority, count], index) => {
                       const priorityConfig = {
                         'High': { 
-                          color: 'red', 
-                          bg: 'bg-red-500', 
-                          text: 'text-red-600 dark:text-red-400', 
+                          color: currentTheme.colors.error,
+                          bg: currentTheme.colors.error,
+                          text: currentTheme.colors.error, 
                           icon: '🔥', 
                           intensity: 'High',
-                          gradient: 'from-red-500 to-rose-600',
-                          border: 'border-red-200 dark:border-red-700'
+                          gradient: `linear-gradient(135deg, ${currentTheme.colors.error}, ${currentTheme.colors.warning})`,
+                          border: `${currentTheme.colors.error}40`
                         },
                         'Medium': { 
-                          color: 'amber', 
-                          bg: 'bg-amber-500', 
-                          text: 'text-amber-600 dark:text-amber-400', 
+                          color: currentTheme.colors.warning,
+                          bg: currentTheme.colors.warning,
+                          text: currentTheme.colors.warning, 
                           icon: '⚠️', 
                           intensity: 'Medium',
-                          gradient: 'from-amber-500 to-orange-500',
-                          border: 'border-amber-200 dark:border-amber-700'
+                          gradient: `linear-gradient(135deg, ${currentTheme.colors.warning}, ${currentTheme.colors.accent})`,
+                          border: `${currentTheme.colors.warning}40`
                         },
                         'Low': { 
-                          color: 'emerald', 
-                          bg: 'bg-emerald-500', 
-                          text: 'text-emerald-600 dark:text-emerald-400', 
+                          color: currentTheme.colors.success,
+                          bg: currentTheme.colors.success,
+                          text: currentTheme.colors.success, 
                           icon: '✅', 
                           intensity: 'Low',
-                          gradient: 'from-emerald-500 to-teal-500',
-                          border: 'border-emerald-200 dark:border-emerald-700'
+                          gradient: `linear-gradient(135deg, ${currentTheme.colors.success}, ${currentTheme.colors.secondary})`,
+                          border: `${currentTheme.colors.success}40`
                         },
                         'default': { 
-                          color: 'slate', 
-                          bg: 'bg-slate-500', 
-                          text: 'text-slate-600 dark:text-slate-400', 
+                          color: currentTheme.colors.primary,
+                          bg: currentTheme.colors.primary,
+                          text: currentTheme.colors.primary, 
                           icon: '📋', 
                           intensity: 'Unknown',
-                          gradient: 'from-slate-500 to-gray-600',
-                          border: 'border-slate-200 dark:border-slate-700'
+                          gradient: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+                          border: `${currentTheme.colors.primary}40`
                         }
                       };
                       const config = priorityConfig[priority as keyof typeof priorityConfig] || priorityConfig.default;
@@ -1278,9 +1601,14 @@ export default function InsightsDashboard() {
                       return (
                      <motion.div 
                        key={priority} 
-                          className={`relative overflow-hidden rounded-2xl border-2 border-${config.color}-200 dark:border-${config.color}-700 bg-gradient-to-br ${config.gradient} text-white shadow-lg`}
-                          whileHover={{ scale: 1.05, rotate: 1 }}
-                          initial={{ opacity: 0, scale: 0.8 }}
+                          className="relative overflow-hidden rounded-2xl border-2 shadow-lg transition-all duration-300"
+                          style={{
+                            background: config.gradient,
+                            borderColor: config.border,
+                            color: 'white'
+                          }}
+                          whileHover={{ scale: 1.01 }}
+                          initial={{ opacity: 0, scale: 0.95 }}
                           animate={{ opacity: 1, scale: 1 }}
                           transition={{ delay: 2.9 + index * 0.2, type: "spring", stiffness: 300 }}
                         >
@@ -1317,9 +1645,13 @@ export default function InsightsDashboard() {
                             </div>
                             
                             {/* Intensity Bar */}
-                            <div className="w-full bg-white/20 rounded-full h-2 overflow-hidden">
+                            <div className={`w-full rounded-full h-2 overflow-hidden transition-colors duration-300 ${
+                              isDarkMode ? 'bg-gray-700' : 'bg-white/20'
+                            }`}>
                               <motion.div
-                                className={`h-full bg-white rounded-full`}
+                                className={`h-full rounded-full transition-colors duration-300 ${
+                                  isDarkMode ? 'bg-gray-500' : 'bg-white'
+                                }`}
                                 initial={{ width: 0 }}
                                 animate={{ width: `${intensity}%` }}
                                 transition={{ delay: 3.1 + index * 0.2, duration: 1.5, ease: "easeOut" }}
@@ -1350,7 +1682,11 @@ export default function InsightsDashboard() {
                     </div>
                     
                     <div className="grid grid-cols-3 gap-3">
-                      <div className="text-center p-2 bg-white/60 dark:bg-white/10 rounded-xl border border-red-200 dark:border-red-800">
+                      <div className={`text-center p-2 rounded-xl border transition-colors duration-300 ${
+                        isDarkMode 
+                          ? 'bg-gray-700 border-red-800' 
+                          : 'bg-white/60 border-red-200'
+                      }`}>
                         <div className="text-lg font-bold text-red-600 dark:text-red-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
                           {getPriorityDistribution().find(([priority]) => priority === 'High')?.[1] || 0}
                         </div>
@@ -1358,7 +1694,11 @@ export default function InsightsDashboard() {
                           High Priority
                         </div>
                       </div>
-                      <div className="text-center p-2 bg-white/60 dark:bg-white/10 rounded-xl border border-amber-200 dark:border-amber-800">
+                      <div className={`text-center p-2 rounded-xl border transition-colors duration-300 ${
+                        isDarkMode 
+                          ? 'bg-gray-700 border-amber-800' 
+                          : 'bg-white/60 border-amber-200'
+                      }`}>
                         <div className="text-lg font-bold text-amber-600 dark:text-amber-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
                           {getPriorityDistribution().find(([priority]) => priority === 'Medium')?.[1] || 0}
                         </div>
@@ -1366,7 +1706,11 @@ export default function InsightsDashboard() {
                           Medium Priority
                         </div>
                       </div>
-                      <div className="text-center p-2 bg-white/60 dark:bg-white/10 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                      <div className={`text-center p-2 rounded-xl border transition-colors duration-300 ${
+                        isDarkMode 
+                          ? 'bg-gray-700 border-emerald-800' 
+                          : 'bg-white/60 border-emerald-200'
+                      }`}>
                         <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
                           {getPriorityDistribution().find(([priority]) => priority === 'Low')?.[1] || 0}
                         </div>
@@ -1394,12 +1738,29 @@ export default function InsightsDashboard() {
              animate={{ opacity: 1, x: 0 }}
              transition={{ delay: 3 }}
            >
-             <h2 className="text-3xl font-black tracking-tight text-gray-800 dark:text-gray-200 flex items-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+             <h2 
+               key={`best-performers-${currentTheme.name}-${isDarkMode}`}
+               className="text-2xl font-bold tracking-tight flex items-center"
+               style={{ 
+                 fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                 color: currentTheme.colors.primary,
+                 background: `linear-gradient(90deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+                 WebkitBackgroundClip: 'text',
+                 WebkitTextFillColor: 'transparent',
+                 backgroundClip: 'text',
+                 textRendering: 'optimizeLegibility',
+                 WebkitFontSmoothing: 'antialiased',
+                 MozOsxFontSmoothing: 'grayscale'
+               }}
+             >
                <motion.div
                  animate={{ rotate: [0, 10, -10, 0] }}
                  transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
                >
-                 <Trophy className="h-8 w-8 mr-4 text-yellow-500 dark:text-yellow-400" />
+                 <Trophy 
+                   className="h-6 w-6 mr-3" 
+                   style={{ color: currentTheme.colors.accent }}
+                 />
                </motion.div>
                Best Performers
              </h2>
