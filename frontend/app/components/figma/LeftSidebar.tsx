@@ -108,6 +108,7 @@ export function FigmaLeftSidebar({
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
   const [integrationsExpanded, setIntegrationsExpanded] = useState(true)
+  const [quickActionsExpanded, setQuickActionsExpanded] = useState(false)
   const [showWelcome, setShowWelcome] = useState(true)
   const [showThemeSelector, setShowThemeSelector] = useState(false)
   
@@ -365,151 +366,14 @@ export function FigmaLeftSidebar({
           className="space-y-2"
         >
           <div className="flex items-center justify-center w-full">
-            {/* TAO DIGITAL Logo with Advanced In-Code Animation */}
-            <motion.div 
-              className="relative w-28 h-28 rounded-full"
-              style={{
-                transformStyle: "preserve-3d",
-                perspective: "1000px"
-              }}
-              whileHover={{ 
-                scale: 1.12,
-                transition: { duration: 0.5, ease: "easeOut" }
-              }}
-              whileTap={{ 
-                scale: 0.92,
-                transition: { duration: 0.15 }
-              }}
-              animate={{
-                y: [0, -5, 0],
-                boxShadow: [
-                  "0 8px 30px rgba(59, 130, 246, 0.2)",
-                  "0 15px 50px rgba(59, 130, 246, 0.35)",
-                  "0 8px 30px rgba(59, 130, 246, 0.2)"
-                ]
-              }}
-              transition={{
-                y: {
-                  duration: 5,
-                repeat: Infinity,
-                ease: "easeInOut"
-                },
-                boxShadow: {
-                  duration: 5,
-                repeat: Infinity,
-                ease: "easeInOut"
-                }
-              }}
-            >
-              {/* Static Logo Image */}
-              <motion.img 
+            {/* Simple TAO DIGITAL Logo */}
+            <div className="relative w-24 h-24 rounded-full">
+              <img 
                 src="/company-logo.png" 
                 alt="TAO DIGITAL Logo" 
-                className="w-full h-full object-contain relative z-20 rounded-full"
-                style={{
-                  transformStyle: "preserve-3d",
-                  backfaceVisibility: "hidden"
-                }}
-                animate={{
-                  filter: [
-                    "brightness(1) contrast(1) saturate(1)",
-                    "brightness(1.25) contrast(1.2) saturate(1.4)",
-                    "brightness(1) contrast(1) saturate(1)"
-                  ],
-                  scale: [1, 1.04, 1]
-                }}
-                transition={{
-                  duration: 4,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
+                className="w-full h-full object-contain rounded-full"
               />
-              
-              {/* Background Effects Container */}
-              <div className="absolute inset-0">
-                {/* Static Rectangle Effect */}
-                <div
-                  className="absolute inset-0 rounded-full border-2 border-transparent"
-                  style={{
-                    background: "conic-gradient(from 0deg, transparent, rgba(59, 130, 246, 0.3), transparent, rgba(139, 92, 246, 0.3), transparent)",
-                    borderRadius: "50%"
-                  }}
-                />
-                
-                {/* Floating Particles Effect */}
-                {[...Array(8)].map((_, i) => (
-            <motion.div
-                    key={i}
-                    className="absolute w-1.5 h-1.5 rounded-full"
-            style={{
-              backgroundColor: currentTheme.colors.accent,
-              left: "50%",
-              top: "50%",
-              transformOrigin: "0 0"
-            }}
-                    animate={{
-                      x: [0, Math.cos(i * 45 * Math.PI / 180) * 40],
-                      y: [0, Math.sin(i * 45 * Math.PI / 180) * 40],
-                      opacity: [0, 1, 0],
-                      scale: [0, 1.2, 0]
-                    }}
-                    transition={{
-                      duration: 4,
-                      repeat: Infinity,
-                      delay: i * 0.6,
-                      ease: "easeInOut"
-                    }}
-                  />
-                ))}
-                
-                {/* Inner Glow Circle */}
-                    <motion.div
-                  className="absolute inset-3 rounded-full border border-blue-400/30"
-                      animate={{
-                    scale: [1, 1.15, 1],
-                    opacity: [0.4, 0.8, 0.4]
-                      }}
-                      transition={{
-                    duration: 3,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                      }}
-                />
-                </div>
-                
-              {/* Static Pulsing Glow Effect */}
-                <motion.div
-                className="absolute inset-0 rounded-full opacity-50"
-                style={{
-                  background: "radial-gradient(circle, rgba(59, 130, 246, 0.5) 0%, rgba(139, 92, 246, 0.3) 50%, transparent 70%)",
-                  filter: "blur(15px)"
-                }}
-                  animate={{
-                  scale: [1, 1.3, 1],
-                  opacity: [0.3, 0.6, 0.3]
-                  }}
-                  transition={{
-                  duration: 5,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  }}
-                />
-              
-              {/* Outer Static Elements */}
-              <motion.div
-                className="absolute inset-0 rounded-full border border-purple-400/30"
-                animate={{
-                  scale: [1, 1.08, 1]
-                }}
-                transition={{
-                  scale: {
-                    duration: 7,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  }
-                }}
-              />
-            </motion.div>
+            </div>
           </div>
           <AnimatePresence>
             {showWelcome && (
@@ -542,17 +406,17 @@ export function FigmaLeftSidebar({
 
       <ScrollArea className="flex-1 min-h-0 overflow-hidden relative z-10">
         <div className="p-3 space-y-4">
-          {/* Compact Navigation */}
+          {/* Elegant Navigation */}
           <motion.div
             custom={1}
             variants={itemVariants}
             initial="initial"
             animate="animate"
-            className="space-y-2"
+            className="space-y-3"
           >
             <h4 
-              className="text-xs font-semibold uppercase tracking-wider px-2 mb-2"
-              style={{ color: currentTheme.colors.textSecondary }}
+              className="text-xs font-bold uppercase tracking-widest px-3 mb-3 text-slate-500 dark:text-slate-400"
+              style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
             >
               Navigation
             </h4>
@@ -560,47 +424,51 @@ export function FigmaLeftSidebar({
             {/* Leadership Copilot */}
             <motion.div
               whileHover={{ 
-                scale: 1.03, 
-                x: 3,
+                scale: 1.02, 
+                x: 2,
                 transition: { duration: 0.2, ease: "easeOut" }
               }}
-              whileTap={{ scale: 0.97 }}
+              whileTap={{ scale: 0.98 }}
               transition={{ type: "spring", stiffness: 400, damping: 25 }}
             >
               <Button
                 variant={activeView === 'copilot' ? 'default' : 'ghost'}
-                className={`w-full justify-start h-9 px-2 rounded-lg transition-all duration-300 relative overflow-hidden group nav-item ${
+                className={`w-full justify-start h-12 px-4 rounded-2xl transition-all duration-300 relative overflow-hidden group ${
                   activeView === 'copilot' 
-                    ? 'active shadow-lg' 
-                    : 'hover:shadow-lg hover:shadow-blue-500/20 border border-transparent'
+                    ? 'shadow-xl shadow-blue-500/25 border-2 border-blue-200 dark:border-blue-700' 
+                    : 'hover:shadow-lg hover:shadow-blue-500/10 border-2 border-transparent hover:border-blue-100 dark:hover:border-blue-800'
                 }`}
                 style={{
                   color: activeView === 'copilot' 
-                    ? currentTheme.colors.background 
+                    ? '#ffffff' 
                     : currentTheme.colors.text,
                   backgroundColor: activeView === 'copilot' 
-                    ? `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`
-                    : 'transparent'
+                    ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)'
+                    : 'transparent',
+                  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                 }}
                 onClick={() => setActiveView('copilot')}
               >
-                <div className="flex items-center space-x-2 w-full relative z-10">
+                <div className="flex items-center space-x-3 w-full relative z-10">
+                  <div className={`p-2 rounded-xl ${activeView === 'copilot' ? 'bg-white/20' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
+                    <Bot className={`h-5 w-5 ${activeView === 'copilot' ? 'text-white' : 'text-blue-600 dark:text-blue-400'}`} />
+                  </div>
                   <div className="text-left flex-1 min-w-0">
                     <h4 
-                      className="font-medium text-sm truncate"
+                      className="font-semibold text-sm truncate"
                       style={{ 
                         color: activeView === 'copilot' 
-                          ? currentTheme.colors.background 
+                          ? '#ffffff' 
                           : currentTheme.colors.text 
                       }}
                     >
                       Work Buddy
                     </h4>
                     <p 
-                      className="text-xs truncate"
+                      className="text-xs truncate font-medium"
                       style={{ 
                         color: activeView === 'copilot' 
-                          ? `${currentTheme.colors.background}CC` 
+                          ? 'rgba(255,255,255,0.8)' 
                           : currentTheme.colors.textSecondary 
                       }}
                     >
@@ -614,47 +482,51 @@ export function FigmaLeftSidebar({
             {/* Leadership Insights */}
             <motion.div
               whileHover={{ 
-                scale: 1.03, 
-                x: 3,
+                scale: 1.02, 
+                x: 2,
                 transition: { duration: 0.2, ease: "easeOut" }
               }}
-              whileTap={{ scale: 0.97 }}
+              whileTap={{ scale: 0.98 }}
               transition={{ type: "spring", stiffness: 400, damping: 25 }}
             >
               <Button
                 variant={activeView === 'insights' ? 'default' : 'ghost'}
-                className={`w-full justify-start h-9 px-2 rounded-lg transition-all duration-300 relative overflow-hidden group nav-item ${
+                className={`w-full justify-start h-12 px-4 rounded-2xl transition-all duration-300 relative overflow-hidden group ${
                   activeView === 'insights' 
-                    ? 'active shadow-lg' 
-                    : 'hover:shadow-lg hover:shadow-emerald-500/20 border border-transparent'
+                    ? 'shadow-xl shadow-emerald-500/25 border-2 border-emerald-200 dark:border-emerald-700' 
+                    : 'hover:shadow-lg hover:shadow-emerald-500/10 border-2 border-transparent hover:border-emerald-100 dark:hover:border-emerald-800'
                 }`}
                 style={{
                   color: activeView === 'insights' 
-                    ? currentTheme.colors.background 
+                    ? '#ffffff' 
                     : currentTheme.colors.text,
                   backgroundColor: activeView === 'insights' 
-                    ? `linear-gradient(135deg, ${currentTheme.colors.success}, ${currentTheme.colors.accent})`
-                    : 'transparent'
+                    ? 'linear-gradient(135deg, #10b981, #059669)'
+                    : 'transparent',
+                  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                 }}
                 onClick={() => setActiveView('insights')}
               >
-                <div className="flex items-center space-x-2 w-full relative z-10">
+                <div className="flex items-center space-x-3 w-full relative z-10">
+                  <div className={`p-2 rounded-xl ${activeView === 'insights' ? 'bg-white/20' : 'bg-emerald-100 dark:bg-emerald-900/30'}`}>
+                    <BarChart3 className={`h-5 w-5 ${activeView === 'insights' ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`} />
+                  </div>
                   <div className="text-left flex-1 min-w-0">
                     <h4 
-                      className="font-medium text-sm truncate"
+                      className="font-semibold text-sm truncate"
                       style={{ 
                         color: activeView === 'insights' 
-                          ? currentTheme.colors.background 
+                          ? '#ffffff' 
                           : currentTheme.colors.text 
                       }}
                     >
                       Insights
                     </h4>
                     <p 
-                      className="text-xs truncate"
+                      className="text-xs truncate font-medium"
                       style={{ 
                         color: activeView === 'insights' 
-                          ? `${currentTheme.colors.background}CC` 
+                          ? 'rgba(255,255,255,0.8)' 
                           : currentTheme.colors.textSecondary 
                       }}
                     >
@@ -668,55 +540,59 @@ export function FigmaLeftSidebar({
             {/* Leadership Access */}
             <motion.div
               whileHover={{ 
-                scale: 1.03, 
-                x: 3,
+                scale: 1.02, 
+                x: 2,
                 transition: { duration: 0.2, ease: "easeOut" }
               }}
-              whileTap={{ scale: 0.97 }}
+              whileTap={{ scale: 0.98 }}
               transition={{ type: "spring", stiffness: 400, damping: 25 }}
             >
               <Button
                 variant={activeView === 'leadership' ? 'default' : 'ghost'}
                 disabled={true}
-                className={`w-full justify-start h-9 px-2 rounded-lg transition-all duration-300 relative overflow-hidden group nav-item ${
+                className={`w-full justify-start h-12 px-4 rounded-2xl transition-all duration-300 relative overflow-hidden group ${
                   activeView === 'leadership' 
-                    ? 'active shadow-lg' 
-                    : 'opacity-60 cursor-not-allowed border border-transparent'
+                    ? 'shadow-xl shadow-purple-500/25 border-2 border-purple-200 dark:border-purple-700' 
+                    : 'opacity-60 cursor-not-allowed border-2 border-transparent'
                 }`}
                 style={{
                   color: activeView === 'leadership' 
-                    ? currentTheme.colors.background 
+                    ? '#ffffff' 
                     : currentTheme.colors.textSecondary,
                   backgroundColor: activeView === 'leadership' 
-                    ? `linear-gradient(135deg, ${currentTheme.colors.secondary}, ${currentTheme.colors.accent})`
-                    : 'transparent'
+                    ? 'linear-gradient(135deg, #8b5cf6, #7c3aed)'
+                    : 'transparent',
+                  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                 }}
                 onClick={() => setActiveView('leadership')}
               >
-                <div className="flex items-center space-x-2 w-full relative z-10">
+                <div className="flex items-center space-x-3 w-full relative z-10">
+                  <div className={`p-2 rounded-xl ${activeView === 'leadership' ? 'bg-white/20' : 'bg-purple-100 dark:bg-purple-900/30'}`}>
+                    <Crown className={`h-5 w-5 ${activeView === 'leadership' ? 'text-white' : 'text-purple-600 dark:text-purple-400'}`} />
+                  </div>
                   <div className="text-left flex-1 min-w-0">
                     <h4 
-                      className="font-medium text-sm truncate"
+                      className="font-semibold text-sm truncate"
                       style={{ 
                         color: activeView === 'leadership' 
-                          ? currentTheme.colors.background 
+                          ? '#ffffff' 
                           : currentTheme.colors.textSecondary 
                       }}
                     >
                       Access
                     </h4>
                     <p 
-                      className="text-xs truncate"
+                      className="text-xs truncate font-medium"
                       style={{ 
                         color: activeView === 'leadership' 
-                          ? `${currentTheme.colors.background}CC` 
+                          ? 'rgba(255,255,255,0.8)' 
                           : currentTheme.colors.textSecondary 
                       }}
                     >
                       Premium
                     </p>
                   </div>
-                  <Badge variant="outline" className="text-xs px-1.5 py-0 bg-[var(--accent-secondary)]/10 text-[var(--accent-secondary)] border-[var(--accent-secondary)]/30">
+                  <Badge variant="outline" className="text-xs px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-700 font-semibold">
                     Soon
                   </Badge>
                 </div>
@@ -735,8 +611,8 @@ export function FigmaLeftSidebar({
           >
             <div className="flex items-center justify-between">
               <h4 
-                className="text-xs font-semibold uppercase tracking-wider px-2"
-                style={{ color: currentTheme.colors.textSecondary }}
+                className="text-xs font-bold uppercase tracking-widest px-3 text-slate-500 dark:text-slate-400"
+                style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
               >
                 Integrations
               </h4>
@@ -745,7 +621,7 @@ export function FigmaLeftSidebar({
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowSettings(true)}
-                  className="h-5 w-5 p-0 text-[var(--text-muted)] hover:shadow-lg hover:shadow-blue-500/20"
+                  className="h-6 w-6 p-0 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400"
                 >
                   <Settings className="w-3 h-3" />
                 </Button>
@@ -753,7 +629,7 @@ export function FigmaLeftSidebar({
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowThemeSelector(true)}
-                  className="h-5 w-5 p-0 text-[var(--text-muted)] hover:shadow-lg hover:shadow-purple-500/20"
+                  className="h-6 w-6 p-0 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400"
                 >
                   <Palette className="w-3 h-3" />
                 </Button>
@@ -761,7 +637,7 @@ export function FigmaLeftSidebar({
                   variant="ghost"
                   size="sm"
                   onClick={() => setIntegrationsExpanded(!integrationsExpanded)}
-                  className="h-5 w-5 p-0 text-[var(--text-muted)] hover:shadow-lg hover:shadow-blue-500/20"
+                  className="h-6 w-6 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
                 >
                   {integrationsExpanded ? (
                     <ChevronDown className="w-3 h-3" />
@@ -1028,104 +904,107 @@ export function FigmaLeftSidebar({
             )}
           </motion.div>
 
-          {/* Quick Actions Section */}
-                <motion.div
+          {/* Elegant Quick Actions Dropdown */}
+          <motion.div
             custom={4}
             variants={itemVariants}
             initial="initial"
             animate="animate"
-            className="space-y-2"
+            className="space-y-3"
           >
-            <h4 
-              className="text-xs font-semibold uppercase tracking-wider px-2"
-              style={{ color: currentTheme.colors.textSecondary }}
-            >
-              Quick Actions
-            </h4>
-
-            <div className="space-y-1.5">
-              {quickActions.map((action, index) => (
-                  <motion.div
-                  key={action.label}
-                  custom={index}
-                  variants={itemVariants}
-                  initial="initial"
-                  animate="animate"
-                  whileHover={{ 
-                    scale: 1.03, 
-                    x: 3,
-                    transition: { duration: 0.2, ease: "easeOut" }
-                  }}
-                  whileTap={{ scale: 0.97 }}
-                  className="relative group"
-                >
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={`w-full h-8 flex items-center justify-start px-2 rounded-lg transition-all duration-300 relative overflow-hidden hover:shadow-lg border ${
-                      theme === 'dark' 
-                        ? 'hover:shadow-blue-500/20 border-[var(--border-subtle)]' 
-                        : 'hover:shadow-blue-500/20 border-[var(--border-subtle)]'
-                    }`}
-                    onClick={() => {
-                      onQuickAction(action.prompt)
-                    }}
-                  >
-                    <div 
-                      className="w-5 h-5 rounded-md flex items-center justify-center mr-2 flex-shrink-0"
-                      style={{
-                        background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`
-                      }}
-                    >
-                      <action.icon 
-                        className="w-3 h-3" 
-                        style={{ color: currentTheme.colors.background }}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0 text-left">
-                      <div 
-                        className="text-xs font-medium truncate"
-                        style={{ color: currentTheme.colors.text }}
-                      >
-                        {action.label}
-                      </div>
-                      <div 
-                        className="text-xs truncate"
-                        style={{ color: currentTheme.colors.textSecondary }}
-                      >
-                        {action.subtext}
-                      </div>
-                    </div>
-                  </Button>
-                  </motion.div>
-              ))}
+            <div className="flex items-center justify-between">
+              <h4 
+                className="text-xs font-bold uppercase tracking-widest px-3 text-slate-500 dark:text-slate-400"
+                style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
+              >
+                Quick Actions
+              </h4>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setQuickActionsExpanded(!quickActionsExpanded)}
+                className="h-6 w-6 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+              >
+                {quickActionsExpanded ? (
+                  <ChevronDown className="w-3 h-3" />
+                ) : (
+                  <ChevronRight className="w-3 h-3" />
+                )}
+              </Button>
             </div>
-                  </motion.div>
+
+            <AnimatePresence>
+              {quickActionsExpanded && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="space-y-2"
+                >
+                  {quickActions.map((action, index) => (
+                    <motion.div
+                      key={action.label}
+                      custom={index}
+                      variants={itemVariants}
+                      initial="initial"
+                      animate="animate"
+                      whileHover={{ 
+                        scale: 1.02, 
+                        x: 2,
+                        transition: { duration: 0.2, ease: "easeOut" }
+                      }}
+                      whileTap={{ scale: 0.98 }}
+                      className="relative group"
+                    >
+                      <Button
+                        variant="ghost"
+                        className="w-full h-11 flex items-center justify-start px-4 rounded-xl transition-all duration-300 relative overflow-hidden hover:shadow-lg border-2 border-transparent hover:border-blue-100 dark:hover:border-blue-800"
+                        onClick={() => {
+                          onQuickAction(action.prompt)
+                        }}
+                      >
+                        <div className="flex items-center space-x-3 w-full">
+                          <div className="p-2 rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30">
+                            <action.icon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div className="text-left flex-1 min-w-0">
+                            <h4 className="font-semibold text-sm text-slate-800 dark:text-slate-200 truncate" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                              {action.label}
+                            </h4>
+                            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium truncate" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                              {action.subtext}
+                            </p>
+                          </div>
+                        </div>
+                      </Button>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
         </div>
       </ScrollArea>
       
-      {/* About Us Link */}
-      <div className="flex-shrink-0 p-4 border-t border-[var(--border-subtle)]/30">
+      {/* Elegant About Us Link */}
+      <div className="flex-shrink-0 p-4 border-t border-slate-200/50 dark:border-slate-700/50">
         <motion.button
           onClick={() => setShowAboutUs(true)}
-          className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 hover:scale-[1.02] ${
-            theme === 'dark'
-              ? 'hover:bg-slate-700/50 text-slate-300 hover:text-white'
-              : 'hover:bg-blue-50 text-gray-600 hover:text-blue-700'
-          }`}
+          className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 hover:scale-[1.02] bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800 hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 border border-slate-200 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-700 shadow-sm hover:shadow-lg"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
-          <div className={`w-4 h-4 ${
-            theme === 'dark' ? 'text-blue-400' : 'text-blue-500'
-          }`}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+            <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/>
               <path d="M12 16v-4"/>
               <path d="M12 8h.01"/>
             </svg>
           </div>
-          <span className="font-medium text-sm">About Us</span>
+          <span className="font-semibold text-sm text-slate-800 dark:text-slate-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+            About Us
+          </span>
         </motion.button>
       </div>
       </motion.aside>

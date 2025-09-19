@@ -377,9 +377,10 @@ export default function InsightsDashboard() {
         >
           <div className="space-y-2">
             <motion.h1 
-              className="text-4xl font-bold"
+              className="text-5xl font-black tracking-tight bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent"
               style={{
-                color: currentTheme?.colors?.primary || '#3b82f6'
+                fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                textShadow: '0 4px 8px rgba(0,0,0,0.1)'
               }}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -388,8 +389,11 @@ export default function InsightsDashboard() {
               Analytics Dashboard
             </motion.h1>
             <motion.p 
-              className="text-lg"
-              style={{ color: currentTheme?.colors?.textSecondary || '#64748b' }}
+              className="text-xl font-medium tracking-wide"
+              style={{ 
+                color: currentTheme?.colors?.textSecondary || '#64748b',
+                fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+              }}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}
@@ -405,13 +409,13 @@ export default function InsightsDashboard() {
           >
             <div className="relative">
               <Select value={selectedProject} onValueChange={setSelectedProject}>
-                <SelectTrigger className="w-56 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-slate-200 dark:border-slate-700 shadow-lg">
+                <SelectTrigger className="w-56 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl border-2 border-slate-300/50 dark:border-slate-600/50 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-2xl font-semibold">
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
-                <SelectContent className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border-slate-200 dark:border-slate-700">
-                  <SelectItem value="all" className="text-gray-900 dark:text-gray-100">All Projects</SelectItem>
+                <SelectContent className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl border-2 border-slate-300/50 dark:border-slate-600/50 shadow-2xl rounded-2xl">
+                  <SelectItem value="all" className="text-gray-900 dark:text-gray-100 font-medium hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 rounded-xl mx-2 my-1">All Projects</SelectItem>
                   {Array.isArray(projects) && projects.map((project) => (
-                    <SelectItem key={project.id} value={project.key} className="text-gray-900 dark:text-gray-100">
+                    <SelectItem key={project.id} value={project.key} className="text-gray-900 dark:text-gray-100 font-medium hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 rounded-xl mx-2 my-1">
                       {project.name}
                     </SelectItem>
                   ))}
@@ -422,10 +426,11 @@ export default function InsightsDashboard() {
               <Button 
                 onClick={refreshData} 
                 disabled={isRefreshing}
-                className="text-white shadow-lg border-0"
+                className="text-white shadow-xl border-0 rounded-2xl font-semibold px-6 py-3 hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
                 style={{
                   background: `linear-gradient(135deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
-                  boxShadow: `0 4px 14px 0 ${currentTheme.colors.primary}40`
+                  boxShadow: `0 8px 25px 0 ${currentTheme.colors.primary}50`,
+                  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                 }}
                 size="sm"
               >
@@ -442,10 +447,11 @@ export default function InsightsDashboard() {
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button 
                 onClick={handleExportPDF}
-                className="text-white shadow-lg border-0"
+                className="text-white shadow-xl border-0 rounded-2xl font-semibold px-6 py-3 hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
                 style={{
                   background: `linear-gradient(135deg, ${currentTheme.colors.success}, ${currentTheme.colors.accent})`,
-                  boxShadow: `0 4px 14px 0 ${currentTheme.colors.success}40`
+                  boxShadow: `0 8px 25px 0 ${currentTheme.colors.success}50`,
+                  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                 }}
                 size="sm"
               >
@@ -493,49 +499,66 @@ export default function InsightsDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1, duration: 0.6 }}
         >
-          {/* Total Issues */}
+          {/* Total Issues - Floating Animation */}
           <motion.div
-            whileHover={{ scale: 1.02, y: -5 }}
-            transition={{ type: "spring", stiffness: 300 }}
+            whileHover={{ scale: 1.05, y: -10 }}
+            animate={{ 
+              y: [0, -5, 0],
+              rotateY: [0, 2, 0]
+            }}
+            transition={{ 
+              duration: 4,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
           >
             <Card 
-              className="backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300"
+              className="backdrop-blur-2xl shadow-2xl hover:shadow-3xl transition-all duration-500 rounded-3xl border-2 border-blue-200/50 dark:border-blue-700/50 bg-gradient-to-br from-blue-50/90 to-indigo-50/90 dark:from-blue-900/30 dark:to-indigo-900/30"
               style={{
-                backgroundColor: `${currentTheme.colors.surface}CC`,
-                borderColor: `${currentTheme.colors.border}80`,
-                boxShadow: `0 10px 25px ${currentTheme.colors.primary}20`
+                boxShadow: `0 20px 40px ${currentTheme.colors.primary}25, 0 0 0 1px ${currentTheme.colors.primary}10`
               }}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle 
-                  className="text-sm font-semibold"
-                  style={{ color: currentTheme.colors.textSecondary }}
+                  className="text-sm font-bold tracking-wide"
+                  style={{ 
+                    color: currentTheme.colors.textSecondary,
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                  }}
                 >
                   Total Issues
                 </CardTitle>
                 <motion.div
-                  animate={{ rotate: [0, 10, -10, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                  animate={{ 
+                    rotate: [0, 5, -5, 0],
+                    scale: [1, 1.1, 1]
+                  }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                 >
                   <BarChart3 
-                    className="h-5 w-5" 
+                    className="h-6 w-6" 
                     style={{ color: currentTheme.colors.primary }}
                   />
                 </motion.div>
               </CardHeader>
               <CardContent>
                 <motion.div 
-                  className="text-3xl font-bold"
-                  style={{ color: currentTheme.colors.text }}
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 1.2, type: "spring", stiffness: 200 }}
+                  className="text-4xl font-black tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
+                  style={{ 
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                  }}
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ delay: 1.2, type: "spring", stiffness: 200, damping: 15 }}
                 >
                   {jiraMetrics?.totalIssues || 0}
                 </motion.div>
                 <p 
-                  className="text-xs mt-2 flex items-center"
-                  style={{ color: currentTheme.colors.textSecondary }}
+                  className="text-xs mt-2 flex items-center font-medium"
+                  style={{ 
+                    color: currentTheme.colors.textSecondary,
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                  }}
                 >
                   <Zap className="h-3 w-3 mr-1" />
                   Across all projects
@@ -544,31 +567,47 @@ export default function InsightsDashboard() {
             </Card>
           </motion.div>
 
-          {/* Completion Rate */}
+          {/* Completion Rate - Pulse Animation */}
           <motion.div
-            whileHover={{ scale: 1.02, y: -5 }}
-            transition={{ type: "spring", stiffness: 300 }}
+            whileHover={{ scale: 1.05, rotate: 2 }}
+            animate={{ 
+              scale: [1, 1.02, 1],
+              boxShadow: [
+                "0 20px 40px rgba(34, 197, 94, 0.25)",
+                "0 25px 50px rgba(34, 197, 94, 0.35)",
+                "0 20px 40px rgba(34, 197, 94, 0.25)"
+              ]
+            }}
+            transition={{ 
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
           >
-            <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-white/20 dark:border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300">
+            <Card className="backdrop-blur-2xl shadow-2xl hover:shadow-3xl transition-all duration-500 rounded-3xl border-2 border-green-200/50 dark:border-green-700/50 bg-gradient-to-br from-green-50/90 to-emerald-50/90 dark:from-green-900/30 dark:to-emerald-900/30">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-semibold text-gray-700 dark:text-gray-300">Completion Rate</CardTitle>
+                <CardTitle className="text-sm font-bold tracking-wide text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Completion Rate</CardTitle>
                 <motion.div
-                  animate={{ scale: [1, 1.1, 1] }}
-                  transition={{ duration: 2, repeat: Infinity, repeatDelay: 2 }}
+                  animate={{ 
+                    scale: [1, 1.2, 1],
+                    rotate: [0, 360]
+                  }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  <CheckCircle className="h-5 w-5 text-green-500 dark:text-green-400" />
+                  <CheckCircle className="h-6 w-6 text-green-500 dark:text-green-400" />
                 </motion.div>
               </CardHeader>
               <CardContent>
                 <motion.div 
-                  className="text-3xl font-bold text-gray-900 dark:text-white"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 1.4, type: "spring", stiffness: 200 }}
+                  className="text-4xl font-black tracking-tight bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent"
+                  style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 1.4, type: "spring", stiffness: 200, damping: 15 }}
                 >
                   {getCompletionRate()}%
                 </motion.div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 flex items-center">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 flex items-center font-medium" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
                   <ArrowUpRight className="h-3 w-3 mr-1" />
                   {jiraMetrics?.resolvedIssues || 0} of {jiraMetrics?.totalIssues || 0} resolved
                 </p>
@@ -576,49 +615,66 @@ export default function InsightsDashboard() {
             </Card>
           </motion.div>
 
-          {/* Story Points */}
+          {/* Story Points - Rotating Animation */}
           <motion.div
-            whileHover={{ scale: 1.02, y: -5 }}
-            transition={{ type: "spring", stiffness: 300 }}
+            whileHover={{ scale: 1.05, rotate: -2 }}
+            animate={{ 
+              rotate: [0, 1, -1, 0],
+              y: [0, -3, 0]
+            }}
+            transition={{ 
+              duration: 5,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
           >
             <Card 
-              className="backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300"
+              className="backdrop-blur-2xl shadow-2xl hover:shadow-3xl transition-all duration-500 rounded-3xl border-2 border-purple-200/50 dark:border-purple-700/50 bg-gradient-to-br from-purple-50/90 to-pink-50/90 dark:from-purple-900/30 dark:to-pink-900/30"
               style={{
-                backgroundColor: `${currentTheme.colors.surface}CC`,
-                borderColor: `${currentTheme.colors.border}80`,
-                boxShadow: `0 10px 25px ${currentTheme.colors.secondary}20`
+                boxShadow: `0 20px 40px ${currentTheme.colors.secondary}25, 0 0 0 1px ${currentTheme.colors.secondary}10`
               }}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle 
-                  className="text-sm font-semibold"
-                  style={{ color: currentTheme.colors.textSecondary }}
+                  className="text-sm font-bold tracking-wide"
+                  style={{ 
+                    color: currentTheme.colors.textSecondary,
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                  }}
                 >
                   Story Points
                 </CardTitle>
                 <motion.div
-                  animate={{ rotate: [0, 15, -15, 0] }}
-                  transition={{ duration: 3, repeat: Infinity, repeatDelay: 1 }}
+                  animate={{ 
+                    rotate: [0, 15, -15, 0],
+                    scale: [1, 1.15, 1]
+                  }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                 >
                   <Target 
-                    className="h-5 w-5" 
+                    className="h-6 w-6" 
                     style={{ color: currentTheme.colors.secondary }}
                   />
                 </motion.div>
               </CardHeader>
               <CardContent>
                 <motion.div 
-                  className="text-3xl font-bold"
-                  style={{ color: currentTheme.colors.text }}
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 1.6, type: "spring", stiffness: 200 }}
+                  className="text-4xl font-black tracking-tight bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"
+                  style={{ 
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                  }}
+                  initial={{ scale: 0, rotate: 180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ delay: 1.6, type: "spring", stiffness: 200, damping: 15 }}
                 >
                   {jiraMetrics?.storyPoints || 0}
                 </motion.div>
                 <p 
-                  className="text-xs mt-2 flex items-center"
-                  style={{ color: currentTheme.colors.textSecondary }}
+                  className="text-xs mt-2 flex items-center font-medium"
+                  style={{ 
+                    color: currentTheme.colors.textSecondary,
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                  }}
                 >
                   <TrendingUp className="h-3 w-3 mr-1" />
                   Sprint velocity: {jiraMetrics?.sprintVelocity || 0}
@@ -627,49 +683,66 @@ export default function InsightsDashboard() {
             </Card>
           </motion.div>
 
-          {/* Avg Resolution Time */}
+          {/* Avg Resolution Time - Clock Animation */}
           <motion.div
-            whileHover={{ scale: 1.02, y: -5 }}
-            transition={{ type: "spring", stiffness: 300 }}
+            whileHover={{ scale: 1.05, rotate: 1 }}
+            animate={{ 
+              rotate: [0, -1, 1, 0],
+              scale: [1, 1.01, 1]
+            }}
+            transition={{ 
+              duration: 6,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
           >
             <Card 
-              className="backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300"
+              className="backdrop-blur-2xl shadow-2xl hover:shadow-3xl transition-all duration-500 rounded-3xl border-2 border-orange-200/50 dark:border-orange-700/50 bg-gradient-to-br from-orange-50/90 to-yellow-50/90 dark:from-orange-900/30 dark:to-yellow-900/30"
               style={{
-                backgroundColor: `${currentTheme.colors.surface}CC`,
-                borderColor: `${currentTheme.colors.border}80`,
-                boxShadow: `0 10px 25px ${currentTheme.colors.warning}20`
+                boxShadow: `0 20px 40px ${currentTheme.colors.warning}25, 0 0 0 1px ${currentTheme.colors.warning}10`
               }}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle 
-                  className="text-sm font-semibold"
-                  style={{ color: currentTheme.colors.textSecondary }}
+                  className="text-sm font-bold tracking-wide"
+                  style={{ 
+                    color: currentTheme.colors.textSecondary,
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                  }}
                 >
                   Avg Resolution
                 </CardTitle>
                 <motion.div
-                  animate={{ rotate: 360 }}
+                  animate={{ 
+                    rotate: 360,
+                    scale: [1, 1.1, 1]
+                  }}
                   transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
                 >
                   <Clock 
-                    className="h-5 w-5" 
+                    className="h-6 w-6" 
                     style={{ color: currentTheme.colors.warning }}
                   />
                 </motion.div>
               </CardHeader>
               <CardContent>
                 <motion.div 
-                  className="text-3xl font-bold"
-                  style={{ color: currentTheme.colors.text }}
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 1.8, type: "spring", stiffness: 200 }}
+                  className="text-4xl font-black tracking-tight bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent"
+                  style={{ 
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                  }}
+                  initial={{ scale: 0, rotate: -90 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ delay: 1.8, type: "spring", stiffness: 200, damping: 15 }}
                 >
                   {jiraMetrics?.avgResolutionTime || 0}d
                 </motion.div>
                 <p 
-                  className="text-xs mt-2 flex items-center"
-                  style={{ color: currentTheme.colors.textSecondary }}
+                  className="text-xs mt-2 flex items-center font-medium"
+                  style={{ 
+                    color: currentTheme.colors.textSecondary,
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                  }}
                 >
                   <Activity className="h-3 w-3 mr-1" />
                   Days to resolve
@@ -687,183 +760,286 @@ export default function InsightsDashboard() {
           transition={{ delay: 2, duration: 0.6 }}
         >
           <motion.div
-            whileHover={{ scale: 1.01 }}
-            transition={{ type: "spring", stiffness: 300 }}
+            whileHover={{ scale: 1.01, rotate: 0.5 }}
+            animate={{ 
+              y: [0, -2, 0],
+              rotate: [0, 0.5, -0.5, 0]
+            }}
+            transition={{ 
+              duration: 4,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
           >
             <Card 
-              className="backdrop-blur-xl shadow-xl"
+              className="backdrop-blur-2xl shadow-2xl rounded-3xl border-2 border-indigo-200/50 dark:border-indigo-700/50 bg-gradient-to-br from-indigo-50/90 to-blue-50/90 dark:from-indigo-900/30 dark:to-blue-900/30"
               style={{
-                backgroundColor: `${currentTheme.colors.surface}CC`,
-                borderColor: `${currentTheme.colors.border}80`,
-                boxShadow: `0 10px 25px ${currentTheme.colors.primary}20`
+                boxShadow: `0 20px 40px ${currentTheme.colors.primary}25, 0 0 0 1px ${currentTheme.colors.primary}10`
               }}
             >
               <CardHeader>
                 <CardTitle 
-                  className="flex items-center"
-                  style={{ color: currentTheme.colors.text }}
+                  className="flex items-center text-xl font-bold tracking-wide"
+                  style={{ 
+                    color: currentTheme.colors.text,
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                  }}
                 >
                   <PieChart 
-                    className="h-5 w-5 mr-2" 
+                    className="h-6 w-6 mr-3" 
                     style={{ color: currentTheme.colors.primary }}
                   />
                   Issue Types
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="flex flex-col items-center space-y-6">
+                  {/* Circular Progress Chart */}
+                  <div className="relative w-48 h-48">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                      {/* Background Circle */}
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        className="text-gray-200 dark:text-gray-700"
+                      />
+                      {/* Tasks Arc */}
+                      <motion.circle
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="none"
+                        stroke="#3b82f6"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        strokeDasharray={`${(jiraMetrics?.tasks || 0) * 2.51} 251`}
+                        initial={{ strokeDasharray: "0 251" }}
+                        animate={{ strokeDasharray: `${(jiraMetrics?.tasks || 0) * 2.51} 251` }}
+                        transition={{ delay: 2.2, duration: 1.5, ease: "easeOut" }}
+                      />
+                      {/* Stories Arc */}
+                      <motion.circle
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="none"
+                        stroke="#10b981"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        strokeDasharray={`${(jiraMetrics?.stories || 0) * 2.51} 251`}
+                        strokeDashoffset={`-${(jiraMetrics?.tasks || 0) * 2.51}`}
+                        initial={{ strokeDasharray: "0 251" }}
+                        animate={{ strokeDasharray: `${(jiraMetrics?.stories || 0) * 2.51} 251` }}
+                        transition={{ delay: 2.4, duration: 1.5, ease: "easeOut" }}
+                      />
+                      {/* Bugs Arc */}
+                      <motion.circle
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="none"
+                        stroke="#ef4444"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        strokeDasharray={`${(jiraMetrics?.bugs || 0) * 2.51} 251`}
+                        strokeDashoffset={`-${((jiraMetrics?.tasks || 0) + (jiraMetrics?.stories || 0)) * 2.51}`}
+                        initial={{ strokeDasharray: "0 251" }}
+                        animate={{ strokeDasharray: `${(jiraMetrics?.bugs || 0) * 2.51} 251` }}
+                        transition={{ delay: 2.6, duration: 1.5, ease: "easeOut" }}
+                      />
+                      {/* Epics Arc */}
+                      <motion.circle
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="none"
+                        stroke="#8b5cf6"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        strokeDasharray={`${(jiraMetrics?.epics || 0) * 2.51} 251`}
+                        strokeDashoffset={`-${((jiraMetrics?.tasks || 0) + (jiraMetrics?.stories || 0) + (jiraMetrics?.bugs || 0)) * 2.51}`}
+                        initial={{ strokeDasharray: "0 251" }}
+                        animate={{ strokeDasharray: `${(jiraMetrics?.epics || 0) * 2.51} 251` }}
+                        transition={{ delay: 2.8, duration: 1.5, ease: "easeOut" }}
+                      />
+                    </svg>
+                    {/* Center Total */}
+                    <div className="absolute inset-0 flex items-center justify-center">
                   <motion.div 
-                    className="flex items-center justify-between p-3 rounded-lg"
-                    style={{ backgroundColor: `${currentTheme.colors.primary}10` }}
-                    whileHover={{ x: 5 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-                    <div className="flex items-center">
-                      <div 
-                        className="w-4 h-4 rounded-full mr-3"
-                        style={{ backgroundColor: currentTheme.colors.primary }}
-                      ></div>
-                      <span 
-                        className="text-sm font-medium"
-                        style={{ color: currentTheme.colors.text }}
+                        className="text-center"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 3, type: "spring", stiffness: 200 }}
                       >
-                        Tasks
-                      </span>
+                        <div className="text-2xl font-black text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                          {((jiraMetrics?.tasks || 0) + (jiraMetrics?.stories || 0) + (jiraMetrics?.bugs || 0) + (jiraMetrics?.epics || 0))}
                     </div>
-                    <Badge 
-                      variant="secondary" 
-                      style={{
-                        backgroundColor: `${currentTheme.colors.primary}20`,
-                        color: currentTheme.colors.primary
-                      }}
+                        <div className="text-xs font-semibold text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                          Total
+                        </div>
+                      </motion.div>
+                    </div>
+                  </div>
+                  
+                  {/* Legend */}
+                  <div className="grid grid-cols-2 gap-3 w-full">
+                    <motion.div 
+                      className="flex items-center space-x-2 p-2 rounded-xl bg-blue-50 dark:bg-blue-900/20"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 3.2 }}
                     >
-                      {jiraMetrics?.tasks || 0}
-                    </Badge>
+                      <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Tasks</span>
+                      <span className="text-xs font-bold text-blue-600 dark:text-blue-400 ml-auto" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{jiraMetrics?.tasks || 0}</span>
                   </motion.div>
                   <motion.div 
-                    className="flex items-center justify-between p-3 rounded-lg"
-                    style={{ backgroundColor: `${currentTheme.colors.success}10` }}
-                    whileHover={{ x: 5 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-                    <div className="flex items-center">
-                      <div 
-                        className="w-4 h-4 rounded-full mr-3"
-                        style={{ backgroundColor: currentTheme.colors.success }}
-                      ></div>
-                      <span 
-                        className="text-sm font-medium"
-                        style={{ color: currentTheme.colors.text }}
-                      >
-                        Stories
-                      </span>
-                    </div>
-                    <Badge 
-                      variant="secondary" 
-                      style={{
-                        backgroundColor: `${currentTheme.colors.success}20`,
-                        color: currentTheme.colors.success
-                      }}
+                      className="flex items-center space-x-2 p-2 rounded-xl bg-green-50 dark:bg-green-900/20"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 3.4 }}
                     >
-                      {jiraMetrics?.stories || 0}
-                    </Badge>
+                      <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Stories</span>
+                      <span className="text-xs font-bold text-green-600 dark:text-green-400 ml-auto" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{jiraMetrics?.stories || 0}</span>
                   </motion.div>
                   <motion.div 
-                    className="flex items-center justify-between p-3 rounded-lg"
-                    style={{ backgroundColor: `${currentTheme.colors.error}10` }}
-                    whileHover={{ x: 5 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-                    <div className="flex items-center">
-                      <div 
-                        className="w-4 h-4 rounded-full mr-3"
-                        style={{ backgroundColor: currentTheme.colors.error }}
-                      ></div>
-                      <span 
-                        className="text-sm font-medium"
-                        style={{ color: currentTheme.colors.text }}
-                      >
-                        Bugs
-                      </span>
-                    </div>
-                    <Badge 
-                      variant="secondary" 
-                      style={{
-                        backgroundColor: `${currentTheme.colors.error}20`,
-                        color: currentTheme.colors.error
-                      }}
+                      className="flex items-center space-x-2 p-2 rounded-xl bg-red-50 dark:bg-red-900/20"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 3.6 }}
                     >
-                      {jiraMetrics?.bugs || 0}
-                    </Badge>
+                      <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Bugs</span>
+                      <span className="text-xs font-bold text-red-600 dark:text-red-400 ml-auto" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{jiraMetrics?.bugs || 0}</span>
                   </motion.div>
                   <motion.div 
-                    className="flex items-center justify-between p-3 rounded-lg"
-                    style={{ backgroundColor: `${currentTheme.colors.secondary}10` }}
-                    whileHover={{ x: 5 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-                    <div className="flex items-center">
-                      <div 
-                        className="w-4 h-4 rounded-full mr-3"
-                        style={{ backgroundColor: currentTheme.colors.secondary }}
-                      ></div>
-                      <span 
-                        className="text-sm font-medium"
-                        style={{ color: currentTheme.colors.text }}
-                      >
-                        Epics
-                      </span>
-                    </div>
-                    <Badge 
-                      variant="secondary" 
-                      style={{
-                        backgroundColor: `${currentTheme.colors.secondary}20`,
-                        color: currentTheme.colors.secondary
-                      }}
+                      className="flex items-center space-x-2 p-2 rounded-xl bg-purple-50 dark:bg-purple-900/20"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 3.8 }}
                     >
-                      {jiraMetrics?.epics || 0}
-                    </Badge>
+                      <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Epics</span>
+                      <span className="text-xs font-bold text-purple-600 dark:text-purple-400 ml-auto" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{jiraMetrics?.epics || 0}</span>
                   </motion.div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
 
-          {/* Status Distribution */}
+          {/* Status Distribution - Slide Animation */}
           <motion.div
-            whileHover={{ scale: 1.01 }}
-            transition={{ type: "spring", stiffness: 300 }}
+            whileHover={{ scale: 1.01, rotate: -0.5 }}
+            animate={{ 
+              x: [0, 2, -2, 0],
+              y: [0, -1, 1, 0]
+            }}
+            transition={{ 
+              duration: 5,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
           >
-            <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-white/20 dark:border-slate-700/50 shadow-xl">
+            <Card className="backdrop-blur-2xl border-2 border-emerald-200/50 dark:border-emerald-700/50 shadow-2xl rounded-3xl bg-gradient-to-br from-emerald-50/90 to-green-50/90 dark:from-emerald-900/30 dark:to-green-900/30">
               <CardHeader>
-                <CardTitle className="flex items-center text-gray-800 dark:text-gray-200">
-                  <Activity className="h-5 w-5 mr-2 text-green-500 dark:text-green-400" />
+                <CardTitle className="flex items-center text-xl font-bold tracking-wide text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                  <Activity className="h-6 w-6 mr-3 text-green-500 dark:text-green-400" />
                   Status Distribution
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {getStatusDistribution().map(([status, count], index) => (
+                <div className="space-y-6">
+                  {/* Timeline Design */}
+                  <div className="relative">
+                    {/* Timeline Line */}
+                    <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-green-500 via-blue-500 to-yellow-500"></div>
+                    
+                    {getStatusDistribution().map(([status, count], index) => {
+                      const statusConfig = {
+                        'Done': { color: 'green', bg: 'bg-green-500', text: 'text-green-600 dark:text-green-400', icon: '✓' },
+                        'In Progress': { color: 'blue', bg: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400', icon: '⚡' },
+                        'To Do': { color: 'yellow', bg: 'bg-yellow-500', text: 'text-yellow-600 dark:text-yellow-400', icon: '📋' },
+                        'default': { color: 'gray', bg: 'bg-gray-500', text: 'text-gray-600 dark:text-gray-400', icon: '⏳' }
+                      };
+                      const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.default;
+                      
+                      return (
                      <motion.div 
                        key={status} 
-                       className="flex items-center justify-between p-3 rounded-lg bg-gray-50/50 dark:bg-gray-800/50"
-                       whileHover={{ x: 5 }}
-                       initial={{ opacity: 0, x: -20 }}
+                          className="relative flex items-center space-x-4 py-4"
+                          initial={{ opacity: 0, x: -30 }}
                        animate={{ opacity: 1, x: 0 }}
-                       transition={{ delay: 2.2 + index * 0.1, type: "spring", stiffness: 300 }}
-                     >
-                      <div className="flex items-center">
-                        <div className={`w-4 h-4 rounded-full mr-3 ${
-                          status === 'Done' ? 'bg-green-500' :
-                          status === 'In Progress' ? 'bg-blue-500' :
-                          status === 'To Do' ? 'bg-gray-500' :
-                          'bg-yellow-500'
-                        }`}></div>
-                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{status}</span>
+                          transition={{ delay: 2.2 + index * 0.2, type: "spring", stiffness: 300 }}
+                        >
+                          {/* Timeline Dot */}
+                          <div className={`relative z-10 w-12 h-12 ${config.bg} rounded-full flex items-center justify-center text-white text-lg font-bold shadow-lg`}>
+                            {config.icon}
                       </div>
-                      <Badge variant="secondary" className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">{count}</Badge>
+                          
+                          {/* Content */}
+                          <div className="flex-1 flex items-center justify-between">
+                            <div>
+                              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                                {status}
+                              </h3>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 font-medium" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                                {count} issues
+                              </p>
+                            </div>
+                            
+                            {/* Progress Bar */}
+                            <div className="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                              <motion.div
+                                className={`h-full bg-gradient-to-r ${config.bg} rounded-full`}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${(count / Math.max(...getStatusDistribution().map(([,c]) => c))) * 100}%` }}
+                                transition={{ delay: 2.4 + index * 0.2, duration: 1, ease: "easeOut" }}
+                              />
+                            </div>
+                            
+                            {/* Count Badge */}
+                            <div className={`px-3 py-1 rounded-full ${config.bg} text-white text-sm font-bold`} style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                              {count}
+                            </div>
+                          </div>
                     </motion.div>
-                  ))}
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="text-center">
+                      <div className="text-2xl font-black text-green-600 dark:text-green-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                        {getStatusDistribution().find(([status]) => status === 'Done')?.[1] || 0}
+                      </div>
+                      <div className="text-xs font-semibold text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                        Completed
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-black text-blue-600 dark:text-blue-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                        {getStatusDistribution().find(([status]) => status === 'In Progress')?.[1] || 0}
+                      </div>
+                      <div className="text-xs font-semibold text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                        Active
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-black text-yellow-600 dark:text-yellow-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                        {getStatusDistribution().find(([status]) => status === 'To Do')?.[1] || 0}
+                      </div>
+                      <div className="text-xs font-semibold text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                        Pending
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -878,82 +1054,328 @@ export default function InsightsDashboard() {
           transition={{ delay: 2.5, duration: 0.6 }}
         >
           <motion.div
-            whileHover={{ scale: 1.01 }}
-            transition={{ type: "spring", stiffness: 300 }}
+            whileHover={{ scale: 1.01, rotate: 0.5 }}
+            animate={{ 
+              y: [0, -3, 0],
+              scale: [1, 1.005, 1]
+            }}
+            transition={{ 
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
           >
-            <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-white/20 dark:border-slate-700/50 shadow-xl">
+            <Card className="backdrop-blur-2xl border-2 border-purple-200/50 dark:border-purple-700/50 shadow-2xl rounded-3xl bg-gradient-to-br from-purple-50/90 to-pink-50/90 dark:from-purple-900/30 dark:to-pink-900/30">
               <CardHeader>
-                <CardTitle className="flex items-center text-gray-800 dark:text-gray-200">
-                  <Users className="h-5 w-5 mr-2 text-purple-500 dark:text-purple-400" />
+                <CardTitle className="flex items-center text-xl font-bold tracking-wide text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                  <Users className="h-6 w-6 mr-3 text-purple-500 dark:text-purple-400" />
                   Team Workload
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {getTopAssignees().map(([assignee, count], index) => (
+                  {/* Leaderboard Header */}
+                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-slate-100 to-gray-100 dark:from-slate-800 dark:to-gray-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center space-x-2">
+                      <Trophy className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                      <span className="text-sm font-bold text-slate-800 dark:text-slate-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                        Team Leaderboard
+                      </span>
+                    </div>
+                    <div className="text-xs font-semibold text-slate-600 dark:text-slate-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                      Issues Assigned
+                    </div>
+                  </div>
+                  
+                  {/* Leaderboard Items */}
+                  {getTopAssignees().map(([assignee, count], index) => {
+                    const rankColors = {
+                      0: { bg: 'from-amber-400 to-yellow-500', border: 'border-amber-300', text: 'text-amber-900', rank: '🥇' },
+                      1: { bg: 'from-slate-400 to-slate-600', border: 'border-slate-300', text: 'text-slate-900', rank: '🥈' },
+                      2: { bg: 'from-orange-400 to-amber-500', border: 'border-orange-300', text: 'text-orange-900', rank: '🥉' },
+                      default: { bg: 'from-indigo-400 to-blue-500', border: 'border-indigo-300', text: 'text-indigo-900', rank: `${index + 1}` }
+                    };
+                    const rankConfig = rankColors[index as keyof typeof rankColors] || rankColors.default;
+                    
+                    return (
                      <motion.div 
                        key={assignee} 
-                       className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-purple-50/50 to-blue-50/50 dark:from-purple-900/20 dark:to-blue-900/20"
-                       whileHover={{ x: 5, scale: 1.02 }}
-                       initial={{ opacity: 0, x: -20 }}
-                       animate={{ opacity: 1, x: 0 }}
+                        className={`relative flex items-center space-x-4 p-4 rounded-2xl border-2 ${rankConfig.border} bg-gradient-to-r ${rankConfig.bg} text-white shadow-lg`}
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
                        transition={{ delay: 2.7 + index * 0.1, type: "spring", stiffness: 300 }}
                      >
-                      <div className="flex items-center">
+                        {/* Rank Badge */}
+                        <div className="flex-shrink-0 w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-lg font-bold">
+                          {rankConfig.rank}
+                        </div>
+                        
+                        {/* Avatar */}
                         <motion.div 
-                          className="w-10 h-10 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold mr-3"
-                          whileHover={{ rotate: 5 }}
+                          className="w-12 h-12 bg-white/30 rounded-2xl flex items-center justify-center text-white text-sm font-bold shadow-lg"
+                          whileHover={{ rotate: 5, scale: 1.05 }}
                           transition={{ type: "spring", stiffness: 300 }}
                         >
                           {assignee.split(' ').map(n => n[0]).join('').slice(0, 2)}
                         </motion.div>
-                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{assignee}</span>
-                      </div>
-                      <Badge variant="outline" className="bg-purple-100 dark:bg-purple-800 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-700">
+                        
+                        {/* Name and Stats */}
+                        <div className="flex-1">
+                          <h3 className="text-lg font-bold text-white" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                            {assignee}
+                          </h3>
+                          <div className="flex items-center space-x-4 mt-1">
+                            <div className="flex items-center space-x-1">
+                              <div className="w-2 h-2 bg-white/60 rounded-full"></div>
+                              <span className="text-sm font-semibold text-white/90" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
                         {count} issues
-                      </Badge>
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <div className="w-2 h-2 bg-white/60 rounded-full"></div>
+                              <span className="text-sm font-semibold text-white/90" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                                Rank #{index + 1}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Progress Ring */}
+                        <div className="relative w-16 h-16">
+                          <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                            <circle
+                              cx="50"
+                              cy="50"
+                              r="30"
+                              fill="none"
+                              stroke="rgba(255,255,255,0.2)"
+                              strokeWidth="6"
+                            />
+                            <motion.circle
+                              cx="50"
+                              cy="50"
+                              r="30"
+                              fill="none"
+                              stroke="white"
+                              strokeWidth="6"
+                              strokeLinecap="round"
+                              strokeDasharray={`${(count / Math.max(...getTopAssignees().map(([,c]) => c))) * 188.4} 188.4`}
+                              initial={{ strokeDasharray: "0 188.4" }}
+                              animate={{ strokeDasharray: `${(count / Math.max(...getTopAssignees().map(([,c]) => c))) * 188.4} 188.4` }}
+                              transition={{ delay: 2.9 + index * 0.1, duration: 1.5, ease: "easeOut" }}
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-xs font-bold text-white" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                              {Math.round((count / Math.max(...getTopAssignees().map(([,c]) => c))) * 100)}%
+                            </span>
+                          </div>
+                        </div>
                     </motion.div>
-                  ))}
+                    );
+                  })}
+                  
+                  {/* Team Stats Footer */}
+                  <div className="grid grid-cols-3 gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+                    <div className="text-center p-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <div className="text-lg font-bold text-slate-600 dark:text-slate-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                        {getTopAssignees().length}
+                      </div>
+                      <div className="text-xs font-semibold text-slate-500 dark:text-slate-500" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                        Team Members
+                      </div>
+                    </div>
+                    <div className="text-center p-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <div className="text-lg font-bold text-slate-600 dark:text-slate-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                        {getTopAssignees().reduce((sum, [,count]) => sum + count, 0)}
+                      </div>
+                      <div className="text-xs font-semibold text-slate-500 dark:text-slate-500" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                        Total Issues
+                      </div>
+                    </div>
+                    <div className="text-center p-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <div className="text-lg font-bold text-slate-600 dark:text-slate-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                        {Math.round(getTopAssignees().reduce((sum, [,count]) => sum + count, 0) / getTopAssignees().length)}
+                      </div>
+                      <div className="text-xs font-semibold text-slate-500 dark:text-slate-500" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                        Avg per Member
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
 
-          {/* Priority Distribution */}
+          {/* Priority Distribution - Shake Animation */}
           <motion.div
-            whileHover={{ scale: 1.01 }}
-            transition={{ type: "spring", stiffness: 300 }}
+            whileHover={{ scale: 1.01, rotate: -0.5 }}
+            animate={{ 
+              x: [0, 1, -1, 0],
+              rotate: [0, 0.5, -0.5, 0]
+            }}
+            transition={{ 
+              duration: 4,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
           >
-            <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-white/20 dark:border-slate-700/50 shadow-xl">
+            <Card className="backdrop-blur-2xl border-2 border-orange-200/50 dark:border-orange-700/50 shadow-2xl rounded-3xl bg-gradient-to-br from-orange-50/90 to-red-50/90 dark:from-orange-900/30 dark:to-red-900/30">
               <CardHeader>
-                <CardTitle className="flex items-center text-gray-800 dark:text-gray-200">
-                  <TrendingUp className="h-5 w-5 mr-2 text-orange-500 dark:text-orange-400" />
+                <CardTitle className="flex items-center text-xl font-bold tracking-wide text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                  <TrendingUp className="h-6 w-6 mr-3 text-orange-500 dark:text-orange-400" />
                   Priority Distribution
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {getPriorityDistribution().map(([priority, count], index) => (
+                <div className="space-y-6">
+                  {/* Heatmap Grid */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {getPriorityDistribution().map(([priority, count], index) => {
+                      const priorityConfig = {
+                        'High': { 
+                          color: 'red', 
+                          bg: 'bg-red-500', 
+                          text: 'text-red-600 dark:text-red-400', 
+                          icon: '🔥', 
+                          intensity: 'High',
+                          gradient: 'from-red-500 to-rose-600',
+                          border: 'border-red-200 dark:border-red-700'
+                        },
+                        'Medium': { 
+                          color: 'amber', 
+                          bg: 'bg-amber-500', 
+                          text: 'text-amber-600 dark:text-amber-400', 
+                          icon: '⚠️', 
+                          intensity: 'Medium',
+                          gradient: 'from-amber-500 to-orange-500',
+                          border: 'border-amber-200 dark:border-amber-700'
+                        },
+                        'Low': { 
+                          color: 'emerald', 
+                          bg: 'bg-emerald-500', 
+                          text: 'text-emerald-600 dark:text-emerald-400', 
+                          icon: '✅', 
+                          intensity: 'Low',
+                          gradient: 'from-emerald-500 to-teal-500',
+                          border: 'border-emerald-200 dark:border-emerald-700'
+                        },
+                        'default': { 
+                          color: 'slate', 
+                          bg: 'bg-slate-500', 
+                          text: 'text-slate-600 dark:text-slate-400', 
+                          icon: '📋', 
+                          intensity: 'Unknown',
+                          gradient: 'from-slate-500 to-gray-600',
+                          border: 'border-slate-200 dark:border-slate-700'
+                        }
+                      };
+                      const config = priorityConfig[priority as keyof typeof priorityConfig] || priorityConfig.default;
+                      const maxCount = Math.max(...getPriorityDistribution().map(([,c]) => c));
+                      const intensity = (count / maxCount) * 100;
+                      
+                      return (
                      <motion.div 
                        key={priority} 
-                       className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-orange-50/50 to-red-50/50 dark:from-orange-900/20 dark:to-red-900/20"
-                       whileHover={{ x: 5, scale: 1.02 }}
-                       initial={{ opacity: 0, x: -20 }}
-                       animate={{ opacity: 1, x: 0 }}
-                       transition={{ delay: 2.9 + index * 0.1, type: "spring", stiffness: 300 }}
-                     >
-                      <div className="flex items-center">
-                        <div className={`w-4 h-4 rounded-full mr-3 ${
-                          priority === 'High' ? 'bg-red-500' :
-                          priority === 'Medium' ? 'bg-yellow-500' :
-                          priority === 'Low' ? 'bg-green-500' :
-                          'bg-gray-500'
-                        }`}></div>
-                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{priority}</span>
+                          className={`relative overflow-hidden rounded-2xl border-2 border-${config.color}-200 dark:border-${config.color}-700 bg-gradient-to-br ${config.gradient} text-white shadow-lg`}
+                          whileHover={{ scale: 1.05, rotate: 1 }}
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: 2.9 + index * 0.2, type: "spring", stiffness: 300 }}
+                        >
+                          {/* Intensity Overlay */}
+                          <div 
+                            className="absolute inset-0 opacity-20"
+                            style={{ 
+                              background: `radial-gradient(circle at center, rgba(255,255,255,${intensity/100}) 0%, transparent 70%)`
+                            }}
+                          />
+                          
+                          {/* Content */}
+                          <div className="relative p-6">
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center space-x-3">
+                                <div className="text-2xl">{config.icon}</div>
+                                <div>
+                                  <h3 className="text-lg font-bold text-white" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                                    {priority}
+                                  </h3>
+                                  <p className="text-sm text-white/80 font-medium" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                                    {config.intensity} Priority
+                                  </p>
                       </div>
-                      <Badge variant="secondary" className="bg-orange-100 dark:bg-orange-800 text-orange-800 dark:text-orange-200">{count}</Badge>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-3xl font-black text-white" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                                  {count}
+                                </div>
+                                <div className="text-xs text-white/80 font-semibold" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                                  issues
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Intensity Bar */}
+                            <div className="w-full bg-white/20 rounded-full h-2 overflow-hidden">
+                              <motion.div
+                                className={`h-full bg-white rounded-full`}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${intensity}%` }}
+                                transition={{ delay: 3.1 + index * 0.2, duration: 1.5, ease: "easeOut" }}
+                              />
+                            </div>
+                            
+                            {/* Intensity Percentage */}
+                            <div className="mt-2 text-right">
+                              <span className="text-xs font-bold text-white/90" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                                {Math.round(intensity)}% intensity
+                              </span>
+                            </div>
+                          </div>
                     </motion.div>
-                  ))}
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Priority Summary */}
+                  <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-2">
+                        <TrendingUp className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                        <span className="text-sm font-bold text-slate-800 dark:text-slate-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                          Priority Distribution Summary
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="text-center p-2 bg-white/60 dark:bg-white/10 rounded-xl border border-red-200 dark:border-red-800">
+                        <div className="text-lg font-bold text-red-600 dark:text-red-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                          {getPriorityDistribution().find(([priority]) => priority === 'High')?.[1] || 0}
+                        </div>
+                        <div className="text-xs font-semibold text-red-600 dark:text-red-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                          High Priority
+                        </div>
+                      </div>
+                      <div className="text-center p-2 bg-white/60 dark:bg-white/10 rounded-xl border border-amber-200 dark:border-amber-800">
+                        <div className="text-lg font-bold text-amber-600 dark:text-amber-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                          {getPriorityDistribution().find(([priority]) => priority === 'Medium')?.[1] || 0}
+                        </div>
+                        <div className="text-xs font-semibold text-amber-600 dark:text-amber-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                          Medium Priority
+                        </div>
+                      </div>
+                      <div className="text-center p-2 bg-white/60 dark:bg-white/10 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                        <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                          {getPriorityDistribution().find(([priority]) => priority === 'Low')?.[1] || 0}
+                        </div>
+                        <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                          Low Priority
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -972,16 +1394,16 @@ export default function InsightsDashboard() {
              animate={{ opacity: 1, x: 0 }}
              transition={{ delay: 3 }}
            >
-             <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center">
+             <h2 className="text-3xl font-black tracking-tight text-gray-800 dark:text-gray-200 flex items-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
                <motion.div
                  animate={{ rotate: [0, 10, -10, 0] }}
                  transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
                >
-                 <Trophy className="h-6 w-6 mr-3 text-yellow-500 dark:text-yellow-400" />
+                 <Trophy className="h-8 w-8 mr-4 text-yellow-500 dark:text-yellow-400" />
                </motion.div>
                Best Performers
              </h2>
-             <p className="text-gray-600 dark:text-gray-400 mt-1">
+             <p className="text-lg text-gray-600 dark:text-gray-400 mt-2 font-medium" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
                Top performing team members this period
              </p>
            </motion.div>
@@ -1005,22 +1427,23 @@ export default function InsightsDashboard() {
                    transition={{ delay: 3.2 + index * 0.1, duration: 0.6 }}
                    whileHover={{ scale: 1.02, y: -5 }}
                  >
-                   <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-white/20 dark:border-slate-700/50 shadow-xl hover:shadow-2xl transition-all duration-300 h-full">
+                   <Card className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl border-2 border-white/30 dark:border-slate-700/50 shadow-2xl hover:shadow-3xl transition-all duration-500 rounded-3xl h-full">
                      <CardHeader className="pb-3">
                        <div className="flex items-center justify-between">
-                         <CardTitle className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center">
+                         <CardTitle className="text-sm font-bold tracking-wide text-gray-800 dark:text-gray-200 flex items-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
                            <motion.div
                              animate={{ rotate: [0, 5, -5, 0] }}
                              transition={{ duration: 2, repeat: Infinity, repeatDelay: 2 }}
-                             className={`p-2 rounded-lg bg-gradient-to-r ${rankConfig.bg} mr-3`}
+                             className={`p-3 rounded-2xl bg-gradient-to-r ${rankConfig.bg} mr-3 shadow-lg`}
                            >
-                             <IconComponent className="h-4 w-4 text-white" />
+                             <IconComponent className="h-5 w-5 text-white" />
                            </motion.div>
                            #{performer.rank} Performer
                          </CardTitle>
                          <Badge 
                            variant="secondary" 
-                           className={`${rankConfig.text} bg-gradient-to-r ${rankConfig.bg} text-white`}
+                           className={`px-3 py-1 rounded-xl font-bold text-white ${rankConfig.text} bg-gradient-to-r ${rankConfig.bg}`}
+                           style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
                          >
                            {performer.performanceScore}/100
                          </Badge>
@@ -1034,17 +1457,17 @@ export default function InsightsDashboard() {
                            whileHover={{ scale: 1.1, rotate: 5 }}
                            transition={{ type: "spring", stiffness: 300 }}
                          >
-                           <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${rankConfig.bg} flex items-center justify-center text-white text-lg font-bold shadow-lg`}>
+                           <div className={`w-16 h-16 rounded-3xl bg-gradient-to-br ${rankConfig.bg} flex items-center justify-center text-white text-xl font-black shadow-2xl`} style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
                              {performer.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                            </div>
-                           <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
-                             <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                           <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-green-500 rounded-full border-3 border-white flex items-center justify-center shadow-lg">
+                             <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
                            </div>
                          </motion.div>
                          <div className="flex-1">
-                           <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">{performer.name}</h3>
+                           <h3 className="text-xl font-black tracking-wide text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{performer.name}</h3>
                            <div className="flex items-center space-x-2">
-                             <span className={`text-xs font-medium ${rankConfig.text}`}>
+                             <span className={`text-sm font-semibold ${rankConfig.text}`} style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
                                {performer.streak} day streak
                              </span>
                            </div>
@@ -1052,14 +1475,14 @@ export default function InsightsDashboard() {
                        </div>
 
                        {/* Performance Score Bar */}
-                       <div className="space-y-2">
+                       <div className="space-y-3">
                          <div className="flex items-center justify-between">
-                           <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Performance</span>
-                           <span className="text-sm font-bold text-gray-800 dark:text-gray-200">{performer.performanceScore}%</span>
+                           <span className="text-sm font-semibold text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Performance</span>
+                           <span className="text-lg font-black text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{performer.performanceScore}%</span>
                          </div>
-                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden shadow-inner">
                            <motion.div
-                             className={`h-full bg-gradient-to-r ${rankConfig.bg} rounded-full`}
+                             className={`h-full bg-gradient-to-r ${rankConfig.bg} rounded-full shadow-lg`}
                              initial={{ width: 0 }}
                              animate={{ width: `${performer.performanceScore}%` }}
                              transition={{ delay: 3.5 + index * 0.1, duration: 1.5, ease: "easeOut" }}
@@ -1069,40 +1492,40 @@ export default function InsightsDashboard() {
 
                        {/* Stats Grid */}
                        <div className="grid grid-cols-2 gap-3">
-                         <div className="text-center p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                           <div className="text-lg font-bold text-gray-800 dark:text-gray-200">{performer.issuesResolved}</div>
-                           <div className="text-xs text-gray-600 dark:text-gray-400">Resolved</div>
+                         <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-gray-50 to-slate-50 dark:from-gray-800/50 dark:to-slate-800/50 border border-gray-200/50 dark:border-gray-700/50">
+                           <div className="text-xl font-black text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{performer.issuesResolved}</div>
+                           <div className="text-xs font-semibold text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Resolved</div>
                          </div>
-                         <div className="text-center p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                           <div className="text-lg font-bold text-gray-800 dark:text-gray-200">{performer.bugsFixed}</div>
-                           <div className="text-xs text-gray-600 dark:text-gray-400">Bugs Fixed</div>
+                         <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-gray-50 to-slate-50 dark:from-gray-800/50 dark:to-slate-800/50 border border-gray-200/50 dark:border-gray-700/50">
+                           <div className="text-xl font-black text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{performer.bugsFixed}</div>
+                           <div className="text-xs font-semibold text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Bugs Fixed</div>
                          </div>
-                         <div className="text-center p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                           <div className="text-lg font-bold text-gray-800 dark:text-gray-200">{performer.storyPoints}</div>
-                           <div className="text-xs text-gray-600 dark:text-gray-400">Story Points</div>
+                         <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-gray-50 to-slate-50 dark:from-gray-800/50 dark:to-slate-800/50 border border-gray-200/50 dark:border-gray-700/50">
+                           <div className="text-xl font-black text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{performer.storyPoints}</div>
+                           <div className="text-xs font-semibold text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Story Points</div>
                          </div>
-                         <div className="text-center p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                           <div className="text-lg font-bold text-gray-800 dark:text-gray-200">{performer.avgResolutionTime}h</div>
-                           <div className="text-xs text-gray-600 dark:text-gray-400">Avg Time</div>
+                         <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-gray-50 to-slate-50 dark:from-gray-800/50 dark:to-slate-800/50 border border-gray-200/50 dark:border-gray-700/50">
+                           <div className="text-xl font-black text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{performer.avgResolutionTime}h</div>
+                           <div className="text-xs font-semibold text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Avg Time</div>
                          </div>
                        </div>
 
                        {/* Achievements */}
                        {performer.achievements.length > 0 && (
-                         <div className="space-y-2">
-                           <h4 className="text-xs font-medium text-gray-600 dark:text-gray-400">Achievements</h4>
-                           <div className="flex flex-wrap gap-1">
+                         <div className="space-y-3">
+                           <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Achievements</h4>
+                           <div className="flex flex-wrap gap-2">
                              {performer.achievements.slice(0, 3).map((achievement, idx) => (
                                <motion.div
                                  key={achievement}
-                                 className="flex items-center space-x-1 px-2 py-1 rounded-full bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20"
+                                 className="flex items-center space-x-2 px-3 py-2 rounded-2xl bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 border border-blue-200/50 dark:border-blue-700/50"
                                  initial={{ opacity: 0, scale: 0 }}
                                  animate={{ opacity: 1, scale: 1 }}
                                  transition={{ delay: 3.8 + idx * 0.1 }}
                                  whileHover={{ scale: 1.05 }}
                                >
-                                 <Star className="h-3 w-3 text-yellow-500" />
-                                 <span className="text-xs text-gray-700 dark:text-gray-300">{achievement}</span>
+                                 <Star className="h-4 w-4 text-yellow-500" />
+                                 <span className="text-xs font-semibold text-gray-700 dark:text-gray-300" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{achievement}</span>
                                </motion.div>
                              ))}
                            </div>
@@ -1110,7 +1533,7 @@ export default function InsightsDashboard() {
                        )}
 
                        {/* Last Active */}
-                       <div className="text-xs text-gray-500 dark:text-gray-500 text-center pt-2 border-t border-gray-200 dark:border-gray-700">
+                       <div className="text-xs text-gray-500 dark:text-gray-500 text-center pt-3 border-t border-gray-200 dark:border-gray-700 font-medium" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
                          Last active: {new Date(performer.lastActive).toLocaleDateString()}
                        </div>
                      </CardContent>
@@ -1154,10 +1577,10 @@ export default function InsightsDashboard() {
             whileHover={{ scale: 1.01 }}
             transition={{ type: "spring", stiffness: 300 }}
           >
-            <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-white/20 dark:border-slate-700/50 shadow-xl">
+            <Card className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl border-2 border-white/30 dark:border-slate-700/50 shadow-2xl rounded-3xl">
               <CardHeader>
-                <CardTitle className="flex items-center text-gray-800 dark:text-gray-200">
-                  <Activity className="h-5 w-5 mr-2 text-indigo-500 dark:text-indigo-400" />
+                <CardTitle className="flex items-center text-xl font-bold tracking-wide text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                  <Activity className="h-6 w-6 mr-3 text-indigo-500 dark:text-indigo-400" />
                   Recent Activities
                 </CardTitle>
               </CardHeader>
@@ -1167,7 +1590,7 @@ export default function InsightsDashboard() {
                     {recentActivities.slice(0, 5).map((activity, index) => (
                        <motion.div 
                          key={activity.id} 
-                         className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800"
+                         className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50/80 to-purple-50/80 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-2xl border border-indigo-200/50 dark:border-indigo-800/50"
                          whileHover={{ x: 5, scale: 1.02 }}
                          initial={{ opacity: 0, y: 20 }}
                          animate={{ opacity: 1, y: 0 }}
@@ -1175,15 +1598,15 @@ export default function InsightsDashboard() {
                        >
                         <div className="flex items-center">
                           <motion.div 
-                            className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold mr-4"
-                            whileHover={{ rotate: 10 }}
+                            className="w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-2xl flex items-center justify-center text-white text-sm font-bold mr-4 shadow-lg"
+                            whileHover={{ rotate: 10, scale: 1.05 }}
                             transition={{ type: "spring", stiffness: 300 }}
                           >
                             {activity.user.split(' ').map(n => n[0]).join('').slice(0, 2)}
                           </motion.div>
                           <div>
-                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{activity.title}</p>
-                            <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center">
+                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>{activity.title}</p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center font-medium" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
                               <span className="mr-2">{activity.user}</span>
                               <span className="mx-2">•</span>
                               <span className="mr-2">{activity.project}</span>
@@ -1192,7 +1615,7 @@ export default function InsightsDashboard() {
                             </p>
                           </div>
                         </div>
-                        <Badge variant="outline" className="bg-indigo-100 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-200 border-indigo-200 dark:border-indigo-700">
+                        <Badge variant="outline" className="px-3 py-1 rounded-xl font-semibold bg-indigo-100 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-200 border-indigo-200 dark:border-indigo-700" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
                           {activity.type}
                         </Badge>
                       </motion.div>
@@ -1209,10 +1632,10 @@ export default function InsightsDashboard() {
                       animate={{ rotate: [0, 10, -10, 0] }}
                       transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
                     >
-                      <Activity className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                      <Activity className="h-20 w-20 mx-auto mb-6 opacity-50" />
                     </motion.div>
-                    <p className="text-lg font-medium">No recent activities found</p>
-                    <p className="text-sm mt-2">Activities will appear here as they happen</p>
+                    <p className="text-xl font-bold mb-2" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>No recent activities found</p>
+                    <p className="text-sm mt-2 font-medium" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Activities will appear here as they happen</p>
                   </motion.div>
                 )}
               </CardContent>
