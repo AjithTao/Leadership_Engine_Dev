@@ -42,7 +42,9 @@ import {
   FileSpreadsheet,
   Mic,
   MicOff,
-  Square
+  Square,
+  Trash,
+  Send
 } from 'lucide-react'
 
 interface Message {
@@ -613,7 +615,7 @@ export function FigmaLeadershipCopilot({
                   animate={{ rotate: [0, 10, -10, 0] }}
                   transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
                 >
-                  <Trash2 className="w-3 h-3" />
+                  <Trash className="w-3 h-3" />
                 </motion.div>
                 <span>Clear Chat</span>
               </Button>
@@ -993,12 +995,16 @@ export function FigmaLeadershipCopilot({
                 cursor: !inputValue.trim() || isTyping ? 'not-allowed' : 'pointer'
               }}
             >
-              <motion.div
-                animate={isTyping ? { rotate: 360 } : { rotate: 0 }}
-                transition={{ duration: 1, repeat: isTyping ? Infinity : 0 }}
-              >
-                <Zap className="w-4 h-4 mr-2" />
-              </motion.div>
+              {isTyping ? (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                >
+                  <Zap className="w-4 h-4 mr-2" />
+                </motion.div>
+              ) : (
+                <Send className="w-4 h-4 mr-2" />
+              )}
               Send
             </Button>
           </motion.div>

@@ -46,7 +46,9 @@ import {
   Mic,
   MicOff,
   Volume2,
-  Square
+  Square,
+  Trash,
+  Send
 } from 'lucide-react'
 
 interface Message {
@@ -1068,7 +1070,7 @@ export function NewLeadershipCopilot({
                 e.currentTarget.style.color = currentTheme.colors.error;
               }}
             >
-              <Trash2 className="w-5 h-5 relative z-10" />
+              <Trash className="w-5 h-5 relative z-10" />
               {/* Enhanced Glow Effect */}
               <div 
                 className="absolute inset-0 rounded-3xl opacity-30 group-hover:opacity-60 transition-opacity duration-300"
@@ -1106,7 +1108,7 @@ export function NewLeadershipCopilot({
                 }
               }}
             >
-              {isListening ? <Square className="w-5 h-5 relative z-10" /> : <Volume2 className="w-5 h-5 relative z-10" />}
+              {isListening ? <Square className="w-5 h-5 relative z-10" /> : <Mic className="w-5 h-5 relative z-10" />}
               {/* Enhanced Glow Effect */}
               <div 
                 className="absolute inset-0 rounded-3xl opacity-40 group-hover:opacity-70 transition-opacity duration-300"
@@ -1132,11 +1134,11 @@ export function NewLeadershipCopilot({
               background: `linear-gradient(90deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`
             }}
           >
-            {!inputValue.trim() || isTyping ? (
+            {isTyping ? (
               <Loader2 className="w-5 h-5 animate-spin relative z-10" />
             ) : (
               <>
-                <Zap className="w-5 h-5 mr-2 relative z-10" />
+                <Send className="w-5 h-5 mr-2 relative z-10" />
                 <span className="relative z-10">Send</span>
               </>
             )}
