@@ -35,7 +35,7 @@ import {
   Globe,
   Palette,
   Sun,
-  Moon,
+  MoonStar,
   Plug,
   ChevronDown,
   ChevronRight

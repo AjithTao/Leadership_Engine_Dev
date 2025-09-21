@@ -8,7 +8,7 @@ import { Badge } from '../ui/badge';
 import { 
   Palette, 
   Sun, 
-  Moon, 
+  MoonStar, 
   Check, 
   Sparkles,
   Flame,
@@ -114,7 +114,7 @@ export const ThemeSelector: React.FC<ThemeSelectorProps> = ({ isOpen, onClose })
                     >
                       {isDarkMode ? (
                         <>
-                          <Moon className="w-4 h-4" />
+                          <MoonStar className="w-4 h-4" />
                           <span>Dark</span>
                         </>
                       ) : (

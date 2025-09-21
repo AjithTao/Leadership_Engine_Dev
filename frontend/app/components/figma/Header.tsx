@@ -10,7 +10,7 @@ import {
   User, 
   Mail, 
   Sun, 
-  Moon,
+  MoonStar,
   Sparkles,
   Activity,
   Settings,
@@ -341,7 +341,7 @@ export function FigmaHeader({ theme, setTheme }: HeaderProps) {
                   }}
                 >
                   {isDarkMode ? (
-                    <Moon 
+                    <MoonStar 
                       className="w-3 h-3" 
                       style={{ color: currentTheme.colors.textSecondary }}
                     />

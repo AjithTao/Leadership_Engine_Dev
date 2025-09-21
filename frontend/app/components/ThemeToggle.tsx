@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Sun, Moon, Monitor } from 'lucide-react'
+import { Sun, MoonStar, Monitor } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 
 export function ThemeToggle() {
@@ -19,7 +19,7 @@ export function ThemeToggle() {
         {theme === 'light' ? (
           <Sun className="w-3 h-3 text-yellow-500 m-0.5" />
         ) : (
-          <Moon className="w-3 h-3 text-blue-600 m-0.5" />
+          <MoonStar className="w-3 h-3 text-blue-600 m-0.5" />
         )}
       </div>
     </button>
@@ -44,12 +44,12 @@ export function ThemeSelector() {
             {theme === 'light' ? (
               <Sun className="w-2.5 h-2.5 text-white" />
             ) : (
-              <Moon className="w-2.5 h-2.5 text-white" />
+              <MoonStar className="w-2.5 h-2.5 text-white" />
             )}
           </div>
         </div>
       </button>
-      <Moon className={`w-4 h-4 ${theme === 'dark' ? 'text-blue-500' : 'text-gray-400'}`} />
+      <MoonStar className={`w-4 h-4 ${theme === 'dark' ? 'text-blue-500' : 'text-gray-400'}`} />
     </div>
   )
 }

@@ -11,7 +11,7 @@ import {
   User, 
   Mail, 
   Sun, 
-  Moon,
+  MoonStar,
   Sparkles,
   Activity,
   Settings,
@@ -176,7 +176,7 @@ export function NewHeader({ theme, setTheme }: NewHeaderProps) {
                  }}
                >
               {isDarkMode ? (
-                <Moon className="w-4 h-4 relative z-10" />
+                <MoonStar className="w-4 h-4 relative z-10" />
               ) : (
                 <Sun className="w-4 h-4 relative z-10" />
               )}

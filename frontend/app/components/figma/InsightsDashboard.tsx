@@ -5,7 +5,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { RefreshCw, TrendingUp, Users, Clock, Target, AlertTriangle, CheckCircle, BarChart3, PieChart, Activity, Zap, Sparkles, ArrowUpRight, Trophy, Crown, Star, Medal, Award, Download, FileText } from 'lucide-react';
+import { RefreshCw, TrendingUp, Users, Clock, Target, AlertTriangle, CheckCircle, BarChart3, PieChart, Activity, Zap, Sparkles, ArrowUpRight, Trophy, Crown, Star, Medal, Award, Download, FileText, Brain, Lightbulb, Info, X } from 'lucide-react';
 import { exportInsightsAsPDF } from '../../utils/exportUtils';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getApiUrl } from '../../../lib/api-config';
@@ -57,6 +57,21 @@ interface Performer {
   lastActive: string;
 }
 
+interface AISuggestion {
+  component: string;
+  suggestion: string;
+  priority: 'high' | 'medium' | 'low';
+  actionable: boolean;
+}
+
+interface AITooltip {
+  id: string;
+  component: string;
+  suggestion: string;
+  priority: 'high' | 'medium' | 'low';
+  actionable: boolean;
+}
+
 export default function InsightsDashboard() {
   const { currentTheme, isThemeLoaded, isDarkMode } = useTheme();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -68,6 +83,10 @@ export default function InsightsDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [aiInsightsEnabled, setAiInsightsEnabled] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<AISuggestion[]>([]);
+  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
 
   // Auto-refresh every 15 minutes
   useEffect(() => {
@@ -323,6 +342,224 @@ export default function InsightsDashboard() {
     }
   };
 
+  // Generate AI-powered insights
+  const generateAIInsights = async () => {
+    if (!jiraMetrics || !bestPerformers.length) return;
+    
+    setIsGeneratingInsights(true);
+    
+    try {
+      // Simulate AI processing time
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      const suggestions: AISuggestion[] = [];
+      
+      // Analyze workload distribution
+      if (jiraMetrics.issuesByAssignee) {
+        const assignees = Object.entries(jiraMetrics.issuesByAssignee);
+        const maxWorkload = Math.max(...assignees.map(([_, count]) => count));
+        const minWorkload = Math.min(...assignees.map(([_, count]) => count));
+        const workloadDifference = maxWorkload - minWorkload;
+        
+        if (workloadDifference > 5) {
+          const overloadedPerson = assignees.find(([_, count]) => count === maxWorkload)?.[0];
+          const underloadedPerson = assignees.find(([_, count]) => count === minWorkload)?.[0];
+          
+          suggestions.push({
+            component: 'workload',
+            suggestion: `Workload imbalance detected! ${overloadedPerson} has ${maxWorkload} issues while ${underloadedPerson} has only ${minWorkload}. Consider redistributing 2-3 issues from ${overloadedPerson} to ${underloadedPerson} to balance the team workload.`,
+            priority: 'high',
+            actionable: true
+          });
+        }
+      }
+      
+      // Analyze team performance
+      if (bestPerformers.length > 0) {
+        const topPerformer = bestPerformers[0];
+        const bottomPerformer = bestPerformers[bestPerformers.length - 1];
+        
+        if (topPerformer.performanceScore - bottomPerformer.performanceScore > 30) {
+          suggestions.push({
+            component: 'performance',
+            suggestion: `Performance gap identified! ${topPerformer.name} is excelling (${topPerformer.performanceScore} score) while ${bottomPerformer.name} needs support (${bottomPerformer.performanceScore} score). Consider pairing them for knowledge transfer or providing additional training for ${bottomPerformer.name}.`,
+            priority: 'medium',
+            actionable: true
+          });
+        }
+      }
+      
+      // Analyze priority distribution
+      if (jiraMetrics.issuesByPriority) {
+        const priorities = Object.entries(jiraMetrics.issuesByPriority);
+        const highPriority = priorities.find(([priority]) => priority.toLowerCase().includes('high'))?.[1] || 0;
+        const totalIssues = jiraMetrics.totalIssues;
+        const highPriorityPercentage = (highPriority / totalIssues) * 100;
+        
+        if (highPriorityPercentage > 20) {
+          suggestions.push({
+            component: 'priority',
+            suggestion: `High priority overload! ${highPriorityPercentage.toFixed(1)}% of issues are high priority (${highPriority}/${totalIssues}). This may indicate scope creep or insufficient planning. Consider reviewing and potentially downgrading some high-priority issues to medium priority.`,
+            priority: 'high',
+            actionable: true
+          });
+        }
+      }
+      
+      // Analyze completion rate
+      const completionRate = (jiraMetrics.resolvedIssues / jiraMetrics.totalIssues) * 100;
+      if (completionRate < 60) {
+        suggestions.push({
+          component: 'completion',
+          suggestion: `Low completion rate detected (${completionRate.toFixed(1)}%). This suggests potential bottlenecks in the development process. Consider implementing daily standups, breaking down large tasks, or reviewing the current workflow to identify and remove blockers.`,
+          priority: 'high',
+          actionable: true
+        });
+      }
+      
+      // Analyze average resolution time
+      if (jiraMetrics.avgResolutionTime > 5) {
+        suggestions.push({
+          component: 'resolution',
+          suggestion: `Long resolution times detected (${jiraMetrics.avgResolutionTime} days average). This impacts team velocity and customer satisfaction. Consider implementing better task estimation, clearer requirements, or additional resources for complex issues.`,
+          priority: 'medium',
+          actionable: true
+        });
+      }
+      
+      // Analyze bug-to-story ratio
+      const bugRatio = (jiraMetrics.bugs / jiraMetrics.stories) * 100;
+      if (bugRatio > 30) {
+        suggestions.push({
+          component: 'quality',
+          suggestion: `High bug ratio detected (${bugRatio.toFixed(1)}% bugs vs stories). This indicates potential quality issues. Consider implementing better testing practices, code reviews, or allocating more time for quality assurance in the development process.`,
+          priority: 'medium',
+          actionable: true
+        });
+      }
+      
+      setAiSuggestions(suggestions);
+    } catch (error) {
+      console.error('Failed to generate AI insights:', error);
+    } finally {
+      setIsGeneratingInsights(false);
+    }
+  };
+
+  // Toggle AI insights
+  const toggleAIInsights = async () => {
+    if (!aiInsightsEnabled) {
+      await generateAIInsights();
+    }
+    setAiInsightsEnabled(!aiInsightsEnabled);
+  };
+
+  // Get AI suggestion for a specific component
+  const getAISuggestion = (component: string): AISuggestion | null => {
+    return aiSuggestions.find(suggestion => suggestion.component === component) || null;
+  };
+
+  // AI Tooltip Component
+  const AITooltip: React.FC<{ component: string; children: React.ReactNode }> = ({ component, children }) => {
+    const suggestion = getAISuggestion(component);
+    
+    if (!aiInsightsEnabled || !suggestion) {
+      return <>{children}</>;
+    }
+
+    return (
+      <div className="relative group">
+        {children}
+        <div className="absolute -top-2 -right-2 z-50">
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="relative"
+          >
+            <Button
+              size="sm"
+              className={`h-6 w-6 p-0 rounded-full shadow-lg ${
+                suggestion.priority === 'high' 
+                  ? 'bg-red-500 hover:bg-red-600' 
+                  : suggestion.priority === 'medium'
+                    ? 'bg-yellow-500 hover:bg-yellow-600'
+                    : 'bg-green-500 hover:bg-green-600'
+              }`}
+              onClick={() => setActiveTooltip(activeTooltip === component ? null : component)}
+            >
+              <Lightbulb className="h-3 w-3 text-white" />
+            </Button>
+            
+            {activeTooltip === component && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                className="absolute top-8 right-0 w-80 p-4 rounded-xl shadow-2xl border-2 z-50"
+                style={{
+                  backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                  borderColor: suggestion.priority === 'high' 
+                    ? '#ef4444' 
+                    : suggestion.priority === 'medium'
+                      ? '#eab308'
+                      : '#22c55e'
+                }}
+              >
+                <div className="flex items-start space-x-3">
+                  <div className={`p-2 rounded-lg ${
+                    suggestion.priority === 'high' 
+                      ? 'bg-red-100 text-red-600' 
+                      : suggestion.priority === 'medium'
+                        ? 'bg-yellow-100 text-yellow-600'
+                        : 'bg-green-100 text-green-600'
+                  }`}>
+                    <Brain className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                        suggestion.priority === 'high' 
+                          ? 'bg-red-100 text-red-700' 
+                          : suggestion.priority === 'medium'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-green-100 text-green-700'
+                      }`}>
+                        {suggestion.priority.toUpperCase()} PRIORITY
+                      </span>
+                      {suggestion.actionable && (
+                        <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                          ACTIONABLE
+                        </span>
+                      )}
+                    </div>
+                    <p className={`text-sm leading-relaxed ${
+                      isDarkMode ? 'text-gray-200' : 'text-gray-800'
+                    }`}>
+                      {suggestion.suggestion}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">AI Insight</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => setActiveTooltip(null)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+        </div>
+      </div>
+    );
+  };
+
   if (loading && !jiraMetrics) {
     return (
       <div className={`h-full flex items-center justify-center transition-colors duration-300 ${
@@ -514,6 +751,48 @@ export default function InsightsDashboard() {
               >
                 <FileText className="h-4 w-4 mr-2" />
                 Export PDF
+              </Button>
+            </motion.div>
+
+            {/* AI Insights Toggle Button */}
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button 
+                onClick={toggleAIInsights}
+                disabled={isGeneratingInsights}
+                className={`shadow-xl border-0 rounded-2xl font-semibold px-6 py-3 hover:shadow-2xl transition-all duration-300 transform hover:scale-105 ${
+                  aiInsightsEnabled 
+                    ? 'text-white' 
+                    : isDarkMode 
+                      ? 'text-gray-300 bg-gray-700 hover:bg-gray-600' 
+                      : 'text-gray-700 bg-gray-200 hover:bg-gray-300'
+                }`}
+                style={{
+                  backgroundColor: aiInsightsEnabled ? currentTheme.colors.primary : undefined,
+                  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                }}
+                onMouseEnter={(e) => {
+                  if (aiInsightsEnabled) {
+                    e.currentTarget.style.backgroundColor = currentTheme.colors.secondary;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (aiInsightsEnabled) {
+                    e.currentTarget.style.backgroundColor = currentTheme.colors.primary;
+                  }
+                }}
+                size="sm"
+              >
+                {isGeneratingInsights ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                  >
+                    <Brain className="h-4 w-4 mr-2" />
+                  </motion.div>
+                ) : (
+                  <Brain className="h-4 w-4 mr-2" />
+                )}
+                {aiInsightsEnabled ? 'AI Insights ON' : 'AI Insights'}
               </Button>
             </motion.div>
           </motion.div>
@@ -1303,34 +1582,35 @@ export default function InsightsDashboard() {
               ease: "easeOut"
             }}
           >
-            <Card className={`shadow-xl hover:shadow-2xl transition-all duration-500 rounded-3xl border backdrop-blur-sm ${
-              isDarkMode 
-                ? 'bg-gray-800/90 border-gray-700/50' 
-                : 'bg-white/95 border-gray-200/50'
-            }`}>
-              <CardHeader>
-                <CardTitle 
-                  key={`team-workload-${currentTheme.name}-${isDarkMode}`}
-                  className="flex items-center text-lg font-semibold tracking-wide transition-colors duration-300"
-                  style={{ 
-                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                    color: currentTheme.colors.primary,
-                    background: `linear-gradient(90deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text',
-                    textRendering: 'optimizeLegibility',
-                    WebkitFontSmoothing: 'antialiased',
-                    MozOsxFontSmoothing: 'grayscale'
-                  }}
-                >
-                  <Users 
-                    className="h-5 w-5 mr-3" 
-                    style={{ color: currentTheme.colors.primary }}
-                  />
-                  Team Workload
-                </CardTitle>
-              </CardHeader>
+            <AITooltip component="workload">
+              <Card className={`shadow-xl hover:shadow-2xl transition-all duration-500 rounded-3xl border backdrop-blur-sm ${
+                isDarkMode 
+                  ? 'bg-gray-800/90 border-gray-700/50' 
+                  : 'bg-white/95 border-gray-200/50'
+              }`}>
+                <CardHeader>
+                  <CardTitle 
+                    key={`team-workload-${currentTheme.name}-${isDarkMode}`}
+                    className="flex items-center text-lg font-semibold tracking-wide transition-colors duration-300"
+                    style={{ 
+                      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                      color: currentTheme.colors.primary,
+                      background: `linear-gradient(90deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})`,
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                      textRendering: 'optimizeLegibility',
+                      WebkitFontSmoothing: 'antialiased',
+                      MozOsxFontSmoothing: 'grayscale'
+                    }}
+                  >
+                    <Users 
+                      className="h-5 w-5 mr-3" 
+                      style={{ color: currentTheme.colors.primary }}
+                    />
+                    Team Workload
+                  </CardTitle>
+                </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {/* Leaderboard Header */}
@@ -1513,6 +1793,7 @@ export default function InsightsDashboard() {
                 </div>
               </CardContent>
             </Card>
+            </AITooltip>
           </motion.div>
 
           {/* Priority Distribution - Shake Animation */}
@@ -1523,11 +1804,12 @@ export default function InsightsDashboard() {
               ease: "easeOut"
             }}
           >
-            <Card className={`shadow-xl hover:shadow-2xl transition-all duration-500 rounded-3xl border backdrop-blur-sm ${
-              isDarkMode 
-                ? 'bg-gray-800/90 border-gray-700/50' 
-                : 'bg-white/95 border-gray-200/50'
-            }`}>
+            <AITooltip component="priority">
+              <Card className={`shadow-xl hover:shadow-2xl transition-all duration-500 rounded-3xl border backdrop-blur-sm ${
+                isDarkMode 
+                  ? 'bg-gray-800/90 border-gray-700/50' 
+                  : 'bg-white/95 border-gray-200/50'
+              }`}>
               <CardHeader>
                 <CardTitle 
                   key={`priority-distribution-${currentTheme.name}-${isDarkMode}`}
@@ -1723,15 +2005,17 @@ export default function InsightsDashboard() {
                 </div>
               </CardContent>
             </Card>
+            </AITooltip>
           </motion.div>
          </motion.div>
 
          {/* Best Performers Section */}
-         <motion.div
-           initial={{ opacity: 0, y: 20 }}
-           animate={{ opacity: 1, y: 0 }}
-           transition={{ delay: 2.8, duration: 0.6 }}
-         >
+         <AITooltip component="performance">
+           <motion.div
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ delay: 2.8, duration: 0.6 }}
+           >
            <motion.div
              className="mb-6"
              initial={{ opacity: 0, x: -20 }}
@@ -1927,6 +2211,7 @@ export default function InsightsDashboard() {
              )}
            </div>
          </motion.div>
+         </AITooltip>
 
          {/* Recent Activities with Modern Styling */}
         <motion.div
