@@ -56,56 +56,36 @@ class JiraClient:
         if not self._client:
             await self.initialize()
 
-        # Try the correct API v3 endpoint first: GET /rest/api/3/search/jql with query params
+        # Use the new API v3 search/jql endpoint with GET
         try:
             url = f"{self.cfg.base_url.rstrip('/')}/rest/api/3/search/jql"
             params = {
                 "jql": jql,
-                "startAt": start_at,
-                "maxResults": max_results
+                "maxResults": max_results,
+                "startAt": start_at
             }
+            # Always specify fields to ensure we get results
             if fields:
                 params["fields"] = ",".join(fields) if isinstance(fields, list) else fields
-            resp = await self._client.get(url, params=params, headers=self._headers)
-
-            if resp.status_code == 200:
-                data = resp.json()
-                logger.info(f"Successfully used API v3 GET search/jql: {len(data.get('issues', []))} issues found")
-                logger.info(f"Jira response structure: total={data.get('total')}, startAt={data.get('startAt')}, maxResults={data.get('maxResults')}")
-                return data
-            elif resp.status_code == 410:
-                logger.warning("API v3 search/jql returned 410 Gone, trying legacy search")
             else:
-                try:
-                    logger.error(f"[Jira] v3 search/jql {resp.status_code}: {resp.text}")
-                except Exception:
-                    pass
-                logger.warning(f"API v3 search/jql returned {resp.status_code}, trying legacy search")
+                # Use a comprehensive set of default fields
+                params["fields"] = "key,summary,status,issuetype,assignee,project,created,updated,priority,description"
+            if expand:
+                params["expand"] = expand
                 
-        except Exception as e:
-            logger.warning(f"API v3 search/jql failed: {e}, trying legacy search")
-
-        # Fallback to legacy API v3 search
-        try:
-            url = f"{self.cfg.base_url.rstrip('/')}/rest/api/3/search"
-            payload = {
-                "jql": jql,
-                "maxResults": max_results,
-                "startAt": start_at,
-                "fields": fields or ["id", "key", "summary", "status", "issuetype", "assignee", "project", "created", "updated"]
-            }
-            resp = await self._client.post(url, json=payload, headers=self._headers)
+            resp = await self._client.get(url, params=params, headers=self._headers)
             
             if resp.status_code == 200:
                 data = resp.json()
-                logger.info(f"Successfully used legacy API v3 search: {len(data.get('issues', []))} issues found")
+                logger.info(f"Successfully used API v3 search/jql: {len(data.get('issues', []))} issues found")
+                logger.info(f"Jira response structure: total={data.get('total')}, startAt={data.get('startAt')}, maxResults={data.get('maxResults')}")
                 return data
             else:
-                logger.error(f"[Jira] Legacy search failed {resp.status_code}: {resp.text}")
+                logger.error(f"[Jira] API v3 search/jql failed {resp.status_code}: {resp.text}")
                 return {"issues": [], "total": 0}
                 
         except Exception as e:
-            logger.error(f"[Jira] Legacy search failed: {e}")
+            logger.error(f"[Jira] API v3 search/jql failed: {e}")
             return {"issues": [], "total": 0}
     
     async def count(self, jql: str) -> int:
@@ -120,14 +100,15 @@ class JiraClient:
             return 0
     
     async def get_projects(self) -> List[Dict[str, Any]]:
-        """Get all projects using the optimized project search endpoint"""
+        """Get all projects using the correct project endpoint"""
         try:
-            url = self._url("/rest/api/3/project/search")
+            url = self._url("/rest/api/3/project")
             response = await self._get_with_retry(url)
             result = response.json()
             
-            projects = result.get('values', [])
-            logger.info(f"Successfully used API v3 project search: {len(projects)} projects found")
+            # The /rest/api/3/project endpoint returns a list directly, not wrapped in 'values'
+            projects = result if isinstance(result, list) else result.get('values', [])
+            logger.info(f"Successfully used API v3 project endpoint: {len(projects)} projects found")
             return projects
             
         except Exception as e:

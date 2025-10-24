@@ -271,10 +271,27 @@ Just ask me naturally - I'll figure out what you need! 😊"""
 async def get_ticket_details(ticket_key: str, jira_client: JiraClient) -> str:
     """Get detailed information about a specific ticket"""
     try:
+        # First, check if we can access any projects to determine if it's a permissions issue
+        projects = await jira_client.get_projects()
+        if len(projects) == 0:
+            return f"""I couldn't find ticket {ticket_key}, and it appears there may be a permissions issue with your Jira access.
+
+🔍 **Possible reasons:**
+• You may not have permission to view projects in this Jira instance
+• The ticket might be in a project you don't have access to
+• Your API token might need additional permissions
+
+💡 **Next steps:**
+• Verify your Jira permissions with your administrator
+• Check if the ticket exists in a different project
+• Ensure your API token has "Browse Projects" permission
+
+If you believe this is an error, please contact your Jira administrator for assistance."""
+        
         jql = f"key = {ticket_key}"
         result = await jira_client.search(jql, max_results=1)
         
-        if result.get('total', 0) > 0:
+        if result.get('issues') and len(result.get('issues', [])) > 0:
             issue = result['issues'][0]
             fields = issue.get('fields', {})
             
@@ -311,11 +328,50 @@ async def get_ticket_details(ticket_key: str, jira_client: JiraClient) -> str:
             
             return response
         else:
-            return f"Oops! I couldn't find ticket {ticket_key}. Double-check the ticket number and try again! 🤔"
+            # Check if we can see any tickets at all to provide better error message
+            try:
+                # Try to search for any tickets to see if it's a general permissions issue
+                any_tickets = await jira_client.search("order by created DESC", max_results=1)
+                if any_tickets.get('total', 0) == 0:
+                    return f"""I couldn't find ticket {ticket_key}, and it appears you may not have permission to view tickets in this Jira instance.
+
+🔍 **This could mean:**
+• You don't have "Browse Projects" permission
+• The ticket is in a restricted project
+• Your API token needs additional permissions
+
+💡 **Please check with your Jira administrator about:**
+• Your project access permissions
+• Whether the ticket exists and is accessible
+• API token permissions for ticket viewing"""
+            except Exception:
+                pass  # If this fails, fall back to the generic message
+            
+            return f"""I couldn't find ticket {ticket_key} in the accessible projects.
+
+🔍 **Possible reasons:**
+• The ticket number might be incorrect
+• The ticket might be in a project you don't have access to
+• The ticket might have been deleted or moved
+
+💡 **Try:**
+• Double-check the ticket number (e.g., CCM-283)
+• Ask your team if the ticket exists
+• Check if you have access to the project containing this ticket"""
     
     except Exception as e:
         logger.error(f"Error getting ticket details: {e}")
-        return f"Oops! I had trouble getting details for {ticket_key}: {str(e)}"
+        return f"""I encountered an error while searching for {ticket_key}: {str(e)}
+
+🔍 **This might indicate:**
+• A connection issue with Jira
+• Authentication problems
+• API permission issues
+
+💡 **Please verify:**
+• Your Jira connection is working
+• Your API token is valid and has proper permissions
+• You have access to the Jira instance"""
 
 async def search_by_assignee(message: str, jira_client: JiraClient) -> str:
     """Search for tickets by assignee with intelligent name extraction"""
