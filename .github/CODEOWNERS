@@ -1,0 +1,12 @@
+# This is sampple file, uncomment and customize for your need.
+# https://docs.github.com/en/enterprise-cloud@latest/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners#codeowners-syntax
+
+#*	@cdk-prod/xyz_application_leads
+# @cdk-prod/xyz_application_leads team will be the default owners
+# for everything in the repo. Unless a later match takes precedence,
+# @cdk-prod/xyz_application_leads will be requested for review
+# when someone opens a pull request.
+
+#/.github/workflows/	@cdk-prod/athena-devops-team
+#/tests/	            @test_lead @dev_lead
+#/src/	                @dev_lead
