@@ -1,0 +1,86 @@
+[
+  {
+    "sno": 1,
+    "module": "Appointments Mod",
+    "jql_overall": "project = FixedOpsAppointment AND issuetype = Test AND status NOT IN (Abandoned)",
+    "jql_automated": "project = FixedOpsAppointment AND issuetype = Test AND status NOT IN (Abandoned) AND \"Test Status\" = Automated",
+    "jql_requires": "project = FixedOpsAppointment AND issuetype = Test AND status NOT IN (Abandoned) AND \"Test Status\" = \"Requires Automation\"",
+    "jql_not_required": "project = FixedOpsAppointment AND issuetype = Test AND status NOT IN (Abandoned) AND \"Test Status\" = \"Automation Not Required\"",
+    "overall": 1799,
+    "automated": 1242,
+    "requires_automation": 311,
+    "not_required": 244
+  },
+  {
+    "sno": 2,
+    "module": "RO",
+    "jql_overall": "project in (\"FXDOPSINSP\") AND issuetype = Test AND component = \"RO service (ROS)\" AND status NOT IN (Abandoned)",
+    "jql_automated": "project in (\"FXDOPSINSP\") AND issuetype = Test AND component = \"RO service (ROS)\" AND status NOT IN (Abandoned) AND \"Test Status\" = Automated",
+    "jql_requires": "project in (\"FXDOPSINSP\") AND issuetype = Test AND component = \"RO service (ROS)\" AND status NOT IN (Abandoned) AND \"Test Status\" = \"Requires Automation\"",
+    "jql_not_required": "project in (\"FXDOPSINSP\") AND issuetype = Test AND component = \"RO service (ROS)\" AND status NOT IN (Abandoned) AND \"Test Status\" = \"Automation Not Required\"",
+    "overall": 751,
+    "automated": 157,
+    "requires_automation": 425,
+    "not_required": 169
+  },
+  {
+    "sno": 3,
+    "module": "TK",
+    "jql_overall": "project = FXDOPSINSP AND issuetype = Test AND component = \"Inspect modernization\" AND labels in (TK,tk_testCase) AND status NOT IN (Abandoned)",
+    "jql_automated": "project = FXDOPSINSP AND issuetype = Test AND component = \"Inspect modernization\" AND labels in (TK,tk_testCase) AND status NOT IN (Abandoned) AND \"Test Status\" = Automated",
+    "jql_requires": "project = FXDOPSINSP AND issuetype = Test AND component = \"Inspect modernization\" AND labels in (TK,tk_testCase) AND status NOT IN (Abandoned) AND \"Test Status\" = \"Requires Automation\"",
+    "jql_not_required": "project = FXDOPSINSP AND issuetype = Test AND component = \"Inspect modernization\" AND labels in (TK,tk_testCase) AND status NOT IN (Abandoned) AND \"Test Status\" = \"Automation Not Required\"",
+    "overall": 89,
+    "automated": 5,
+    "requires_automation": 61,
+    "not_required": 21
+  },
+  {
+    "sno": 4,
+    "module": "Booking",
+    "jql_overall": "project in (FixedOpsInspect) AND issuetype = Test AND component = \"RO service (ROS)\" AND (text ~ \"Book\" OR text ~ \"final charges\" OR text ~ \"override\") AND status NOT IN (Abandoned)",
+    "jql_automated": "project in (FixedOpsInspect) AND issuetype = Test AND component = \"RO service (ROS)\" AND (text ~ \"Book\" OR text ~ \"final charges\" OR text ~ \"override\") AND status NOT IN (Abandoned) AND \"Test Status\" = Automated",
+    "jql_requires": "project in (FixedOpsInspect) AND issuetype = Test AND component = \"RO service (ROS)\" AND (text ~ \"Book\" OR text ~ \"final charges\" OR text ~ \"override\") AND status NOT IN (Abandoned) AND \"Test Status\" = \"Requires Automation\"",
+    "jql_not_required": "project in (FixedOpsInspect) AND issuetype = Test AND component = \"RO service (ROS)\" AND (text ~ \"Book\" OR text ~ \"final charges\" OR text ~ \"override\") AND status NOT IN (Abandoned) AND \"Test Status\" = \"Automation Not Required\"",
+    "overall": 35,
+    "automated": 1,
+    "requires_automation": 29,
+    "not_required": 5
+  },
+  {
+    "sno": 5,
+    "module": "Cashiering",
+    "jql_overall": "project = FixedOpsInspect AND issuetype = Test AND text ~ \"pay\" AND status NOT IN (Abandoned)",
+    "jql_automated": "project = FixedOpsInspect AND issuetype = Test AND text ~ \"pay\" AND status NOT IN (Abandoned) AND \"Test Status\" = Automated",
+    "jql_requires": "project = FixedOpsInspect AND issuetype = Test AND text ~ \"pay\" AND status NOT IN (Abandoned) AND \"Test Status\" = \"Requires Automation\"",
+    "jql_not_required": "project = FixedOpsInspect AND issuetype = Test AND text ~ \"pay\" AND status NOT IN (Abandoned) AND \"Test Status\" = \"Automation Not Required\"",
+    "overall": 55,
+    "automated": 14,
+    "requires_automation": 15,
+    "not_required": 22
+  },
+  {
+    "sno": 6,
+    "module": "Inspect",
+    "jql_overall": "project = FXDOPSINSP AND issuetype = Test AND component = \"Inspect modernization\" AND status NOT IN (Abandoned)",
+    "jql_automated": "project = FXDOPSINSP AND issuetype = Test AND component = \"Inspect modernization\" AND status NOT IN (Abandoned) AND \"Test Status\" = Automated",
+    "jql_requires": "project = FXDOPSINSP AND issuetype = Test AND component = \"Inspect modernization\" AND status NOT IN (Abandoned) AND \"Test Status\" = \"Requires Automation\"",
+    "jql_not_required": "project = FXDOPSINSP AND issuetype = Test AND component = \"Inspect modernization\" AND status NOT IN (Abandoned) AND \"Test Status\" = \"Automation Not Required\"",
+    "overall": 932,
+    "automated": 99,
+    "requires_automation": 472,
+    "not_required": 358
+  },
+  {
+    "sno": 7,
+    "module": "Reporting",
+    "jql_overall": "project = 'SER' AND issuetype = 10002 AND fixVersion is EMPTY AND status NOT IN (Abandoned)",
+    "jql_automated": "project = 'SER' AND issuetype = 10002 AND fixVersion is EMPTY AND status NOT IN (Abandoned) AND \"Test Status\" = Automated",
+    "jql_requires": "project = 'SER' AND issuetype = 10002 AND fixVersion is EMPTY AND status NOT IN (Abandoned) AND \"Test Status\" = \"Requires Automation\"",
+    "jql_not_required": "project = 'SER' AND issuetype = 10002 AND fixVersion is EMPTY AND status NOT IN (Abandoned) AND \"Test Status\" = \"Automation Not Required\"",
+    "overall": 478,
+    "automated": 29,
+    "requires_automation": 221,
+    "not_required": 228
+  }
+]

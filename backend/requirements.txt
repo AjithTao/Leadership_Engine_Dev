@@ -1,0 +1,42 @@
+fastapi
+uvicorn
+aiohttp
+pydantic
+python-dateutil
+# charts/exports you already use:
+reportlab
+python-pptx
+# DOCX parser for domain training ingestion
+python-docx
+# fuzzy matching (faster than difflib)
+rapidfuzz
+# Missing dependencies causing deployment failure:
+httpx
+openai
+python-dotenv
+lxml
+pillow
+xlsxwriter
+# Additional missing dependencies found in imports:
+numpy
+# Needed for FastAPI file uploads (Form/UploadFile)
+python-multipart
+# JWT for authentication
+PyJWT
+# Standard library dependencies (usually included but adding for safety):
+typing-extensions
+# Excel processing for QE Metrics
+pandas
+openpyxl
+# LDAP authentication
+ldap3
+# Password encryption
+cryptography
+
+# Databricks Vector Search + SDK
+databricks-sdk
+databricks-vectorsearch
+# Automated indexing scheduler
+apscheduler
+# PDF merging
+PyPDF2

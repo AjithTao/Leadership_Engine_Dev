@@ -1,0 +1,53 @@
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+"""Explain how Jira queries are processed"""
+print("=" * 70)
+print("HOW JIRA QUERIES ARE PROCESSED")
+print("=" * 70)
+print()
+
+print("📊 FLOW DIAGRAM:")
+print("-" * 70)
+print("1. User Query → /api/chat endpoint")
+print("2. AI Classification → Detects 'JIRA' query type")
+print("3. Routes to → _process_jira_query_direct()")
+print("4. AI generates → JQL query (e.g., 'project = NDP AND text ~ docs')")
+print("5. Executes → Direct Jira API call with JQL")
+print("6. If JQL fails/returns 0 → Falls back to Jira RAG semantic search")
+print("7. Returns → Formatted response with ticket data")
+print()
+
+print("🔍 PRIMARY METHOD: Direct JQL (NOT RAG)")
+print("-" * 70)
+print("• Uses AI to convert natural language → JQL")
+print("• Executes JQL directly against Jira API")
+print("• Fast and accurate for structured queries")
+print("• Example: 'show me docs2.0 bugs in NDP'")
+print("  → JQL: project = NDP AND text ~ 'docs2.0' AND type = Bug")
+print()
+
+print("🔄 FALLBACK METHOD: Jira RAG Semantic Search")
+print("-" * 70)
+print("• Only used when JQL fails or returns 0 results")
+print("• Uses embeddings to find semantically similar issues")
+print("• Searches through recent issues (200 most recent)")
+print("• Example: When JQL query is too complex or fails")
+print()
+
+print("✅ RESPONSE FORMAT:")
+print("-" * 70)
+print("• Formatted text with ticket details")
+print("• Includes: Key, Summary, Status, Priority, Reporter, Assignee")
+print("• Direct links to tickets")
+print("• Data array with full ticket objects")
+print()
+
+print("⚠️  ISSUES FOUND:")
+print("-" * 70)
+print("1. JQL sometimes includes ALL projects (causes 400 error)")
+print("2. RAG fallback has a bug (NoneType error in _get_issue_text)")
+print("3. Some queries return 'No issues found' when they should find results")
+print()
+
+print("=" * 70)
+

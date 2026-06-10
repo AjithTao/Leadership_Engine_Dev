@@ -1,0 +1,15 @@
+# Install once per clone:  pip install pre-commit && pre-commit install
+# Runs automatically on every `git commit`; run on demand with:
+#   pre-commit run --all-files
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.3
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]

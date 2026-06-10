@@ -1,0 +1,854 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     LIGHT MODE — :root (default)
+     Palette: Twilight Fog — cool blue-gray family, original mustard accent.
+     Inverts the dark mode's navy depth into cool misty surfaces.
+     Uses the exact same #D4A847 mustard as dark mode — no gold shift.
+     ═══════════════════════════════════════════════════════════════════════════ */
+  :root {
+    color-scheme: light;
+
+    /* ── Backgrounds & surfaces ─────────────────────────────────────────── */
+    --bg-page:        #D8DDE8;   /* twilight fog canvas — cool blue-gray base  */
+    --bg-card:        #EDF0F6;   /* elevated surfaces — near-white cool tint   */
+    --bg-surface:     #E2E6EF;   /* table headers, input backgrounds           */
+    --bg-hover:       #D0D6E4;   /* nav hover, row hover                       */
+    --bg-active:      #C8D0E0;   /* active nav, selected states                */
+
+    /* ── Borders ────────────────────────────────────────────────────────── */
+    --border:         #C5CCDB;   /* cool blue-gray border                      */
+    --border-strong:  #B0BCCF;   /* focus / hover emphasis                     */
+
+    /* ── Text ───────────────────────────────────────────────────────────── */
+    --text-primary:   #0B1220;   /* deep cool navy-black — high contrast       */
+    --text-secondary: #0B1220;   /* same as primary for better visibility      */
+    --text-muted:     #2C3E50;   /* darker for better visibility in light mode */
+    --text-hint:      #3D4A5C;   /* darker hint text for visibility            */
+
+    /* ── Brand accent — EXACT DARK MODE MUSTARD, UNCHANGED ─────────────── */
+    --accent-cool:    #D4A847;
+    --accent-cool-bg: #EEE6CC;   /* rgba(212,168,71,0.14) on #EDF0F6          */
+
+    /* ── Semantic colors ────────────────────────────────────────────────── */
+    --amber:          #B87700;
+    --amber-bg:       #F2E8CC;
+    --red:            #C01C1C;
+    --red-bg:         #F2DADA;
+    --blue:           #1A5BB0;
+    --blue-bg:        #D8E6F5;
+
+    /* ── Typography & radius ────────────────────────────────────────────── */
+    --radius:         8px;
+    --radius-lg:      12px;
+    --radius-xl:      16px;
+    --font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono:           'JetBrains Mono', 'Fira Code', monospace;
+
+    /* ── Glass effects ──────────────────────────────────────────────────── */
+    --glass-bg:       rgba(11,18,32,0.05);
+    --glass-border:   rgba(11,18,32,0.10);
+    --glass-shadow:   0 4px 16px rgba(10,20,50,0.12);
+
+    /* ── Shadows (cool-tinted for blue-gray surfaces) ───────────────────── */
+    --shadow-small:   0 1px 3px rgba(10,20,50,0.09), 0 1px 2px rgba(10,20,50,0.06);
+    --shadow-medium:  0 4px 12px rgba(10,20,50,0.09), 0 2px 4px rgba(10,20,50,0.06);
+    --shadow-large:   0 8px 28px rgba(10,20,50,0.12), 0 4px 8px rgba(10,20,50,0.07);
+
+    /* ── Legacy compat aliases ──────────────────────────────────────────── */
+    --bg-primary:        #D8DDE8;
+    --bg-secondary:      #EDF0F6;
+    --bg-tertiary:       #E2E6EF;
+    --accent-primary:    #0B1220;
+    --accent-secondary:  #253550;
+    --accent-tertiary:   #506080;
+    --text-muted-legacy: #506080;
+    --border-subtle:     #C5CCDB;
+    --border-muted:      #C5CCDB;
+    --border-accent:     #B0BCCF;
+    --success:           #D4A847;
+    --green:             var(--accent-cool);
+    --green-bg:          var(--accent-cool-bg);
+    --warning:           #B87700;
+    --error:             #C01C1C;
+
+    /* ── Tailwind HSL compat (light — twilight fog cool blue-gray) ───────── */
+    --background:              221 18% 87%;   /* #D8DDE8                      */
+    --foreground:              223 50% 10%;   /* #0B1220                      */
+    --card:                    220 30% 95%;   /* #EDF0F6                      */
+    --card-foreground:         223 50% 10%;
+    --popover:                 220 30% 95%;
+    --popover-foreground:      223 50% 10%;
+    --primary:                 223 50% 10%;
+    --primary-foreground:      221 18% 87%;
+    --secondary:               220 22% 91%;   /* #E2E6EF surface              */
+    --secondary-foreground:    223 50% 10%;
+    --muted:                   220 22% 91%;
+    --muted-foreground:        218 33% 40%;   /* #506080                      */
+    --accent:                  220 22% 91%;
+    --accent-foreground:       223 50% 10%;
+    --destructive:             0 72% 45%;
+    --destructive-foreground:  0 0% 100%;
+    --input:                   220 22% 91%;
+    --ring:                    223 50% 10%;
+    --sidebar:                 220 30% 95%;   /* elevated card surface        */
+    --sidebar-foreground:      223 50% 10%;
+    --sidebar-primary:         223 50% 10%;
+    --sidebar-primary-foreground: 221 18% 87%;
+    --sidebar-accent:          220 18% 88%;   /* hover in sidebar             */
+    --sidebar-accent-foreground: 223 50% 10%;
+    --sidebar-border:          220 16% 80%;   /* #C5CCDB                      */
+    --sidebar-ring:            223 50% 10%;
+
+    /* ── Chart colors (twilight fog light) ──────────────────────────────── */
+    --chart-1: 43 65% 50%;    /* mustard gold                                 */
+    --chart-2: 217 68% 40%;   /* deep blue                                    */
+    --chart-3: 45 93% 42%;
+    --chart-4: 0 72% 45%;
+    --chart-5: 220 18% 50%;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     DARK MODE — .dark class (toggled on <html>)
+     Original FalconX slate-blue dark palette, unchanged.
+     ═══════════════════════════════════════════════════════════════════════════ */
+  .dark {
+    color-scheme: dark;
+
+    /* ── Backgrounds & surfaces ─────────────────────────────────────────── */
+    --bg-page:        #13151C;
+    --bg-card:        #1E2028;
+    --bg-surface:     #252830;
+    --bg-hover:       #2D3142;
+    --bg-active:      #353A52;
+
+    /* ── Borders ────────────────────────────────────────────────────────── */
+    --border:         #2A2D3E;
+    --border-strong:  #3D4258;
+
+    /* ── Text ───────────────────────────────────────────────────────────── */
+    --text-primary:   #E8EAF0;
+    --text-secondary: #8B93A8;
+    --text-muted:     #545B78;
+    --text-hint:      #3A4060;
+
+    /* ── Brand accent ───────────────────────────────────────────────────── */
+    --accent-cool:    #D4A847;
+    --accent-cool-bg: #2A2418;
+
+    /* ── Semantic colors ────────────────────────────────────────────────── */
+    --amber:          #FCD34D;
+    --amber-bg:       #231A05;
+    --red:            #F87171;
+    --red-bg:         #2A0D0D;
+    --blue:           #93C5FD;
+    --blue-bg:        #0D1A2E;
+
+    /* ── Glass effects ──────────────────────────────────────────────────── */
+    --glass-bg:       rgba(232,234,240,0.04);
+    --glass-border:   rgba(232,234,240,0.08);
+    --glass-shadow:   0 4px 16px rgba(0,0,0,0.5);
+
+    /* ── Shadows ────────────────────────────────────────────────────────── */
+    --shadow-small:   0 1px 2px rgba(0,0,0,0.4);
+    --shadow-medium:  0 2px 8px rgba(0,0,0,0.5);
+    --shadow-large:   0 4px 16px rgba(0,0,0,0.6);
+
+    /* ── Legacy compat aliases ──────────────────────────────────────────── */
+    --bg-primary:        #13151C;
+    --bg-secondary:      #1E2028;
+    --bg-tertiary:       #252830;
+    --accent-primary:    #E8EAF0;
+    --accent-secondary:  #8B93A8;
+    --accent-tertiary:   #545B78;
+    --text-muted-legacy: #545B78;
+    --border-subtle:     #2A2D3E;
+    --border-muted:      #2A2D3E;
+    --border-accent:     #3D4258;
+    --success:           #D4A847;
+    --green:             var(--accent-cool);
+    --green-bg:          var(--accent-cool-bg);
+    --warning:           #FCD34D;
+    --error:             #F87171;
+
+    /* ── Tailwind HSL compat (dark) ─────────────────────────────────────── */
+    --background:              228 16% 9%;
+    --foreground:              228 20% 92%;
+    --card:                    228 14% 14%;
+    --card-foreground:         228 20% 92%;
+    --popover:                 228 14% 14%;
+    --popover-foreground:      228 20% 92%;
+    --primary:                 228 20% 92%;
+    --primary-foreground:      228 16% 9%;
+    --secondary:               226 14% 61%;
+    --secondary-foreground:    228 16% 9%;
+    --muted:                   228 13% 18%;
+    --muted-foreground:        226 14% 61%;
+    --accent:                  228 13% 18%;
+    --accent-foreground:       228 20% 92%;
+    --destructive:             0 91% 71%;
+    --destructive-foreground:  228 20% 92%;
+    --input:                   228 13% 18%;
+    --ring:                    228 20% 92%;
+    --sidebar:                 228 14% 14%;
+    --sidebar-foreground:      228 20% 92%;
+    --sidebar-primary:         228 20% 92%;
+    --sidebar-primary-foreground: 228 16% 9%;
+    --sidebar-accent:          228 13% 18%;
+    --sidebar-accent-foreground: 228 20% 92%;
+    --sidebar-border:          228 18% 21%;
+    --sidebar-ring:            228 20% 92%;
+
+    /* ── Chart colors (dark) ────────────────────────────────────────────── */
+    --chart-1: 43 58% 58%;
+    --chart-2: 216 93% 79%;
+    --chart-3: 45 93% 65%;
+    --chart-4: 0 91% 71%;
+    --chart-5: 228 14% 45%;
+  }
+
+  /* ── Base element styles ─────────────────────────────────────────────────── */
+  * { @apply border-border; }
+
+  html, body {
+    background: var(--bg-page);
+    color: var(--text-primary);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 { color: var(--text-primary); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   THEME TRANSITION
+   Applied briefly during toggle to fade all color properties smoothly.
+   Class is added/removed by ThemeContext around the .dark toggle.
+   ══════════════════════════════════════════════════════════════════════════════ */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition:
+    background-color 0.25s ease,
+    border-color 0.22s ease,
+    color 0.18s ease,
+    box-shadow 0.25s ease,
+    fill 0.18s ease !important;
+  transition-delay: 0s !important;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar          { width: 5px; height: 5px; }
+::-webkit-scrollbar-track    { background: transparent; }
+::-webkit-scrollbar-thumb    { background: var(--bg-active); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+/* ── Skeleton / shimmer ──────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface) 25%,
+    var(--bg-hover)   50%,
+    var(--bg-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+/* ── Accordion ───────────────────────────────────────────────────────────── */
+@keyframes accordion-down {
+  from { height: 0; }
+  to   { height: var(--radix-accordion-content-height); }
+}
+@keyframes accordion-up {
+  from { height: var(--radix-accordion-content-height); }
+  to   { height: 0; }
+}
+.animate-accordion-down { animation: accordion-down 0.2s ease-out; }
+.animate-accordion-up   { animation: accordion-up   0.2s ease-out; }
+
+/* ── Status dots ─────────────────────────────────────────────────────────── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+.status-online   { background: var(--accent-cool); animation: blink 2s ease-in-out infinite; }
+.status-offline  { background: var(--red); }
+.status-warning  { background: var(--amber); }
+.status-loading  { background: var(--blue); animation: blink 1s ease-in-out infinite; }
+.status-dot      { animation: blink 2s infinite; }
+
+/* ── Fade / slide animations ─────────────────────────────────────────────── */
+@keyframes fade-in-up {
+  from { transform: translateY(16px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes fade-in-down {
+  from { transform: translateY(-16px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+@keyframes scale-in {
+  from { transform: scale(0.97); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+@keyframes slide-in-right {
+  from { transform: translateX(24px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes slide-in-left {
+  from { transform: translateX(-24px); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+.animate-fade-in-up    { animation: fade-in-up    0.4s cubic-bezier(0.16,1,0.3,1); }
+.animate-fade-in-down  { animation: fade-in-down  0.4s cubic-bezier(0.16,1,0.3,1); }
+.animate-scale-in      { animation: scale-in      0.3s cubic-bezier(0.16,1,0.3,1); }
+.animate-slide-in-right { animation: slide-in-right 0.35s cubic-bezier(0.16,1,0.3,1); }
+.animate-slide-in-left  { animation: slide-in-left  0.35s cubic-bezier(0.16,1,0.3,1); }
+
+/* ── Focus ───────────────────────────────────────────────────────────────── */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--border-strong);
+  outline-offset: 2px;
+}
+
+/* ── Nav items (sidebar) ─────────────────────────────────────────────────── */
+.nav-item {
+  color: var(--text-secondary);
+  border-radius: var(--radius);
+  padding: 7px 8px;
+  font-size: 13px;
+  font-family: var(--font);
+  transition: background 0.15s, color 0.15s;
+}
+.nav-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.nav-item.active {
+  background: var(--bg-active);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* ── Card ────────────────────────────────────────────────────────────────── */
+.ds-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  transition: border-color 0.2s;
+}
+.ds-card:hover { border-color: var(--border-strong); }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: var(--radius);
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font);
+  transition: background 0.15s, border-color 0.15s;
+  cursor: pointer;
+}
+.btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+/* btn-primary: inverted — always text-on-background */
+.btn-primary {
+  background: var(--text-primary);
+  color: var(--bg-page);
+  border-color: var(--text-primary);
+}
+/* Light-mode hover: slightly darker; dark-mode hover: slightly lighter */
+.btn-primary:hover {
+  opacity: 0.88;
+}
+
+/* ── Badges ─────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font);
+}
+.badge-green { background: var(--accent-cool-bg);  color: var(--accent-cool); }
+.badge-amber { background: var(--amber-bg);         color: var(--amber); }
+.badge-red   { background: var(--red-bg);           color: var(--red);   }
+.badge-blue  { background: var(--blue-bg);          color: var(--blue);  }
+.badge-gray  {
+  background: var(--bg-active);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+/* ── Inputs ─────────────────────────────────────────────────────────────── */
+input, select, textarea {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--border-strong);
+}
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+.ds-table-wrap {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.ds-table thead th {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 11px 16px;
+  font-family: var(--font);
+}
+.ds-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.12s;
+}
+.ds-table tbody tr:hover { background: var(--bg-surface); }
+.ds-table tbody td {
+  padding: 11px 16px;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-family: var(--font);
+}
+.ds-table .mono {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Progress bars ───────────────────────────────────────────────────────── */
+.progress-track {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  height: 5px;
+  overflow: hidden;
+}
+.progress-fill {
+  border-radius: 3px;
+  height: 100%;
+  background: var(--text-primary);
+}
+.progress-fill-green  { background: var(--accent-cool); }
+.progress-fill-amber  { background: var(--amber); }
+.progress-fill-red    { background: var(--red); }
+
+/* ── Section label ───────────────────────────────────────────────────────── */
+.section-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-hint);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  font-family: var(--font);
+}
+
+/* ── Chat bubbles ────────────────────────────────────────────────────────── */
+.bubble-bot {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 4px 12px 12px 12px;
+}
+.bubble-user {
+  background: var(--bg-active);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px 4px 12px 12px;
+}
+
+/* ── Responsive sidebar ───────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .sidebar-responsive { width: 220px; min-width: 220px; max-width: 220px; }
+}
+@media (min-width: 1025px) {
+  .sidebar-responsive { width: 256px; min-width: 256px; max-width: 256px; }
+}
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); }
+}
+
+/* ── Scrollbar utility ────────────────────────────────────────────────────── */
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* ── Premium class aliases (used in existing JSX) ────────────────────────── */
+.premium-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: border-color 0.2s;
+}
+.premium-card:hover { border-color: var(--border-strong); }
+
+.premium-button {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: var(--radius);
+  font-weight: 500;
+  font-family: var(--font);
+  transition: background 0.15s, border-color 0.15s;
+  cursor: pointer;
+}
+.premium-button:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+.premium-text       { font-family: var(--font); font-weight: 400; color: var(--text-secondary); line-height: 1.5; }
+.premium-heading    { font-family: var(--font); font-weight: 600; color: var(--text-primary);   line-height: 1.2; }
+.premium-subheading { font-family: var(--font); font-weight: 500; color: var(--text-primary);   line-height: 1.3; }
+.premium-caption    { font-family: var(--font); font-weight: 500; color: var(--text-muted); font-size: 0.6875rem; letter-spacing: 0.07em; text-transform: uppercase; }
+
+.premium-scrollbar::-webkit-scrollbar { width: 5px; }
+.premium-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.premium-scrollbar::-webkit-scrollbar-thumb { background: var(--bg-active); border-radius: 3px; }
+
+.premium-input {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-family: var(--font);
+  transition: border-color 0.15s;
+}
+.premium-input:focus { border-color: var(--border-strong); }
+.premium-input::placeholder { color: var(--text-muted); }
+
+/* animate-shimmer-premium */
+@keyframes shimmer-premium {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.animate-shimmer-premium {
+  background: linear-gradient(90deg, transparent 0%, rgba(128,128,128,0.06) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer-premium 2.5s ease-in-out infinite;
+}
+
+/* Pulse-glow used by status dots */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+.animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+
+/* ── Utility overrides ───────────────────────────────────────────────────── */
+.text-foreground       { color: var(--text-primary)   !important; }
+.text-muted-foreground { color: var(--text-secondary)  !important; }
+.text-primary          { color: var(--text-primary)   !important; }
+
+/* Neutralize decorative Tailwind color text classes → design tokens */
+.text-green-50, .text-green-100, .text-green-200, .text-green-300, .text-green-400, .text-green-500, .text-green-600, .text-green-700, .text-green-800, .text-green-900,
+.text-emerald-50, .text-emerald-100, .text-emerald-200, .text-emerald-300, .text-emerald-400, .text-emerald-500, .text-emerald-600, .text-emerald-700, .text-emerald-800, .text-emerald-900,
+.text-orange-50, .text-orange-100, .text-orange-200, .text-orange-300, .text-orange-400, .text-orange-500, .text-orange-600, .text-orange-700, .text-orange-800, .text-orange-900,
+.text-yellow-50, .text-yellow-100, .text-yellow-200, .text-yellow-300, .text-yellow-400, .text-yellow-500, .text-yellow-600, .text-yellow-700, .text-yellow-800, .text-yellow-900 {
+  color: var(--text-secondary) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   TCOE PDF-MATCHING STYLES
+   Colors and styling to match the exact PDF layout for QCOE metrics
+   Works in both light and dark mode
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── TCOE Table Colors (PDF exact match) ──────────────────────────────────── */
+:root {
+  /* PDF Table Header - Blue */
+  --tcoe-header-bg: #4472c4;
+  --tcoe-header-text: #ffffff;
+  --tcoe-header-light-bg: #d9e2f3;
+  --tcoe-header-light-text: #000000;
+  
+  /* PDF Grand Total - Dark Blue (Navy) */
+  --tcoe-grand-total-bg: #1e3a5f;
+  --tcoe-grand-total-text: #ffffff;
+  
+  /* PDF Status Colors */
+  --tcoe-green-bg: #c6efce;
+  --tcoe-green-text: #006100;
+  --tcoe-amber-bg: #ffeb9c;
+  --tcoe-amber-text: #9c6500;
+  --tcoe-red-bg: #ffc7ce;
+  --tcoe-red-text: #9c0006;
+  
+  /* PDF Table Row Alternating */
+  --tcoe-row-even: #ffffff;
+  --tcoe-row-odd: #f8f9fa;
+  --tcoe-border: #bfbfbf;
+}
+
+.dark {
+  /* Dark mode variants */
+  --tcoe-header-bg: #1e3a5f;
+  --tcoe-header-text: #ffffff;
+  --tcoe-header-light-bg: #2a4a72;
+  --tcoe-header-light-text: #ffffff;
+  
+  /* Grand Total - Keep same navy for consistency */
+  --tcoe-grand-total-bg: #1e3a5f;
+  --tcoe-grand-total-text: #ffffff;
+  
+  /* Status colors - adjusted for dark mode contrast */
+  --tcoe-green-bg: rgba(0, 97, 0, 0.25);
+  --tcoe-green-text: #6ee97f;
+  --tcoe-amber-bg: rgba(156, 101, 0, 0.25);
+  --tcoe-amber-text: #fcd34d;
+  --tcoe-red-bg: rgba(156, 0, 6, 0.25);
+  --tcoe-red-text: #fca5a5;
+  
+  /* Row alternating */
+  --tcoe-row-even: #1e2028;
+  --tcoe-row-odd: #252830;
+  --tcoe-border: #3d4258;
+}
+
+/* ── TCOE Table Structure ─────────────────────────────────────────────────── */
+.tcoe-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-size: 13px;
+  border: 1px solid var(--tcoe-border);
+}
+
+.tcoe-table th {
+  background-color: var(--tcoe-header-bg);
+  color: var(--tcoe-header-text);
+  font-weight: 600;
+  padding: 12px 16px;
+  text-align: center;
+  border: 1px solid var(--tcoe-border);
+  font-size: 12px;
+}
+
+.tcoe-table td {
+  padding: 10px 14px;
+  border: 1px solid var(--tcoe-border);
+  text-align: center;
+  font-size: 13px;
+}
+
+.tcoe-table tbody tr:nth-child(even) {
+  background-color: var(--tcoe-row-even);
+}
+
+.tcoe-table tbody tr:nth-child(odd) {
+  background-color: var(--tcoe-row-odd);
+}
+
+/* ── Grand Total Row (PDF exact match) ─────────────────────────────────────── */
+.tcoe-grand-total,
+.tcoe-table tr.tcoe-grand-total td,
+tr.pdf-grand-total-row td {
+  background-color: var(--tcoe-grand-total-bg) !important;
+  color: var(--tcoe-grand-total-text) !important;
+  font-weight: 700 !important;
+  font-size: 13px;
+  border-top: 2px solid var(--tcoe-grand-total-bg);
+}
+
+.tcoe-grand-total td:first-child,
+.pdf-grand-total-row td:first-child {
+  text-align: left;
+  padding-left: 16px;
+}
+
+/* ── Status Cell Colors (PDF exact match) ──────────────────────────────────── */
+.tcoe-status-green {
+  background-color: var(--tcoe-green-bg) !important;
+  color: var(--tcoe-green-text) !important;
+  font-weight: 600;
+}
+
+.tcoe-status-amber {
+  background-color: var(--tcoe-amber-bg) !important;
+  color: var(--tcoe-amber-text) !important;
+  font-weight: 600;
+}
+
+.tcoe-status-red {
+  background-color: var(--tcoe-red-bg) !important;
+  color: var(--tcoe-red-text) !important;
+  font-weight: 600;
+}
+
+/* ── Dual Table Container ─────────────────────────────────────────────────── */
+.tcoe-dual-table-container {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  margin-top: 16px;
+}
+
+.tcoe-dual-table-section {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--tcoe-border);
+}
+
+.tcoe-dual-table-title {
+  background-color: var(--tcoe-header-light-bg);
+  color: var(--tcoe-header-light-text);
+  font-weight: 700;
+  font-size: 14px;
+  padding: 14px 20px;
+  text-align: center;
+  border-bottom: 2px solid var(--tcoe-border);
+}
+
+/* ── Table A / Table B Labels ────────────────────────────────────────────── */
+.tcoe-table-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background: var(--tcoe-header-bg);
+  color: var(--tcoe-header-text);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.tcoe-table-label.table-a {
+  background: #2563eb;
+}
+
+.tcoe-table-label.table-b {
+  background: #16a34a;
+}
+
+/* ── PDF Print-specific Overrides ─────────────────────────────────────────── */
+@media print {
+  .tcoe-table th {
+    background-color: #4472c4 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .tcoe-grand-total td,
+  .pdf-grand-total-row td {
+    background-color: #1e3a5f !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .tcoe-status-green {
+    background-color: #c6efce !important;
+    color: #006100 !important;
+  }
+  
+  .tcoe-status-amber {
+    background-color: #ffeb9c !important;
+    color: #9c6500 !important;
+  }
+  
+  .tcoe-status-red {
+    background-color: #ffc7ce !important;
+    color: #9c0006 !important;
+  }
+}
+
+/* ── WoW Progress Indicator ───────────────────────────────────────────────── */
+.tcoe-wow-positive {
+  background-color: var(--tcoe-green-bg);
+  color: var(--tcoe-green-text);
+  font-weight: 700;
+}
+
+.tcoe-wow-negative {
+  background-color: var(--tcoe-red-bg);
+  color: var(--tcoe-red-text);
+  font-weight: 700;
+}
+
+.tcoe-wow-neutral {
+  background-color: var(--tcoe-amber-bg);
+  color: var(--tcoe-amber-text);
+  font-weight: 700;
+}
+
+/* ── Portfolio Column ─────────────────────────────────────────────────────── */
+.tcoe-table td.portfolio-cell {
+  text-align: left;
+  font-weight: 500;
+  padding-left: 16px;
+}
+
+/* ── Number Formatting ─────────────────────────────────────────────────────── */
+.tcoe-table td.number-cell {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ── Metric Card Header (PDF match) ─────────────────────────────────────────── */
+.tcoe-metric-header {
+  background: linear-gradient(135deg, #4472c4 0%, #2f5aa8 100%);
+  color: #ffffff;
+  padding: 20px 24px;
+  border-radius: 8px 8px 0 0;
+}
+
+.dark .tcoe-metric-header {
+  background: linear-gradient(135deg, #1e3a5f 0%, #2a4a72 100%);
+}
+
+.tcoe-metric-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.tcoe-metric-description {
+  font-size: 13px;
+  opacity: 0.9;
+}

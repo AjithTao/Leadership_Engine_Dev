@@ -1,12 +1,19 @@
-# This is sampple file, uncomment and customize for your need.
-# https://docs.github.com/en/enterprise-cloud@latest/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners#codeowners-syntax
+# Code owners are automatically requested for review on every pull request
+# that touches matching paths. Combined with branch protection
+# ("Require review from Code Owners"), this enforces approval gates.
+#
+# TODO: replace the team slugs below with your real GitHub team handles.
+# https://docs.github.com/articles/about-code-owners
 
-#*	@cdk-prod/xyz_application_leads
-# @cdk-prod/xyz_application_leads team will be the default owners
-# for everything in the repo. Unless a later match takes precedence,
-# @cdk-prod/xyz_application_leads will be requested for review
-# when someone opens a pull request.
+# Default owners for everything in the repo
+*	@cdk-prod/falconx-maintainers
 
-#/.github/workflows/	@cdk-prod/athena-devops-team
-#/tests/	            @test_lead @dev_lead
-#/src/	                @dev_lead
+# Security-sensitive paths require security team approval
+/.github/	@cdk-prod/security-team
+/scripts/	@cdk-prod/security-team
+/backend/services/encryption.py	@cdk-prod/security-team
+/backend/services/auth*	@cdk-prod/security-team
+*.env.example	@cdk-prod/security-team
+/config/	@cdk-prod/security-team
+.gitignore	@cdk-prod/security-team
+.pre-commit-config.yaml	@cdk-prod/security-team
