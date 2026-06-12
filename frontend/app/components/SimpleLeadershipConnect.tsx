@@ -20,6 +20,7 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react'
+import { getApiUrl } from '../../lib/api-config'
 
 interface ServiceAccountConfig {
   email: string
@@ -67,7 +68,7 @@ export function SimpleFalconXConnect() {
   // Check current status
   const checkStatus = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/leadership/status')
+      const response = await fetch(getApiUrl('/api/leadership/status'))
       const data = await response.json()
       setStatus(data)
       return data
@@ -107,7 +108,7 @@ export function SimpleFalconXConnect() {
       }
       
       // Try to connect using saved configuration
-      const response = await fetch('http://localhost:8000/api/leadership/enable', {
+      const response = await fetch(getApiUrl('/api/leadership/enable'), {
         method: 'POST'
       })
       const data = await response.json()

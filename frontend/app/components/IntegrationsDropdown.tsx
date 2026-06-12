@@ -21,6 +21,7 @@ import {
   Zap
 } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
+import { getApiUrl } from '../../lib/api-config'
 
 interface IntegrationStatus {
   name: string
@@ -85,7 +86,7 @@ export function IntegrationsDropdown() {
     try {
       // Fetch Jira status
       try {
-        const jiraResponse = await fetch('http://localhost:8000/api/jira/status')
+        const jiraResponse = await fetch(getApiUrl('/api/jira/status'))
         const jiraData = await jiraResponse.json()
         setIntegrationStatuses(prev => ({
           ...prev,
@@ -101,7 +102,7 @@ export function IntegrationsDropdown() {
 
       // Fetch Confluence status
       try {
-        const confluenceResponse = await fetch('http://localhost:8000/api/confluence/status')
+        const confluenceResponse = await fetch(getApiUrl('/api/confluence/status'))
         const confluenceData = await confluenceResponse.json()
         setIntegrationStatuses(prev => ({
           ...prev,
@@ -147,7 +148,7 @@ export function IntegrationsDropdown() {
     try {
       let response
       if (integrationId === 'jira') {
-        response = await fetch('http://localhost:8000/api/jira/configure', {
+        response = await fetch(getApiUrl('/api/jira/configure'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -162,7 +163,7 @@ export function IntegrationsDropdown() {
           })
         })
       } else if (integrationId === 'confluence') {
-        response = await fetch('http://localhost:8000/api/confluence/configure', {
+        response = await fetch(getApiUrl('/api/confluence/configure'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

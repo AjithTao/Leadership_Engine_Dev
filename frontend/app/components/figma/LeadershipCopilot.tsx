@@ -9,6 +9,7 @@ import { ScrollArea } from '../ui/scroll-area'
 import { Badge } from '../ui/badge'
 import { exportChatAsPDF, exportChatAsExcel, useVoiceToText } from '../../utils/exportUtils'
 import { useTheme } from '../../contexts/ThemeContext'
+import { getApiUrl } from '../../../lib/api-config'
 import { 
   Bot, 
   User, 
@@ -237,7 +238,7 @@ export function FigmaLeadershipCopilot({
     }
     
     try {
-      const response = await fetch('http://localhost:8000/api/jira/project-details', {
+      const response = await fetch(getApiUrl('/api/jira/project-details'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -331,7 +332,7 @@ export function FigmaLeadershipCopilot({
       // Default to "jira" - can be updated later with UI selector
       const selectedSource = "jira"  // TODO: Connect to UI source selector when available
       
-      const response = await fetch('http://localhost:8000/api/chat', {
+      const response = await fetch(getApiUrl('/api/chat'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

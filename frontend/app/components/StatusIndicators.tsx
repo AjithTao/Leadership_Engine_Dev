@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { CheckCircle, XCircle, Clock, AlertCircle, RefreshCw } from 'lucide-react'
+import { getApiUrl } from '../../lib/api-config'
 
 interface SystemStatus {
   jira: {
@@ -45,10 +46,10 @@ export function StatusIndicators() {
   const fetchStatus = async () => {
     try {
       // Fetch Jira status
-      const jiraResponse = await fetch('http://localhost:8000/api/jira/status')
+      const jiraResponse = await fetch(getApiUrl('/api/jira/status'))
       const jiraData = await jiraResponse.json()
       // Fetch Confluence status
-      const confResponse = await fetch('http://localhost:8000/api/confluence/status')
+      const confResponse = await fetch(getApiUrl('/api/confluence/status'))
       const confData = await confResponse.json()
       
       setStatus({

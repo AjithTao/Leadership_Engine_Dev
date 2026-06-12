@@ -30,6 +30,7 @@ import {
   Ticket
 } from 'lucide-react'
 import { FalconXLogo, MUSTARD, OLIVE } from '../ui/FalconXLogo'
+import { getApiUrl } from '../../../lib/api-config'
 import { useRouter } from 'next/navigation'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useSettings } from '../../contexts/SettingsContext'
@@ -448,8 +449,8 @@ export function NewLeftSidebar({
                   {connections.some(c => c.status === 'connected') && (
                     <button
                       onClick={async () => {
-                        try { await fetch('http://localhost:8000/api/jira/disconnect', { method: 'POST' }) } catch {}
-                        try { await fetch('http://localhost:8000/api/confluence/disconnect', { method: 'POST' }) } catch {}
+                        try { await fetch(getApiUrl('/api/jira/disconnect'), { method: 'POST' }) } catch {}
+                        try { await fetch(getApiUrl('/api/confluence/disconnect'), { method: 'POST' }) } catch {}
                         try { toggleConnection(-1) } catch {}
                       }}
                       className="w-full h-9 flex items-center justify-center gap-2 rounded-xl text-sm font-medium transition-colors duration-200 active:scale-[0.98]"

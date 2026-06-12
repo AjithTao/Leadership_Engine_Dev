@@ -16,6 +16,7 @@ import { GitHubInsightsDashboard } from '../GitHubInsightsDashboard'
 import { SalesforceInsightsDashboard } from '../SalesforceInsightsDashboard'
 import { useTheme } from '../../contexts/ThemeContext'
 import { SettingsProvider } from '../../contexts/SettingsContext'
+import { getApiUrl } from '../../../lib/api-config'
 
 export type ActiveView = 'copilot' | 'insights' | 'github-insights' | 'leadership' | 'tcoe-report' | 'tcoe-dashboard' | 'qa-metrics' | 'kpi-metrics' | 'salesforce-insights'
 export type Theme = 'light' | 'dark'
@@ -82,7 +83,7 @@ function NewFigmaAppContent() {
       
       if (connectionType === 'atlassian') {
         // Make API call to configure Jira
-        const response = await fetch('http://localhost:8000/api/jira/configure', {
+        const response = await fetch(getApiUrl('/api/jira/configure'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -126,10 +127,9 @@ function NewFigmaAppContent() {
 
     const refreshStatuses = async () => {
       try {
-        const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
-        const jiraRes = await fetch(`${apiBase}/api/jira/status`).then(r => r.json()).catch(() => null)
-        const confRes = await fetch(`${apiBase}/api/confluence/status`).then(r => r.json()).catch(() => null)
-        const githubRes = await fetch(`${apiBase}/api/github/status`).then(r => r.json()).catch(() => null)
+        const jiraRes = await fetch(getApiUrl(`/api/jira/status`)).then(r => r.json()).catch(() => null)
+        const confRes = await fetch(getApiUrl(`/api/confluence/status`)).then(r => r.json()).catch(() => null)
+        const githubRes = await fetch(getApiUrl(`/api/github/status`)).then(r => r.json()).catch(() => null)
 
         if (!mounted) return
 

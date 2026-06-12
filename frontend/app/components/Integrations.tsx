@@ -5,6 +5,7 @@ import { RefreshCw, Settings } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { ConnectionPopup } from './ConnectionPopup'
 import { motion } from 'framer-motion'
+import { getApiUrl } from '../../lib/api-config'
 
 interface IntegrationStatus {
   name: string
@@ -43,9 +44,9 @@ export function Integrations() {
     setIsRefreshing(true)
     try {
       try {
-        const jiraResponse = await fetch('http://localhost:8000/api/jira/status')
+        const jiraResponse = await fetch(getApiUrl('/api/jira/status'))
         const jiraData = await jiraResponse.json()
-        const confluenceResponse = await fetch('http://localhost:8000/api/confluence/status')
+        const confluenceResponse = await fetch(getApiUrl('/api/confluence/status'))
         const confluenceData = await confluenceResponse.json()
         const bothConnected = (jiraData.configured || false) && (confluenceData.configured || false)
         setIntegrationStatuses(prev => ({
@@ -62,7 +63,7 @@ export function Integrations() {
       }))
 
       try {
-        const sfResponse = await fetch('http://localhost:8000/api/salesforce/status')
+        const sfResponse = await fetch(getApiUrl('/api/salesforce/status'))
         const sfData = await sfResponse.json()
         setIntegrationStatuses(prev => ({
           ...prev,
@@ -96,13 +97,13 @@ export function Integrations() {
           ? userDetails.atlassianAccount
           : `https://${userDetails.atlassianAccount}.atlassian.net`
 
-      const jiraResponse = await fetch('http://localhost:8000/api/jira/configure', {
+      const jiraResponse = await fetch(getApiUrl('/api/jira/configure'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: atlassianUrl, email: userDetails.email, api_token: userDetails.apiToken, board_id: '1' })
       })
 
-      const confluenceResponse = await fetch('http://localhost:8000/api/confluence/configure', {
+      const confluenceResponse = await fetch(getApiUrl('/api/confluence/configure'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: atlassianUrl, email: userDetails.email, api_token: userDetails.apiToken })

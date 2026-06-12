@@ -18,6 +18,7 @@ import {
   Target,
   Zap
 } from 'lucide-react'
+import { getApiUrl } from '../../lib/api-config'
 
 type Completed = { count: number; trend: { delta: number; percent: number } }
 type Blockers = { total: number; by_priority: Record<string, number> }
@@ -38,7 +39,7 @@ export function DashboardPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/jira/projects')
+      const response = await fetch(getApiUrl('/api/jira/projects'))
       const data = await response.json()
       if (data.success && data.projects?.detailed) {
         setAvailableProjects(data.projects.detailed)
@@ -55,11 +56,11 @@ export function DashboardPage() {
       const payload = project && project !== 'ALL' ? { project_key: project } : {}
 
       const [cRes, bRes, tRes, rRes, vRes] = await Promise.all([
-        fetch('http://localhost:8000/api/metrics/completed', body(payload)),
-        fetch('http://localhost:8000/api/metrics/blockers', body(payload)),
-        fetch('http://localhost:8000/api/metrics/contributors', body(payload)),
-        fetch('http://localhost:8000/api/metrics/resolution', body(payload)),
-        fetch('http://localhost:8000/api/metrics/velocity', body(payload)),
+        fetch(getApiUrl('/api/metrics/completed'), body(payload)),
+        fetch(getApiUrl('/api/metrics/blockers'), body(payload)),
+        fetch(getApiUrl('/api/metrics/contributors'), body(payload)),
+        fetch(getApiUrl('/api/metrics/resolution'), body(payload)),
+        fetch(getApiUrl('/api/metrics/velocity'), body(payload)),
       ])
 
       const [c, b, t, r, v] = await Promise.all([cRes.json(), bRes.json(), tRes.json(), rRes.json(), vRes.json()])
@@ -69,7 +70,7 @@ export function DashboardPage() {
       setResolution(r)
       setVelocity(v)
 
-      const sumRes = await fetch('http://localhost:8000/api/metrics/summary', body({ project, completed: c, blockers: b, contributors: t, resolution: r, velocity: v }))
+      const sumRes = await fetch(getApiUrl('/api/metrics/summary'), body({ project, completed: c, blockers: b, contributors: t, resolution: r, velocity: v }))
       const sum = await sumRes.json()
       setInsight(sum?.insight || '')
     } catch (e) {
