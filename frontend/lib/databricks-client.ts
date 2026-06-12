@@ -48,14 +48,14 @@ export async function queryRagEndpoint(
     numDocuments?: number;
   }
 ): Promise<RAGResponse> {
-  const endpoint = process.env.NEXT_PUBLIC_BACKEND_URL;
+  const endpoint = process.env.NEXT_PUBLIC_DATABRICKS_ENDPOINT;
   const token = process.env.NEXT_PUBLIC_DATABRICKS_TOKEN;
 
   // Validate configuration
   if (!endpoint || !token) {
     const error: RAGError = {
       message:
-        "Databricks endpoint or token not configured. Check NEXT_PUBLIC_BACKEND_URL and NEXT_PUBLIC_DATABRICKS_TOKEN in .env.local",
+        "Databricks endpoint or token not configured. Check NEXT_PUBLIC_DATABRICKS_ENDPOINT and NEXT_PUBLIC_DATABRICKS_TOKEN in .env.local",
       code: "CONFIG_ERROR",
     };
     console.error("❌", error.message);
@@ -81,7 +81,7 @@ export async function queryRagEndpoint(
     ],
   };
 
-  // Build endpoint URL (remove /invocations if present in NEXT_PUBLIC_BACKEND_URL)
+  // Build endpoint URL (remove /invocations if present in NEXT_PUBLIC_DATABRICKS_ENDPOINT)
   let url = endpoint;
   if (!url.endsWith("/invocations")) {
     url = `${url.replace(/\/$/, "")}/invocations`;
@@ -194,7 +194,7 @@ export async function queryRagEndpoint(
  * @returns true if endpoint is accessible, false otherwise
  */
 export async function checkRagEndpointHealth(): Promise<boolean> {
-  const endpoint = process.env.NEXT_PUBLIC_BACKEND_URL;
+  const endpoint = process.env.NEXT_PUBLIC_DATABRICKS_ENDPOINT;
   const token = process.env.NEXT_PUBLIC_DATABRICKS_TOKEN;
 
   if (!endpoint || !token) {
@@ -235,7 +235,7 @@ export async function checkRagEndpointHealth(): Promise<boolean> {
  * @returns Array of RAG responses
  */
 export async function batchQueryRag(queries: string[]): Promise<RAGResponse[]> {
-  const endpoint = process.env.NEXT_PUBLIC_BACKEND_URL;
+  const endpoint = process.env.NEXT_PUBLIC_DATABRICKS_ENDPOINT;
   const token = process.env.NEXT_PUBLIC_DATABRICKS_TOKEN;
 
   if (!endpoint || !token) {

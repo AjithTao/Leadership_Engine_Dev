@@ -99,6 +99,14 @@ class ConfluenceClient:
             logger.error(f"[Confluence] search failed: {e}")
             return []
 
+    async def search_cql(self, cql: str, limit: int = 25) -> List[Dict[str, Any]]:
+        """Run a raw CQL search with auth fallback; raises on HTTP errors."""
+        url = f"{self.cfg.base_url}/rest/api/search"
+        params = {"cql": cql, "limit": str(limit)}
+        resp = await self._request_with_auth_fallback('GET', url, params=params)
+        resp.raise_for_status()
+        return resp.json().get("results", [])
+
     async def search_pages(self, title_query: str, space: Optional[str] = None, limit: int = 5) -> List[Dict[str, Any]]:
         """Search pages by title (CQL)."""
         if not self._client:

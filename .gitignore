@@ -191,3 +191,9 @@ htmlcov/
 !assets/**/*.png
 # Git bundles (repo backups can contain unsanitized history)
 *.bundle
+
+# MS Office lock files
+~$*
+
+# TypeScript incremental build state
+*.tsbuildinfo

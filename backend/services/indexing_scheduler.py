@@ -201,37 +201,10 @@ class IndexingScheduler:
 
             date_from = (datetime.now() - timedelta(days=7)).strftime('%Y/%m/%d')
             cql       = f'lastModified >= "{date_from}" ORDER BY lastModified DESC'
-            base_url  = os.getenv("CONFLUENCE_BASE_URL", "").rstrip("/")
-            if not base_url:
-                logger.warning("⚠️ CONFLUENCE_BASE_URL not set")
-                self._finish_phase()
-                return
 
-            import httpx
-            from services.encryption import get_encrypted_env
-
-            email     = os.getenv("CONFLUENCE_SERVICE_EMAIL")
-            raw_token = os.getenv("CONFLUENCE_SERVICE_API_TOKEN")
-            if raw_token and raw_token.startswith('gAAAAA'):
-                try:
-                    api_token = get_encrypted_env("CONFLUENCE_SERVICE_API_TOKEN")
-                except Exception:
-                    api_token = raw_token
-            else:
-                api_token = raw_token
-
-            if not (email and api_token):
-                logger.warning("⚠️ Confluence credentials not available")
-                self._finish_phase()
-                return
-
-            search_url = f"{base_url}/rest/api/search"
-            params     = {"cql": cql, "limit": "500"}
-
-            async with httpx.AsyncClient(auth=(email, api_token), timeout=60.0) as client:
-                response = await client.get(search_url, params=params)
-                response.raise_for_status()
-                results = response.json().get("results", [])
+            # Reuse the already-authenticated client (Bearer with Basic fallback)
+            # instead of hand-rolling credentials and auth headers here.
+            results = await self.confluence_client.search_cql(cql, limit=500)
 
             if results:
                 self._start_phase("incremental_confluence", total=len(results))

@@ -234,8 +234,14 @@ class LeadershipRAGHandler:
         params = {"cql": cql, "limit": str(num_results)}
 
         try:
-            with httpx.Client(auth=(email, api_token), timeout=15.0) as client:
-                resp = client.get(search_url, params=params, headers={"Accept": "application/json"})
+            # Bearer first (Server/DC PATs); fall back to Basic (Cloud) on 401,
+            # mirroring ConfluenceClient._request_with_auth_fallback
+            headers = {"Authorization": f"Bearer {api_token}", "Accept": "application/json"}
+            with httpx.Client(timeout=15.0) as client:
+                resp = client.get(search_url, params=params, headers=headers)
+                if resp.status_code == 401:
+                    resp = client.get(search_url, params=params, auth=(email, api_token),
+                                      headers={"Accept": "application/json"})
                 resp.raise_for_status()
                 results = resp.json().get("results", [])
         except Exception as e:

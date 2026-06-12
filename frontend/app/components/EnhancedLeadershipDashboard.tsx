@@ -38,6 +38,7 @@ import {
 } from 'lucide-react'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
+import { getApiUrl } from '../../lib/api-config'
 
 interface DashboardMetrics {
   portfolio_summary: {
@@ -117,7 +118,7 @@ export function EnhancedLeadershipDashboard() {
   // Fetch available projects
   const fetchProjects = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/jira/projects')
+      const response = await fetch(getApiUrl('/api/jira/projects'))
       const data = await response.json()
       if (data.success && data.projects?.detailed) {
         setAvailableProjects(data.projects.detailed)
@@ -134,8 +135,8 @@ export function EnhancedLeadershipDashboard() {
     
     try {
       const endpoint = selectedProject === 'ALL' 
-        ? 'http://localhost:8000/api/leadership/dashboard'
-        : `http://localhost:8000/api/leadership/dashboard?project=${selectedProject}`
+        ? getApiUrl('/api/leadership/dashboard')
+        : getApiUrl(`/api/leadership/dashboard?project=${selectedProject}`)
       
       const response = await fetch(endpoint, {
         method: 'POST',
