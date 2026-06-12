@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { getApiUrl } from '../../lib/api-config'
 
 interface JiraConfig {
   url: string
@@ -72,7 +73,7 @@ export function SimpleJiraConnect() {
   // Check current status
   const checkStatus = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/jira/status')
+      const response = await fetch(getApiUrl('/api/jira/status'))
       const data = await response.json()
       setStatus(data)
       return data
@@ -114,7 +115,7 @@ export function SimpleJiraConnect() {
       }
       
       // Try to connect using saved configuration
-      const response = await fetch('http://localhost:8000/api/jira/configure', {
+      const response = await fetch(getApiUrl('/api/jira/configure'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -133,7 +134,7 @@ export function SimpleJiraConnect() {
         setConnectionResult(`✅ Connected successfully! Found ${data.projects || 0} projects. ${data.current_sprint ? `Current sprint: ${data.current_sprint}` : ''}`)
         await checkStatus()
       } else {
-        setConnectionResult(`❌ Connection failed: ${data.error || data.message}. Please check your connection details.`)
+        setConnectionResult(`❌ Connection failed: ${data.detail || data.error || data.message}. Please check your connection details.`)
         setShowManualEntry(true)
       }
     } catch (error) {
