@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
+import { getApiUrl } from '../../lib/api-config'
 
 export function ConfluenceConfigCenter() {
   const [url, setUrl] = useState('https://cdkdigital.atlassian.net/wiki')
@@ -19,7 +20,7 @@ export function ConfluenceConfigCenter() {
     setMessage(null)
     setError(null)
     try {
-      const resp = await fetch('http://localhost:8000/api/confluence/configure', {
+      const resp = await fetch(getApiUrl('/api/confluence/configure'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, email, api_token: apiToken })
@@ -47,7 +48,7 @@ export function ConfluenceConfigCenter() {
     setMessage(null)
     setError(null)
     try {
-      const resp = await fetch('http://localhost:8000/api/confluence/disconnect', { method: 'POST' })
+      const resp = await fetch(getApiUrl('/api/confluence/disconnect'), { method: 'POST' })
       const data = await resp.json()
       if (resp.ok && data.success) {
         setIsConnected(false)
@@ -69,7 +70,7 @@ export function ConfluenceConfigCenter() {
   useEffect(() => {
     const load = async () => {
       try {
-        const resp = await fetch('http://localhost:8000/api/confluence/status')
+        const resp = await fetch(getApiUrl('/api/confluence/status'))
         const data = await resp.json()
         if (resp.ok && data.configured) {
           setIsConnected(true)

@@ -21,6 +21,7 @@ import { WelcomePopup } from '../WelcomePopup'
 import { exportChatAsPDF, exportChatAsExcel, useVoiceToText } from '../../utils/exportUtils'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Button } from '../ui/button'
+import { getApiUrl } from '../../../lib/api-config'
 
 interface NewLeadershipCopilotProps {
   hasActiveConnections: boolean
@@ -762,8 +763,7 @@ export function NewLeadershipCopilot({
     projectCtx: string,
     historyForApi: { role: string; content: string }[],
   ) => {
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
-    const response = await fetch(`${apiBase}/api/chat`, {
+    const response = await fetch(getApiUrl(`/api/chat`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -879,8 +879,7 @@ export function NewLeadershipCopilot({
       setIsLoading(true)
       setLoadingMessage('Searching document…')
       try {
-        const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
-        const response = await fetch(`${apiBase}/api/domain/qa`, {
+        const response = await fetch(getApiUrl(`/api/domain/qa`), {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ question: userInput, k: 5 }),
         })
@@ -925,10 +924,9 @@ export function NewLeadershipCopilot({
           role: m.role,
           content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
         }))
-        const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
         const results = await Promise.all(
           integrations.map(integration =>
-            fetch(`${apiBase}/api/chat`, {
+            fetch(getApiUrl(`/api/chat`), {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 message: userInput, source: integration, context: 'leadership_copilot',

@@ -13,6 +13,7 @@ import { SimpleJiraConnect } from '../SimpleJiraConnect'
 import { SimpleConfluenceConnect } from '../SimpleConfluenceConnect'
 import { SimpleGithubConnect } from '../SimpleGithubConnect'
 import { useTheme } from '../../contexts/ThemeContext'
+import { getApiUrl } from '../../../lib/api-config'
 import { 
   X, 
   Wifi, 
@@ -138,9 +139,9 @@ export function FigmaConnectionSettings({
 
   const checkConnectionStatus = async () => {
     try {
-      const jiraRes = await fetch('http://localhost:8000/api/jira/status')
+      const jiraRes = await fetch(getApiUrl('/api/jira/status'))
       const jira = await jiraRes.json()
-      const confRes = await fetch('http://localhost:8000/api/confluence/status')
+      const confRes = await fetch(getApiUrl('/api/confluence/status'))
       const conf = await confRes.json()
       setConnectionStatus(prev => ({
         ...prev,
@@ -160,7 +161,8 @@ export function FigmaConnectionSettings({
       setConnectionStatus(prev => ({ ...prev, [type]: 'testing' }))
       
       try {
-        const response = await fetch('http://localhost:8000/api/jira/configure', {
+        // Test only — must never replace the backend's shared Jira client
+        const response = await fetch(getApiUrl('/api/jira/test'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -171,8 +173,9 @@ export function FigmaConnectionSettings({
             api_token: atlassianConfig.apiToken
           })
         })
-        
-        if (response.ok) {
+
+        const data = await response.json().catch(() => null)
+        if (response.ok && data?.success !== false) {
           setTestResults(prev => ({ ...prev, [type]: 'success' }))
           setConnectionStatus(prev => ({ ...prev, [type]: 'connected' }))
           

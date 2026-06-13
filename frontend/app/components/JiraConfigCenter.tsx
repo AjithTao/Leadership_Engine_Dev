@@ -7,6 +7,7 @@ import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Alert, AlertDescription } from './ui/alert'
 import { CheckCircle, XCircle, Loader2, Settings } from 'lucide-react'
+import { getApiUrl } from '../../lib/api-config'
 
 interface JiraConfig {
   url: string
@@ -40,7 +41,7 @@ export function JiraConfigCenter() {
 
   const checkConnectionStatus = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/jira/status')
+      const response = await fetch(getApiUrl('/api/jira/status'))
       const data = await response.json()
       
       if (data.configured && data.config) {
@@ -67,7 +68,7 @@ export function JiraConfigCenter() {
     setStatus('idle')
     
     try {
-      const response = await fetch('http://localhost:8000/api/jira/configure', {
+      const response = await fetch(getApiUrl('/api/jira/configure'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -107,7 +108,7 @@ export function JiraConfigCenter() {
     setStatus('idle')
     
     try {
-      const response = await fetch('http://localhost:8000/api/jira/test', {
+      const response = await fetch(getApiUrl('/api/jira/test'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -138,7 +139,7 @@ export function JiraConfigCenter() {
     
     try {
       // Clear the backend configuration
-      const response = await fetch('http://localhost:8000/api/jira/disconnect', {
+      const response = await fetch(getApiUrl('/api/jira/disconnect'), {
         method: 'POST'
       })
       

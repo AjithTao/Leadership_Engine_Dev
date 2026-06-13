@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
+import { getApiUrl } from '../../lib/api-config'
 
 type DomainStatus = {
   indexed: boolean
@@ -21,11 +22,9 @@ export default function DomainTraining() {
   const [answer, setAnswer] = useState<string>('')
   const [error, setError] = useState<string>('')
 
-  const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
-
   const loadStatus = async () => {
     try {
-      const resp = await fetch(`${base}/api/domain/status`)
+      const resp = await fetch(getApiUrl(`/api/domain/status`))
       const data = await resp.json()
       setStatus(data)
     } catch (e: any) {
@@ -47,7 +46,7 @@ export default function DomainTraining() {
       const form = new FormData()
       form.append('file', file)
       form.append('name', 'domain-training')
-      const resp = await fetch(`${base}/api/domain/upload`, { method: 'POST', body: form })
+      const resp = await fetch(getApiUrl(`/api/domain/upload`), { method: 'POST', body: form })
       const data = await resp.json()
       if (!resp.ok || data?.success === false) {
         throw new Error(data?.detail || data?.error || 'Upload failed')
@@ -67,7 +66,7 @@ export default function DomainTraining() {
     setError('')
     setAnswer('')
     try {
-      const resp = await fetch(`${base}/api/domain/qa`, {
+      const resp = await fetch(getApiUrl(`/api/domain/qa`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question })

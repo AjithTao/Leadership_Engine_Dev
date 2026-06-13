@@ -9,8 +9,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { DashboardLayout } from './DashboardLayout';
-
-const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
+import { getApiUrl } from '../../lib/api-config';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -238,7 +237,7 @@ export function GitHubInsightsDashboard() {
     setConnectionError(null);
     setInitialLoading(true);
     try {
-      const statusRes  = await fetch(`${API}/api/github/status`);
+      const statusRes  = await fetch(getApiUrl(`/api/github/status`));
       const statusData = await statusRes.json();
       if (!statusData.connected) {
         setConnected(false);
@@ -248,7 +247,7 @@ export function GitHubInsightsDashboard() {
       setConnected(true);
       setGhUser({ login: statusData.user || '', org: statusData.config?.org || '' });
 
-      const reposRes  = await fetch(`${API}/api/github/repos`);
+      const reposRes  = await fetch(getApiUrl(`/api/github/repos`));
       const reposData = await reposRes.json();
       if (reposData.success === false) {
         setConnected(false);
@@ -273,7 +272,7 @@ export function GitHubInsightsDashboard() {
       [fullName]: { ...(prev[fullName] || {}), repo: fullName, total_runs: 0, successful: 0, failed: 0, success_rate: 0, runs: [], loading: true },
     }));
     try {
-      const res  = await fetch(`${API}/api/github/actions/runs?repo=${encodeURIComponent(fullName)}&days=${days}`, { signal });
+      const res  = await fetch(getApiUrl(`/api/github/actions/runs?repo=${encodeURIComponent(fullName)}&days=${days}`), { signal });
       const data = await res.json();
       setRepoStatsMap(prev => ({ ...prev, [fullName]: { ...data, repo: fullName, loading: false } }));
     } catch (e: any) {
@@ -291,7 +290,7 @@ export function GitHubInsightsDashboard() {
     const timeoutId  = setTimeout(() => controller.abort(), 35000); // 35s timeout
     try {
       const res = await fetch(
-        `${API}/api/github/repo-detail?repo=${encodeURIComponent(fullName)}`,
+        getApiUrl(`/api/github/repo-detail?repo=${encodeURIComponent(fullName)}`),
         { signal: controller.signal },
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

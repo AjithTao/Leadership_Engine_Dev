@@ -255,10 +255,9 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3001",
-        "http://10.1.0.39:3000",
-    ],
-    # LAN access for coworkers; the host IP can change with DHCP, so also
-    # allow any private-range origin on the dev ports.
+        # Extra origins (e.g. a LAN IP for office sharing) come from env, not code
+    ] + [o.strip() for o in os.environ.get("EXTRA_CORS_ORIGINS", "").split(",") if o.strip()],
+    # Also allow private-range dev hosts on common frontend ports.
     allow_origin_regex=r"^http://(10|192\.168|172\.(1[6-9]|2\d|3[01])|100)\.[\d.]+:300[01]$",
     allow_credentials=True,
     allow_methods=["*"],
@@ -1296,10 +1295,10 @@ async def login_endpoint(request: LoginRequest):
             "message": f"Authentication failed: {str(e)}"
         }
 
-@app.post("/api/auth/auto-connect-integrations", tags=["Authentication"], summary="Auto-connect Jira, Confluence, and GitHub")
+@app.post("/api/auth/auto-connect-integrations", tags=["Authentication"], summary="Auto-connect Jira and Confluence")
 async def auto_connect_integrations():
     """
-    Automatically connect Jira, Confluence, and GitHub using common service account credentials
+    Automatically connect Jira and Confluence using common service account credentials
     Called after successful LDAP login.
     Credentials are encrypted in environment variables.
     """
@@ -1316,13 +1315,10 @@ async def auto_connect_integrations():
         confluence_email = os.environ.get('CONFLUENCE_SERVICE_EMAIL')
         confluence_api_token_encrypted = os.environ.get('CONFLUENCE_SERVICE_API_TOKEN')
         confluence_url = os.environ.get('CONFLUENCE_BASE_URL', 'https://projects.cdk.com/wiki')
-
-        github_token_encrypted = os.environ.get('GITHUB_SERVICE_TOKEN')
-
+        
         results = {
             "jira": {"success": False, "message": ""},
-            "confluence": {"success": False, "message": ""},
-            "github": {"success": False, "message": ""}
+            "confluence": {"success": False, "message": ""}
         }
         
         # Connect Jira
@@ -1432,43 +1428,7 @@ async def auto_connect_integrations():
                 "success": False,
                 "message": "Confluence service credentials not configured"
             }
-
-        # Connect GitHub
-        if github_token_encrypted:
-            try:
-                # Decrypt token (stored encrypted in .env)
-                github_token = get_encrypted_env('GITHUB_SERVICE_TOKEN')
-                if not github_token:
-                    raise RuntimeError("GitHub service token could not be decrypted")
-
-                app_state.github_client.set_token(github_token)
-
-                status = await app_state.github_client.get_status()
-                if not status.get("connected"):
-                    raise RuntimeError(status.get("error", "GitHub connection validation failed"))
-
-                results["github"] = {
-                    "success": True,
-                    "message": f"Connected successfully as {status.get('user', 'GitHub user')}."
-                }
-                logger.info("GitHub auto-connected successfully as %s", status.get("user", "GitHub user"))
-
-                # Clear token from memory
-                del github_token
-            except Exception as e:
-                results["github"] = {
-                    "success": False,
-                    "message": f"Failed to connect: {str(e)}"
-                }
-                logger.error(f"GitHub auto-connect failed: {e}")
-        else:
-            # Without a service token the client falls back to GITHUB_TOKEN
-            # loaded at startup (services/github.py), if present.
-            results["github"] = {
-                "success": False,
-                "message": "GitHub service credentials not configured"
-            }
-
+        
         # Start indexing scheduler if clients are available
         try:
             from services.indexing_scheduler import get_indexing_scheduler
@@ -1559,22 +1519,25 @@ async def configure_jira(config: JiraConfigRequest):
         # Initialize the async client
         await jira_client.initialize()
 
-        # Reject bad credentials BEFORE replacing the live client. Jira DC
-        # returns 200 with empty results (not 401) for bad Bearer tokens on
-        # /project, so only an authenticated probe such as /myself proves auth.
+        # Jira Server/DC serves /project anonymously (200 + empty list) for bad
+        # tokens, so a projects fetch alone cannot prove the credentials work.
+        # Validate auth first and refuse to touch the existing client on failure.
         validation = await jira_client.validate_connection()
         if not validation.get("success"):
             await jira_client.close()
-            raise RuntimeError(validation.get("message", "Jira credential validation failed"))
+            logger.warning(f"Rejected /api/jira/configure: {validation.get('message')}")
+            raise HTTPException(
+                status_code=400,
+                detail=validation.get("message", "Jira credential validation failed"),
+            )
 
-        # Test the connection by trying to get projects
         projects_count = 0
         current_sprint = None
         try:
             projects = await jira_client.get_projects()
             projects_count = len(projects)
             logger.info(f"Successfully connected to Jira. Found {projects_count} projects")
-            
+
             # Try to get current sprint if board_id is provided
             if config.board_id:
                 try:
@@ -1584,13 +1547,18 @@ async def configure_jira(config: JiraConfigRequest):
                     pass
         except Exception as e:
             logger.warning(f"Could not get projects, but connection may still work: {e}")
-        
-        # Store configuration
+
+        # Store configuration, closing the previous client to avoid leaking connections
+        if app_state.jira_client and app_state.jira_client is not jira_client:
+            try:
+                await app_state.jira_client.close()
+            except Exception:
+                pass
         app_state.jira_configured = True
         app_state.jira_client = jira_client
         app_state.jira_config = jira_config
         app_state.jira_board_id = config.board_id
-        
+
         logger.info("Jira configured successfully. Confluence must be configured separately.")
         
         return {
@@ -1604,6 +1572,8 @@ async def configure_jira(config: JiraConfigRequest):
                 "board_id": config.board_id
             }
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Jira configuration failed: {e}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -1719,21 +1689,37 @@ async def configure_confluence(config: dict):
         
         # Initialize the async client
         await confluence_client.initialize()
-        
-        # Test the connection by trying to get spaces
+
+        # Validate before storing: bad tokens can be served anonymously, so an
+        # empty spaces list means the credentials don't actually work. Never
+        # replace a working client with an unvalidated one (mirrors Jira).
         try:
             spaces = await confluence_client.get_spaces()
-            logger.info(f"Successfully connected to Confluence. Found {len(spaces)} spaces")
         except Exception as e:
-            logger.warning(f"Could not get spaces, but connection may still work: {e}")
-        
-        # Update app state
+            await confluence_client.close()
+            logger.warning(f"Rejected /api/confluence/configure: {e}")
+            raise HTTPException(status_code=400, detail=f"Confluence credential validation failed: {e}")
+        if not spaces:
+            await confluence_client.close()
+            logger.warning("Rejected /api/confluence/configure: credentials cannot see any spaces")
+            raise HTTPException(
+                status_code=400,
+                detail="Confluence authenticated, but the account cannot see any spaces. Check credentials/permissions.",
+            )
+        logger.info(f"Successfully connected to Confluence. Found {len(spaces)} spaces")
+
+        # Update app state, closing the previous client to avoid leaking connections
+        if app_state.confluence_client and app_state.confluence_client is not confluence_client:
+            try:
+                await app_state.confluence_client.close()
+            except Exception:
+                pass
         app_state.confluence_config = confluence_config
         app_state.confluence_client = confluence_client
         app_state.confluence_configured = True
-        
+
         logger.info("Confluence configured successfully as separate connection")
-        
+
         return {
             "success": True,
             "message": "Confluence configured successfully",
@@ -1742,13 +1728,11 @@ async def configure_confluence(config: dict):
                 "email": config.get('email', '')
             }
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Confluence configuration failed: {e}")
-        return {
-            "success": False,
-            "error": str(e),
-            "message": "Failed to configure Confluence"
-        }
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/jira/sprint/current")
 async def get_current_sprint():
@@ -3264,11 +3248,26 @@ async def test_jira_connection(config: JiraConfigRequest):
         
         # Create Jira client
         jira_client = JiraClient(jira_config)
-        
+
         # Initialize the async client
         await jira_client.initialize()
-        
+
+        # Jira Server/DC answers many endpoints anonymously for bad tokens, so
+        # only validate_connection() (which probes /myself) proves the credentials.
+        validation = await jira_client.validate_connection()
+        if not validation.get("success"):
+            return {
+                "success": False,
+                "message": validation.get("message", "Jira credential validation failed"),
+                "config": {
+                    "url": config.url,
+                    "email": config.email,
+                    "board_id": config.board_id
+                }
+            }
+
         # Test the connection
+        current_sprint = None
         try:
             # Try to get current sprint
             current_sprint = await jira_client.get_current_sprint()
@@ -7208,19 +7207,14 @@ async def github_configure(config: Dict[str, str]):
         if not token:
             return create_error_response("API token is required", status_code=400)
             
-        # Validate with a throwaway client first so bad credentials never
-        # replace the live (possibly service-account) connection
-        from services.github import GitHubClient
-        probe = GitHubClient()
-        probe.config.api_token = token
+        # Update config dynamically
+        app_state.github_client.config.api_token = token
         if email:
-            probe.config.email = email
-        status = await probe.get_status()
-        if probe._client:
-            await probe._client.aclose()
-
+            app_state.github_client.config.email = email
+            
+        # Verify connection
+        status = await app_state.github_client.get_status()
         if status.get("connected"):
-            app_state.github_client.set_token(token, email)
             return create_success_response(status, "GitHub connected successfully")
         else:
             return create_error_response("Connection failed", status.get("error", "Unknown error"))

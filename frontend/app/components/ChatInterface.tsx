@@ -11,6 +11,7 @@ import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
 import { useChat, Message } from '../contexts/ChatContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { getApiUrl } from '../../lib/api-config'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface ChatResponse {
@@ -241,7 +242,7 @@ export const ChatInterface = forwardRef<{ sendQuickMessage: (message: string) =>
     try {
       let finalMessage = augmentMessageWithLastIssue(message)
       finalMessage = augmentMessageWithLastProject(finalMessage)
-      const response = await fetch('http://localhost:8000/api/chat', {
+      const response = await fetch(getApiUrl('/api/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: finalMessage }),
@@ -268,7 +269,7 @@ export const ChatInterface = forwardRef<{ sendQuickMessage: (message: string) =>
         const key = Array.isArray(match) ? match[1] : null
         if (key) {
           try {
-            const dresp = await fetch(`http://localhost:8000/api/jira/issue/${key}`)
+            const dresp = await fetch(getApiUrl(`/api/jira/issue/${key}`))
             const djson = await dresp.json()
             if (dresp.ok && djson.issue) {
               setLastIssueDetails({ key, data: djson.issue, fetchedAt: new Date().toISOString() })
@@ -348,7 +349,7 @@ export const ChatInterface = forwardRef<{ sendQuickMessage: (message: string) =>
     try {
       let finalMessage = augmentMessageWithLastIssue(userMessage)
       finalMessage = augmentMessageWithLastProject(finalMessage)
-      const response = await fetch('http://localhost:8000/api/chat', {
+      const response = await fetch(getApiUrl('/api/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: finalMessage }),
@@ -375,7 +376,7 @@ export const ChatInterface = forwardRef<{ sendQuickMessage: (message: string) =>
         const key = Array.isArray(match) ? match[1] : null
         if (key) {
           try {
-            const dresp = await fetch(`http://localhost:8000/api/jira/issue/${key}`)
+            const dresp = await fetch(getApiUrl(`/api/jira/issue/${key}`))
             const djson = await dresp.json()
             if (dresp.ok && djson.issue) {
               setLastIssueDetails({ key, data: djson.issue, fetchedAt: new Date().toISOString() })
@@ -395,21 +396,21 @@ export const ChatInterface = forwardRef<{ sendQuickMessage: (message: string) =>
 
   const exportToPDF = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/export/pdf', { method: 'POST' })
-      if (response.ok) window.open('http://localhost:8000/api/export/download/pdf', '_blank')
+      const response = await fetch(getApiUrl('/api/export/pdf'), { method: 'POST' })
+      if (response.ok) window.open(getApiUrl('/api/export/download/pdf'), '_blank')
     } catch {}
   }
 
   const exportToPowerPoint = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/export/powerpoint', { method: 'POST' })
-      if (response.ok) window.open('http://localhost:8000/api/export/download/powerpoint', '_blank')
+      const response = await fetch(getApiUrl('/api/export/powerpoint'), { method: 'POST' })
+      if (response.ok) window.open(getApiUrl('/api/export/download/powerpoint'), '_blank')
     } catch {}
   }
 
   const exportToExcel = async () => {
     try {
-      const resp = await fetch('http://localhost:8000/api/jira/export/excel', {
+      const resp = await fetch(getApiUrl('/api/jira/export/excel'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -430,7 +431,7 @@ export const ChatInterface = forwardRef<{ sendQuickMessage: (message: string) =>
 
   const clearChat = async () => {
     try {
-      await fetch('http://localhost:8000/api/chat/clear', { method: 'POST' })
+      await fetch(getApiUrl('/api/chat/clear'), { method: 'POST' })
       clearMessages()
     } catch {}
   }

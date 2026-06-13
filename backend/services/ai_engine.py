@@ -3897,9 +3897,11 @@ Generate appropriate JQL and analyze the intent."""
                     "entities": {"issue_key": specific_issue_key}
                 }
             else:
-                # Fallback to simple analysis
+                # Fallback to simple analysis. Keys must be quoted: some project
+                # keys (e.g. IN, TO) are JQL reserved words and 400 when bare.
+                quoted_keys = ", ".join(f'"{k}"' for k in project_keys)
                 safe_project_clause = (
-                    f'project in ({", ".join(project_keys)}) '
+                    f'project in ({quoted_keys}) '
                     if project_keys else ''
                 )
                 jql = (safe_project_clause + 'ORDER BY updated DESC').strip()

@@ -9,6 +9,7 @@ import InsightsDashboard from './InsightsDashboard'
 import { FigmaLeadershipCopilot } from './LeadershipCopilot'
 import { FigmaConnectionSettings } from './ConnectionSettings'
 import { useTheme } from '../../contexts/ThemeContext'
+import { getApiUrl } from '../../../lib/api-config'
 
 export type ActiveView = 'copilot' | 'insights' | 'leadership'
 export type Theme = 'light' | 'dark'
@@ -61,7 +62,7 @@ export default function FigmaApp() {
       
       if (connectionType === 'atlassian') {
         // Make API call to configure Jira
-        const response = await fetch('http://localhost:8000/api/jira/configure', {
+        const response = await fetch(getApiUrl('/api/jira/configure'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

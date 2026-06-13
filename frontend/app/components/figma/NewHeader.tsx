@@ -20,6 +20,7 @@ import {
   UploadCloud,
 } from 'lucide-react'
 import { ThemeToggle } from '../ThemeToggle'
+import { getApiUrl } from '../../../lib/api-config'
 
 interface NewHeaderProps {
   theme?: 'light' | 'dark'
@@ -334,7 +335,7 @@ export function NewHeader({
                     form.append('file', file)
                     form.append('name', 'workbuddy-domain')
                     const resp = await fetch(
-                      `${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'}/api/domain/upload`,
+                      getApiUrl('/api/domain/upload'),
                       { method: 'POST', body: form }
                     )
                     const data = await resp.json()

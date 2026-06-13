@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
+import { getApiUrl } from '../../lib/api-config'
 
 interface JiraAnalytics {
   summary: {
@@ -100,7 +101,7 @@ export function FalconXInsights() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/jira/projects')
+      const response = await fetch(getApiUrl('/api/jira/projects'))
       const data = await response.json()
       if (data.success && data.projects?.detailed) {
         setAvailableProjects(data.projects.detailed)
@@ -116,8 +117,8 @@ export function FalconXInsights() {
     
     try {
       const baseUrl = selectedProject === 'ALL' 
-        ? 'http://localhost:8000/api/jira/analytics'
-        : `http://localhost:8000/api/jira/analytics?project=${selectedProject}`
+        ? getApiUrl('/api/jira/analytics')
+        : getApiUrl(`/api/jira/analytics?project=${selectedProject}`)
       
       const url = includeAI ? `${baseUrl}${selectedProject === 'ALL' ? '?' : '&'}include_strategic_ai=true` : baseUrl
       
@@ -145,7 +146,7 @@ export function FalconXInsights() {
     setIsExporting(true)
     
     try {
-      const response = await fetch('http://localhost:8000/api/jira/export', {
+      const response = await fetch(getApiUrl('/api/jira/export'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
