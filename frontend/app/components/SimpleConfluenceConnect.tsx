@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { useUser } from '../contexts/UserContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { getApiUrl } from '../../lib/api-config'
 
 interface ConfluenceConfig {
   url: string
@@ -70,7 +71,7 @@ export function SimpleConfluenceConnect() {
   // Check current status
   const checkStatus = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/confluence/status')
+      const response = await fetch(getApiUrl('/api/confluence/status'))
       const data = await response.json()
       setStatus(data)
       return data
@@ -120,7 +121,7 @@ export function SimpleConfluenceConnect() {
       }
       
       // Try to connect using saved configuration
-      const response = await fetch('http://localhost:8000/api/confluence/configure', {
+      const response = await fetch(getApiUrl('/api/confluence/configure'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

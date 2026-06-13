@@ -10,6 +10,17 @@ Dates in this CHANGELOG follow the [ISO 8601 date format](https://www.w3.org/QA/
 <!-- Example
 
 ## [Unreleased]
+
+## [1.0.29] - 2022-03-01
+### Updated
+- [SDE-348](https://projects.cdk.com/browse/SDE-348) Changed athena-libs to v.0.29 to use corrected react-internal build-templates path 
+
+### Fixed
+- Updated changelog format to v1.1.0.
+
+-->
+
+## [Unreleased]
 ### Added
 - GitHub integration: connection settings tab with one-click connect, login-time
   auto-connect via an encrypted service token, and a live status indicator in the
