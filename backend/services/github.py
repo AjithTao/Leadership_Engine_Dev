@@ -118,6 +118,8 @@ class GitHubClient:
         """Check connection status - only logs errors to reduce log clutter"""
         # Only log errors, not successful status checks (to reduce log clutter)
         try:
+            if not self.config.api_token:
+                return {"connected": False, "error": "No GitHub token configured"}
             if not self._client:
                 await self.initialize()
             data = await self._get("/user")

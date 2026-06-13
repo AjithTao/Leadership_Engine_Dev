@@ -1276,7 +1276,7 @@ async def login_endpoint(request: LoginRequest):
         # Create access token
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user["username"], "email": user.get("email", "")},
+            data={"sub": user["username"], "email": user.get("email", ""), "role": user.get("role", "viewer")},
             expires_delta=access_token_expires
         )
         
@@ -1315,10 +1315,13 @@ async def auto_connect_integrations():
         confluence_email = os.environ.get('CONFLUENCE_SERVICE_EMAIL')
         confluence_api_token_encrypted = os.environ.get('CONFLUENCE_SERVICE_API_TOKEN')
         confluence_url = os.environ.get('CONFLUENCE_BASE_URL', 'https://projects.cdk.com/wiki')
-        
+
+        github_token_encrypted = os.environ.get('GITHUB_SERVICE_TOKEN')
+
         results = {
             "jira": {"success": False, "message": ""},
-            "confluence": {"success": False, "message": ""}
+            "confluence": {"success": False, "message": ""},
+            "github": {"success": False, "message": ""}
         }
         
         # Connect Jira
@@ -1428,7 +1431,41 @@ async def auto_connect_integrations():
                 "success": False,
                 "message": "Confluence service credentials not configured"
             }
-        
+
+        # Connect GitHub
+        if github_token_encrypted:
+            try:
+                # Decrypt token (stored encrypted in .env)
+                github_token = get_encrypted_env('GITHUB_SERVICE_TOKEN')
+                if not github_token:
+                    raise RuntimeError("GitHub service token could not be decrypted")
+
+                app_state.github_client.set_token(github_token)
+
+                status = await app_state.github_client.get_status()
+                if not status.get("connected"):
+                    raise RuntimeError(status.get("error", "GitHub connection validation failed"))
+
+                results["github"] = {
+                    "success": True,
+                    "message": f"Connected successfully as {status.get('user', 'GitHub user')}."
+                }
+                logger.info("GitHub auto-connected successfully as %s", status.get("user", "GitHub user"))
+
+                # Clear token from memory
+                del github_token
+            except Exception as e:
+                results["github"] = {
+                    "success": False,
+                    "message": f"Failed to connect: {str(e)}"
+                }
+                logger.error(f"GitHub auto-connect failed: {e}")
+        else:
+            results["github"] = {
+                "success": False,
+                "message": "GitHub service credentials not configured"
+            }
+
         # Start indexing scheduler if clients are available
         try:
             from services.indexing_scheduler import get_indexing_scheduler
@@ -1480,11 +1517,13 @@ async def verify_token_endpoint(authorization: Optional[str] = Header(None)):
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
         email = payload.get("email", "")
-        
+        role = payload.get("role", "viewer")
+
         return {
             "success": True,
             "username": username,
-            "email": email
+            "email": email,
+            "role": role
         }
     except jwt.ExpiredSignatureError:
         return {"success": False, "message": "Token has expired"}
@@ -7207,14 +7246,19 @@ async def github_configure(config: Dict[str, str]):
         if not token:
             return create_error_response("API token is required", status_code=400)
             
-        # Update config dynamically
-        app_state.github_client.config.api_token = token
+        # Validate with a throwaway client first so bad credentials never
+        # replace the live (possibly service-account) connection
+        from services.github import GitHubClient
+        probe = GitHubClient()
+        probe.config.api_token = token
         if email:
-            app_state.github_client.config.email = email
-            
-        # Verify connection
-        status = await app_state.github_client.get_status()
+            probe.config.email = email
+        status = await probe.get_status()
+        if probe._client:
+            await probe._client.aclose()
+
         if status.get("connected"):
+            app_state.github_client.set_token(token, email)
             return create_success_response(status, "GitHub connected successfully")
         else:
             return create_error_response("Connection failed", status.get("error", "Unknown error"))

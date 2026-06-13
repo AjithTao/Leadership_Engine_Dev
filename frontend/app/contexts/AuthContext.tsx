@@ -25,14 +25,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<{ username: string; email: string; role: string } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Don't auto-authenticate on mount - always start from login page
-  // Users must login every time the app launches
+  // Restore the session on load: verify a saved token instead of forcing a
+  // fresh login on every refresh. verifyToken() clears the token and resets
+  // state if it is missing, invalid, or expired.
   useEffect(() => {
-    // Clear any existing token to force fresh login
-    localStorage.removeItem('auth_token')
-    setIsAuthenticated(false)
-    setUser(null)
-    setIsLoading(false)
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+      verifyToken(token)
+    } else {
+      setIsAuthenticated(false)
+      setUser(null)
+      setIsLoading(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const verifyToken = async (token: string) => {
