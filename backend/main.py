@@ -1276,7 +1276,7 @@ async def login_endpoint(request: LoginRequest):
         # Create access token
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user["username"], "email": user.get("email", "")},
+            data={"sub": user["username"], "email": user.get("email", ""), "role": user.get("role", "viewer")},
             expires_delta=access_token_expires
         )
         
@@ -1480,11 +1480,13 @@ async def verify_token_endpoint(authorization: Optional[str] = Header(None)):
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
         email = payload.get("email", "")
-        
+        role = payload.get("role", "viewer")
+
         return {
             "success": True,
             "username": username,
-            "email": email
+            "email": email,
+            "role": role
         }
     except jwt.ExpiredSignatureError:
         return {"success": False, "message": "Token has expired"}
