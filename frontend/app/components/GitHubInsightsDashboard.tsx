@@ -250,6 +250,11 @@ export function GitHubInsightsDashboard() {
 
       const reposRes  = await fetch(`${API}/api/github/repos`);
       const reposData = await reposRes.json();
+      if (reposData.success === false) {
+        setConnected(false);
+        setConnectionError(reposData.error || 'GitHub is connected, but no repositories are visible.');
+        return;
+      }
       setRepos(reposData.repos || []);
     } catch (e: any) {
       setConnected(false);

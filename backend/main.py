@@ -255,7 +255,11 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3001",
+        "http://10.1.0.39:3000",
     ],
+    # LAN access for coworkers; the host IP can change with DHCP, so also
+    # allow any private-range origin on the dev ports.
+    allow_origin_regex=r"^http://(10|192\.168|172\.(1[6-9]|2\d|3[01])|100)\.[\d.]+:300[01]$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1292,10 +1296,10 @@ async def login_endpoint(request: LoginRequest):
             "message": f"Authentication failed: {str(e)}"
         }
 
-@app.post("/api/auth/auto-connect-integrations", tags=["Authentication"], summary="Auto-connect Jira and Confluence")
+@app.post("/api/auth/auto-connect-integrations", tags=["Authentication"], summary="Auto-connect Jira, Confluence, and GitHub")
 async def auto_connect_integrations():
     """
-    Automatically connect Jira and Confluence using common service account credentials
+    Automatically connect Jira, Confluence, and GitHub using common service account credentials
     Called after successful LDAP login.
     Credentials are encrypted in environment variables.
     """
@@ -1312,10 +1316,13 @@ async def auto_connect_integrations():
         confluence_email = os.environ.get('CONFLUENCE_SERVICE_EMAIL')
         confluence_api_token_encrypted = os.environ.get('CONFLUENCE_SERVICE_API_TOKEN')
         confluence_url = os.environ.get('CONFLUENCE_BASE_URL', 'https://projects.cdk.com/wiki')
-        
+
+        github_token_encrypted = os.environ.get('GITHUB_SERVICE_TOKEN')
+
         results = {
             "jira": {"success": False, "message": ""},
-            "confluence": {"success": False, "message": ""}
+            "confluence": {"success": False, "message": ""},
+            "github": {"success": False, "message": ""}
         }
         
         # Connect Jira
@@ -1425,7 +1432,43 @@ async def auto_connect_integrations():
                 "success": False,
                 "message": "Confluence service credentials not configured"
             }
-        
+
+        # Connect GitHub
+        if github_token_encrypted:
+            try:
+                # Decrypt token (stored encrypted in .env)
+                github_token = get_encrypted_env('GITHUB_SERVICE_TOKEN')
+                if not github_token:
+                    raise RuntimeError("GitHub service token could not be decrypted")
+
+                app_state.github_client.set_token(github_token)
+
+                status = await app_state.github_client.get_status()
+                if not status.get("connected"):
+                    raise RuntimeError(status.get("error", "GitHub connection validation failed"))
+
+                results["github"] = {
+                    "success": True,
+                    "message": f"Connected successfully as {status.get('user', 'GitHub user')}."
+                }
+                logger.info("GitHub auto-connected successfully as %s", status.get("user", "GitHub user"))
+
+                # Clear token from memory
+                del github_token
+            except Exception as e:
+                results["github"] = {
+                    "success": False,
+                    "message": f"Failed to connect: {str(e)}"
+                }
+                logger.error(f"GitHub auto-connect failed: {e}")
+        else:
+            # Without a service token the client falls back to GITHUB_TOKEN
+            # loaded at startup (services/github.py), if present.
+            results["github"] = {
+                "success": False,
+                "message": "GitHub service credentials not configured"
+            }
+
         # Start indexing scheduler if clients are available
         try:
             from services.indexing_scheduler import get_indexing_scheduler
@@ -1512,10 +1555,18 @@ async def configure_jira(config: JiraConfigRequest):
         
         # Create Jira client
         jira_client = JiraClient(jira_config)
-        
+
         # Initialize the async client
         await jira_client.initialize()
-        
+
+        # Reject bad credentials BEFORE replacing the live client. Jira DC
+        # returns 200 with empty results (not 401) for bad Bearer tokens on
+        # /project, so only an authenticated probe such as /myself proves auth.
+        validation = await jira_client.validate_connection()
+        if not validation.get("success"):
+            await jira_client.close()
+            raise RuntimeError(validation.get("message", "Jira credential validation failed"))
+
         # Test the connection by trying to get projects
         projects_count = 0
         current_sprint = None
@@ -7157,14 +7208,19 @@ async def github_configure(config: Dict[str, str]):
         if not token:
             return create_error_response("API token is required", status_code=400)
             
-        # Update config dynamically
-        app_state.github_client.config.api_token = token
+        # Validate with a throwaway client first so bad credentials never
+        # replace the live (possibly service-account) connection
+        from services.github import GitHubClient
+        probe = GitHubClient()
+        probe.config.api_token = token
         if email:
-            app_state.github_client.config.email = email
-            
-        # Verify connection
-        status = await app_state.github_client.get_status()
+            probe.config.email = email
+        status = await probe.get_status()
+        if probe._client:
+            await probe._client.aclose()
+
         if status.get("connected"):
+            app_state.github_client.set_token(token, email)
             return create_success_response(status, "GitHub connected successfully")
         else:
             return create_error_response("Connection failed", status.get("error", "Unknown error"))

@@ -10,7 +10,7 @@ import {
   BarChart3, Users, Target, Calendar, Download, FileText,
   ChevronDown, ChevronLeft, ChevronRight, Mic, Square, Copy, CheckCircle,
   BookOpen, ExternalLink, Crown, Shield, Clock,
-  PenSquare, Database, FileSearch
+  PenSquare, Database, FileSearch, ArrowRight, List, Hash
 } from 'lucide-react'
 import { ResponsiveContainer, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { useChat } from '../../contexts/ChatContext'
@@ -95,39 +95,51 @@ function TypingIndicator({ accent, loadingMsg }: { accent: string; loadingMsg: s
 }
 
 // ── EmptyState ────────────────────────────────────────────────────────────────
-function EmptyState({ accent, text, textSecondary, onSuggestion, userName }: {
-  accent: string; text: string; textSecondary: string; onSuggestion: (s: string) => void; userName: string
+function EmptyState({ accent, text, textSecondary, border, onSuggestion, userName }: {
+  accent: string; text: string; textSecondary: string; border: string; onSuggestion: (s: string) => void; userName: string
 }) {
   const suggestions = [
-    { icon: BarChart3, text: 'Show me the NDP project defect leakage for last week' },
-    { icon: BookOpen, text: 'What is the Master Repo URL for GL Inquiry in EMT space' },
-    { icon: Users, text: 'show me "Ramesh, Ajith" open bugs reported during December 2025 in NDP Project' },
-    { icon: Calendar, text: 'What Jira ID is fixed yesterday for GL Enquiry Workflow in EMT space' },
-    { icon: Target, text: 'Give me NDP-20290 story details' },
+    { icon: BarChart3, category: 'Quality metrics', text: 'Show me the NDP project defect leakage for last week' },
+    { icon: BookOpen,  category: 'Confluence docs', text: 'What is the Master Repo URL for GL Inquiry in EMT space' },
+    { icon: Users,     category: 'Team bugs',       text: 'show me "Ramesh, Ajith" open bugs reported during December 2025 in NDP Project' },
+    { icon: Calendar,  category: 'Jira activity',   text: 'What Jira ID is fixed yesterday for GL Enquiry Workflow in EMT space' },
+    { icon: Target,    category: 'Story details',   text: 'Give me NDP-20290 story details' },
   ]
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center select-none px-8 py-20">
-      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6" style={{ backgroundColor: `${accent}14`, border: `1px solid ${accent}28` }}>
-        <Sparkles className="w-6 h-6" style={{ color: accent }} />
+    <div className="flex flex-col items-center justify-center h-full text-center select-none px-6 py-10">
+      <div className="w-12 h-12 rounded-[14px] flex items-center justify-center mb-4" style={{ backgroundColor: `${accent}1A`, border: `1px solid ${accent}38` }}>
+        <Sparkles className="w-[22px] h-[22px]" style={{ color: accent }} />
       </div>
-      <h2 className="text-xl font-semibold tracking-tight mb-2" style={{ color: text }}>Work Buddy</h2>
-      <p className="text-sm leading-relaxed max-w-md mb-10" style={{ color: textSecondary }}>
+      <h2 className="text-[22px] font-semibold tracking-tight mb-2" style={{ color: text }}>Work Buddy</h2>
+      <p className="text-sm leading-relaxed max-w-md mb-8" style={{ color: textSecondary }}>
         {userName}, ask anything about your Jira projects, Confluence docs, or leadership insights.
       </p>
-      <div className="grid grid-cols-1 gap-2 w-full max-w-2xl">
-        {suggestions.map(({ icon: Icon, text: s }) => (
-          <button
-            key={s}
-            onClick={() => onSuggestion(s)}
-            className="flex items-center gap-3 text-left text-sm px-4 py-3 rounded-xl border transition-all duration-150 hover:scale-[1.01] active:scale-[0.99]"
-            style={{ borderColor: `${accent}20`, backgroundColor: `${accent}06`, color: textSecondary }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = `${accent}45`; e.currentTarget.style.color = text }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = `${accent}20`; e.currentTarget.style.color = textSecondary }}
-          >
-            <Icon className="w-4 h-4 flex-shrink-0" style={{ color: accent }} />
-            {s}
-          </button>
-        ))}
+
+      <div className="w-full max-w-3xl">
+        <p className="text-[11px] font-semibold uppercase tracking-wider mb-3 text-left" style={{ color: `${textSecondary}99` }}>
+          Suggested prompts
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {suggestions.map(({ icon: Icon, category, text: s }, idx) => (
+            <button
+              key={s}
+              onClick={() => onSuggestion(s)}
+              className={`group relative flex items-start gap-3 text-left px-4 py-3.5 rounded-2xl border transition-all duration-150 hover:-translate-y-0.5 ${idx === suggestions.length - 1 ? 'sm:col-span-2' : ''}`}
+              style={{ borderColor: `${border}`, backgroundColor: `${accent}08` }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = `${accent}50`; e.currentTarget.style.backgroundColor = `${accent}12` }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = `${border}`;   e.currentTarget.style.backgroundColor = `${accent}08` }}
+            >
+              <span className="flex items-center justify-center w-8 h-8 rounded-[9px] flex-shrink-0" style={{ backgroundColor: `${accent}1F`, color: accent }}>
+                <Icon className="w-4 h-4" />
+              </span>
+              <span className="min-w-0 flex flex-col">
+                <span className="text-[10.5px] font-bold uppercase tracking-wide mb-1" style={{ color: accent }}>{category}</span>
+                <span className="text-[13px] leading-snug pr-5" style={{ color: text }}>{s}</span>
+              </span>
+              <ArrowRight className="w-[15px] h-[15px] absolute right-3.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: textSecondary }} />
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -341,6 +353,296 @@ function VisualizationCard({
   )
 }
 
+// ── Jira story detail ───────────────────────────────────────────────────────────
+type StoryDetail = {
+  key: string
+  title: string
+  status?: string
+  fields: Array<{ label: string; value: string }>
+  link?: string
+  description?: string
+}
+
+function formatJiraDate(raw: string): string {
+  const d = new Date(raw)
+  if (Number.isNaN(d.getTime())) return raw
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+/** Parse a Work Buddy story-lookup response into structured fields.
+ *  Returns undefined unless it clearly looks like a single-issue readout. */
+function buildStoryDetail(_query: string, text: string): StoryDetail | undefined {
+  if (!text) return undefined
+  const clean = text.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '')
+
+  const keyTitle = clean.match(/([A-Z][A-Z0-9]+-\d+)\s*[—–-]\s*([^\n]+)/)
+  const key = keyTitle?.[1]
+  if (!key) return undefined
+  const title = (keyTitle?.[2]?.trim() || key).replace(/\*+$/, '').replace(/^#+\s*/, '').trim()
+
+  const grab = (label: string) => {
+    const m = clean.match(new RegExp(`${label}\\s*:\\s*([^\\n]+)`, 'i'))
+    return m?.[1]?.trim() || undefined
+  }
+  const status = grab('Status')
+  const priority = grab('Priority')
+  const reporter = grab('Reporter')
+  const assignee = grab('Assignee')
+  const created = grab('Created')
+  const updated = grab('Updated')
+  const link = grab('Link')
+
+  const present = [status, priority, reporter, assignee, created, updated].filter(Boolean)
+  if (present.length < 3) return undefined
+
+  const fields: StoryDetail['fields'] = []
+  if (priority) fields.push({ label: 'Priority', value: priority })
+  if (reporter) fields.push({ label: 'Reporter', value: reporter })
+  if (assignee) fields.push({ label: 'Assignee', value: assignee })
+  if (created)  fields.push({ label: 'Created', value: formatJiraDate(created) })
+  if (updated)  fields.push({ label: 'Updated', value: formatJiraDate(updated) })
+
+  const fieldLine = /^\s*(Status|Priority|Reporter|Assignee|Created|Updated|Link|Type|Resolution|Sprint|Labels|Components|Fix Version)\s*:/i
+  const description = clean.split('\n')
+    .filter(l => !fieldLine.test(l) && !(keyTitle && l.includes(keyTitle[0])))
+    .join('\n')
+    .replace(/\*+/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim() || undefined
+
+  return {
+    key,
+    title,
+    status,
+    fields,
+    link: link && /^https?:\/\//i.test(link) ? link : undefined,
+    description,
+  }
+}
+
+function statusTone(status: string | undefined): string {
+  const s = (status || '').toLowerCase()
+  if (/(done|accepted|closed|resolved|complete|fixed|passed)/.test(s)) return '#34D399'
+  if (/(progress|review|testing|qa|reopen)/.test(s)) return '#60A5FA'
+  if (/(block|reject|fail|cancel)/.test(s)) return '#F87171'
+  return '#8B93A8'
+}
+
+function priorityTone(priority: string | undefined, accent: string): string {
+  const s = (priority || '').toLowerCase()
+  if (/(highest|critical|blocker)/.test(s)) return '#F87171'
+  if (/high/.test(s)) return '#FB923C'
+  if (/medium/.test(s)) return accent
+  if (/low(est)?/.test(s)) return '#34D399'
+  return '#8B93A8'
+}
+
+function StoryDetailCard({ storyDetail, accent, border, text, textSecondary, surface }: {
+  storyDetail: StoryDetail; accent: string; border: string; text: string; textSecondary: string; surface: string
+}) {
+  const tone = statusTone(storyDetail.status)
+  const cells = [...storyDetail.fields]
+  if (cells.length % 2 === 1) cells.push({ label: '', value: '' })
+
+  return (
+    <div className="mt-4 max-w-2xl rounded-[18px] border overflow-hidden" style={{ backgroundColor: surface, borderColor: `${border}99`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)' }}>
+      {/* Header */}
+      <div className="flex items-start gap-3 px-[18px] py-4" style={{ borderBottom: `1px solid ${border}80` }}>
+        <span className="flex-shrink-0 font-mono text-[11.5px] font-bold px-2.5 py-1 rounded-lg" style={{ backgroundColor: `${accent}24`, border: `1px solid ${accent}55`, color: accent }}>
+          {storyDetail.key}
+        </span>
+        <span className="flex-1 text-[15px] font-semibold leading-snug" style={{ color: text, letterSpacing: '-0.01em' }}>
+          {storyDetail.title}
+        </span>
+        {storyDetail.status && (
+          <span className="flex-shrink-0 inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ backgroundColor: `${tone}22`, color: tone, border: `1px solid ${tone}50` }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tone }} />
+            {storyDetail.status}
+          </span>
+        )}
+      </div>
+
+      {/* Field grid */}
+      <div className="grid grid-cols-2">
+        {cells.map((f, i) => (
+          <div
+            key={i}
+            className="px-[18px] py-3"
+            style={{
+              borderBottom: `1px solid ${border}66`,
+              borderRight: i % 2 === 0 ? `1px solid ${border}66` : undefined,
+            }}
+          >
+            {f.label && (
+              <>
+                <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: textSecondary }}>{f.label}</p>
+                <p className="text-[13px] flex items-center gap-2" style={{ color: text }}>
+                  {f.label === 'Priority' && <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ backgroundColor: priorityTone(f.value, accent) }} />}
+                  {f.value}
+                </p>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Description */}
+      {storyDetail.description && (
+        <div className="px-[18px] py-3.5">
+          <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: textSecondary }}>Description</p>
+          <p className="text-[13px] leading-relaxed" style={{ color: text }}>{storyDetail.description}</p>
+        </div>
+      )}
+
+      {/* Footer */}
+      {storyDetail.link && (
+        <div className="px-[18px] py-3" style={{ borderTop: `1px solid ${border}66` }}>
+          <a
+            href={storyDetail.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-[12.5px] font-semibold px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
+            style={{ color: accent, border: `1px solid ${accent}45`, backgroundColor: `${accent}0E` }}
+          >
+            Open in Jira
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Jira issue list ─────────────────────────────────────────────────────────────
+type IssueListItem = { key: string; title: string; status?: string; priority?: string }
+type IssueList = { count: number; items: IssueListItem[] }
+
+/** Parse a multi-issue Work Buddy response (e.g. "Found 10 issues:" + KEY — title rows). */
+function buildIssueList(_query: string, text: string): IssueList | undefined {
+  if (!text) return undefined
+  const clean = text.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '')
+  const re = /([A-Z][A-Z0-9]+-\d+)\s*[—–-]\s*([^\n]+)/g
+  const matches: RegExpExecArray[] = []
+  let m: RegExpExecArray | null
+  while ((m = re.exec(clean)) !== null) matches.push(m)
+  if (matches.length < 2) return undefined
+
+  const items: IssueListItem[] = matches.map((mat, idx) => {
+    const start = mat.index + mat[0].length
+    const end = idx + 1 < matches.length ? matches[idx + 1].index : clean.length
+    const seg = clean.slice(start, end)
+    const status = seg.match(/Status\s*:\s*([^,\n]+)/i)?.[1]?.trim()
+    const priority = seg.match(/Priority\s*:\s*([^,\n]+)/i)?.[1]?.trim()
+    const title = mat[2].trim().replace(/\*+$/, '').replace(/\s+$/, '')
+    return { key: mat[1], title, status, priority }
+  })
+
+  const countM = clean.match(/found\s+(\d+)\s+issues?/i) || clean.match(/(\d+)\s+issues?\s+found/i)
+  const count = countM ? Number(countM[1]) : items.length
+  return { count, items }
+}
+
+function IssueListCard({ issueList, accent, border, text, textSecondary, surface }: {
+  issueList: IssueList; accent: string; border: string; text: string; textSecondary: string; surface: string
+}) {
+  return (
+    <div className="mt-4 max-w-2xl rounded-2xl border overflow-hidden" style={{ backgroundColor: surface, borderColor: `${border}99` }}>
+      {/* Header */}
+      <div className="flex items-center gap-2.5 px-4 py-3" style={{ borderBottom: `1px solid ${border}80` }}>
+        <List className="w-[15px] h-[15px]" style={{ color: accent }} />
+        <span className="text-[12.5px] font-semibold" style={{ color: text }}>Issues</span>
+        <span className="ml-auto text-[11px]" style={{ color: textSecondary }}>{issueList.count} found</span>
+      </div>
+      {/* Rows */}
+      <div className="overflow-y-auto wb-scroll" style={{ maxHeight: 380 }}>
+        {issueList.items.map((it, i) => {
+          const tone = statusTone(it.status)
+          return (
+            <div
+              key={`${it.key}-${i}`}
+              className="flex items-center gap-3 px-4 py-2.5 transition-colors"
+              style={{ borderBottom: i < issueList.items.length - 1 ? `1px solid ${border}59` : undefined }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = `${accent}0D` }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
+            >
+              <span
+                className="flex-shrink-0 font-mono text-[11px] font-bold px-2 py-1 rounded-md text-center"
+                style={{ backgroundColor: `${accent}1A`, border: `1px solid ${accent}40`, color: accent, minWidth: 124 }}
+              >
+                {it.key}
+              </span>
+              <span className="flex-1 min-w-0 text-[13px] truncate" style={{ color: text }} title={it.title}>
+                {it.title}
+              </span>
+              {it.status && (
+                <span className="flex-shrink-0 inline-flex items-center gap-1.5 text-[10.5px] font-semibold px-2.5 py-1 rounded-full" style={{ backgroundColor: `${tone}26`, color: tone }}>
+                  <span className="w-[5px] h-[5px] rounded-full" style={{ backgroundColor: tone }} />
+                  {it.status}
+                </span>
+              )}
+              {it.priority && (
+                <span className="flex-shrink-0 inline-flex items-center gap-1.5 text-[11.5px]" style={{ color: textSecondary, minWidth: 76 }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: priorityTone(it.priority, accent) }} />
+                  {it.priority}
+                </span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Count stat ──────────────────────────────────────────────────────────────────
+type CountStatData = { count: number; label: string }
+
+/** Parse a count-only answer ("There are 1,476 test cases in MODDWTC …") into a stat. */
+function buildCountStat(_query: string, text: string): CountStatData | undefined {
+  if (!text) return undefined
+  const m = text.match(/^\s*There (?:are|is)\s+\*{0,2}([\d,]+)\*{0,2}\s+(.+?)\.?\s*$/i)
+  if (!m) return undefined
+  const count = Number(m[1].replace(/,/g, ''))
+  if (!Number.isFinite(count)) return undefined
+  const label = m[2].replace(/\*\*/g, '').replace(/\s+/g, ' ').trim()
+  return { count, label }
+}
+
+function CountStat({ countStat, accent, border, textSecondary }: {
+  countStat: CountStatData; accent: string; border: string; textSecondary: string
+}) {
+  // Count-up animation on mount (easeOutCubic)
+  const [display, setDisplay] = useState(0)
+  useEffect(() => {
+    const target = countStat.count
+    if (!Number.isFinite(target) || target <= 0) { setDisplay(target || 0); return }
+    const duration = 750
+    let raf = 0
+    let startTs: number | null = null
+    const tick = (ts: number) => {
+      if (startTs === null) startTs = ts
+      const t = Math.min(1, (ts - startTs) / duration)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setDisplay(Math.round(target * eased))
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [countStat.count])
+
+  return (
+    <div className="mt-4 w-fit flex items-center gap-4 rounded-2xl border px-5 py-4" style={{ borderColor: `${border}B3`, backgroundColor: `${accent}0D` }}>
+      <span className="flex items-center justify-center flex-shrink-0" style={{ width: 46, height: 46, borderRadius: 13, backgroundColor: `${accent}29`, border: `1px solid ${accent}52` }}>
+        <Hash className="w-[22px] h-[22px]" style={{ color: accent }} />
+      </span>
+      <span className="min-w-0">
+        <span className="block font-bold leading-none tabular-nums" style={{ fontSize: 30, color: accent, letterSpacing: '-0.02em' }}>{display.toLocaleString()}</span>
+        <span className="block mt-1.5 text-[13px] leading-snug" style={{ color: textSecondary }}>{countStat.label}</span>
+      </span>
+    </div>
+  )
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 export function NewLeadershipCopilot({
   hasActiveConnections,
@@ -528,7 +830,7 @@ export function NewLeadershipCopilot({
         addMessage({
           role: 'assistant',
           content: contentText,
-          metadata: { visualization: buildAssistantVisualization(query, contentText) },
+          metadata: { visualization: buildAssistantVisualization(query, contentText), storyDetail: buildStoryDetail(query, contentText), issueList: buildIssueList(query, contentText), countStat: buildCountStat(query, contentText) },
           isLeadershipMode,
           dataSource: (data as any).data_source,
           lastUpdated: (data as any).last_updated,
@@ -591,7 +893,7 @@ export function NewLeadershipCopilot({
           addMessage({
             role: 'assistant',
             content: contentText,
-            metadata: { visualization: buildAssistantVisualization(userInput, contentText) },
+            metadata: { visualization: buildAssistantVisualization(userInput, contentText), storyDetail: buildStoryDetail(userInput, contentText), issueList: buildIssueList(userInput, contentText), countStat: buildCountStat(userInput, contentText) },
           })
         } else {
           addMessage({ role: 'assistant', content: 'Failed to search document. Please try again.' })
@@ -648,7 +950,7 @@ export function NewLeadershipCopilot({
             typeof d.message === 'string' ? d.message : JSON.stringify(d)
           addMessage({
             role: 'assistant', content: contentText,
-            metadata: { visualization: buildAssistantVisualization(userInput, contentText) },
+            metadata: { visualization: buildAssistantVisualization(userInput, contentText), storyDetail: buildStoryDetail(userInput, contentText), issueList: buildIssueList(userInput, contentText), countStat: buildCountStat(userInput, contentText) },
             isLeadershipMode: !!(ok[0].data as any).auto_leadership_mode,
             dataSource: (ok[0].data as any).data_source,
             ragCitations: (ok[0].data as any).rag_citations || [],
@@ -720,8 +1022,17 @@ export function NewLeadershipCopilot({
     h1: ({ children }: any) => <h1 className="text-base font-semibold mt-6 mb-2.5 pb-1.5 border-b tracking-tight" style={{ borderColor: `${border}30`, color: text }}>{children}</h1>,
     h2: ({ children }: any) => <h2 className="text-[11px] font-semibold mt-5 mb-2 uppercase tracking-widest" style={{ color: accent }}>{children}</h2>,
     h3: ({ children }: any) => <h3 className="text-sm font-semibold mt-4 mb-1.5" style={{ color: text }}>{children}</h3>,
-    code: ({ children }: any) => <code className="px-1.5 py-0.5 rounded text-[12px] font-mono" style={{ backgroundColor: `${border}30`, color: accent }}>{children}</code>,
-    pre: ({ children }: any) => <pre className="p-3.5 rounded-xl overflow-x-auto text-[12px] my-3.5 font-mono leading-relaxed" style={{ backgroundColor: `${border}18`, border: `1px solid ${border}40`, color: textSecondary }}>{children}</pre>,
+    code: ({ className, children }: any) => {
+      // Block code (fenced / multi-line) inherits the <pre> styling below;
+      // only true inline code gets the mustard pill treatment.
+      const raw = Array.isArray(children) ? children.join('') : String(children ?? '')
+      const isBlock = raw.includes('\n') || /language-/.test(className || '')
+      if (isBlock) {
+        return <code className="font-mono" style={{ background: 'transparent', padding: 0, color: 'inherit', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{children}</code>
+      }
+      return <code className="px-1.5 py-0.5 rounded text-[12px] font-mono" style={{ backgroundColor: `${border}30`, color: accent }}>{children}</code>
+    },
+    pre: ({ children }: any) => <pre className="p-4 rounded-xl text-[12.5px] my-3.5 font-mono leading-relaxed" style={{ backgroundColor: `${border}1F`, border: `1px solid ${border}40`, color: text, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{children}</pre>,
     ul: ({ children }: any) => <ul className="mb-3.5 space-y-2">{children}</ul>,
     ol: ({ children }: any) => <ol className="list-decimal list-outside ml-5 mb-3.5 space-y-2">{children}</ol>,
     li: ({ children }: any) => (
@@ -948,6 +1259,7 @@ export function NewLeadershipCopilot({
                 accent={accent}
                 text={text}
                 textSecondary={textSecondary}
+                border={border}
                 userName={settings.userProfile.name || 'Tell me'}
                 onSuggestion={s => { setInput(s); setTimeout(() => sendMessage(s), 50) }}
               />
@@ -998,20 +1310,12 @@ export function NewLeadershipCopilot({
                       </div>
                     ) : (
                       /* ── Assistant response ───────────────────────── */
-                      <div className="mb-5">
-                        <div
-                          className="max-w-[78%] rounded-[24px] px-5 py-4 backdrop-blur-md"
-                          style={{
-                            backgroundColor: 'rgba(255,255,255,0.038)',
-                            border: `1px solid ${border}32`,
-                            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.035)',
-                          }}
-                        >
-                        <div className="flex items-center gap-2.5 mb-3">
-                          <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${accent}16`, border: `1px solid ${accent}22` }}>
-                            <Sparkles className="w-3 h-3" style={{ color: accent }} />
+                      <div className="mb-6">
+                        <div className="flex items-center gap-2.5 mb-2.5">
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${accent}18`, border: `1px solid ${accent}30` }}>
+                            <Sparkles className="w-3.5 h-3.5" style={{ color: accent }} />
                           </div>
-                          <span className="text-xs font-semibold" style={{ color: '#D7DCE7' }}>WorkBuddy</span>
+                          <span className="text-[13px] font-semibold" style={{ color: text }}>WorkBuddy</span>
                           {!msg.actionButtons && (
                             <ResponseBadges
                               isLeadershipMode={msg.isLeadershipMode}
@@ -1021,7 +1325,7 @@ export function NewLeadershipCopilot({
                             />
                           )}
                         </div>
-                        <div className="ml-[34px]">
+                        <div className="ml-[38px]">
                           {/* ── Source selection buttons ── */}
                           {msg.actionButtons && msg.originalQuery ? (
                             <div>
@@ -1060,9 +1364,45 @@ export function NewLeadershipCopilot({
                             </div>
                           ) : (
                             <>
-                              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={mdAssistant as any}>
-                                {typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)}
-                              </ReactMarkdown>
+                              {msg.metadata?.storyDetail ? (
+                                <StoryDetailCard
+                                  storyDetail={msg.metadata.storyDetail as StoryDetail}
+                                  accent={accent}
+                                  border={border}
+                                  text={text}
+                                  textSecondary={textSecondary}
+                                  surface={surface}
+                                />
+                              ) : msg.metadata?.issueList ? (
+                                <IssueListCard
+                                  issueList={msg.metadata.issueList as IssueList}
+                                  accent={accent}
+                                  border={border}
+                                  text={text}
+                                  textSecondary={textSecondary}
+                                  surface={surface}
+                                />
+                              ) : msg.metadata?.countStat ? (
+                                <CountStat
+                                  countStat={msg.metadata.countStat as CountStatData}
+                                  accent={accent}
+                                  border={border}
+                                  textSecondary={textSecondary}
+                                />
+                              ) : (
+                                <div
+                                  className="inline-block max-w-[88%] rounded-2xl px-5 py-3.5 backdrop-blur-md"
+                                  style={{
+                                    backgroundColor: 'rgba(255,255,255,0.038)',
+                                    border: `1px solid ${border}32`,
+                                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.035)',
+                                  }}
+                                >
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={mdAssistant as any}>
+                                    {typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)}
+                                  </ReactMarkdown>
+                                </div>
+                              )}
                               {msg.metadata?.visualization && (
                                 <VisualizationCard
                                   visualization={msg.metadata.visualization as AssistantVisualization}
@@ -1076,11 +1416,11 @@ export function NewLeadershipCopilot({
                                 <CitationFooter citations={msg.ragCitations} accent={accent} border={border} textSecondary={textSecondary} />
                               )}
                               {/* Copy button */}
-                              <div className="flex items-center gap-1 mt-3">
+                              <div className="flex items-center gap-1 mt-2.5">
                                 <button
                                   onClick={() => handleCopy(typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content), String(i))}
                                   className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg transition-all"
-                                  style={{ color: copiedId === String(i) ? accent : `${textSecondary}60` }}
+                                  style={{ color: copiedId === String(i) ? accent : textSecondary }}
                                   onMouseEnter={e => { e.currentTarget.style.backgroundColor = `${border}20` }}
                                   onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
                                 >
@@ -1090,7 +1430,6 @@ export function NewLeadershipCopilot({
                               </div>
                             </>
                           )}
-                        </div>
                         </div>
                       </div>
                     )}
@@ -1105,7 +1444,7 @@ export function NewLeadershipCopilot({
           {/* ── Composer ──────────────────────────────────────────────── */}
           <div className="flex-shrink-0 px-7 pb-4 pt-2.5" style={{ borderTop: `1px solid ${border}14`, backgroundColor: surface }}>
             <div
-              className="transition-shadow duration-200 max-w-5xl mx-auto"
+              className="transition-shadow duration-200 max-w-3xl mx-auto"
               style={{ border: 'none', backgroundColor: 'transparent' }}
               onFocusCapture={() => {}}
               onBlurCapture={() => {}}
@@ -1115,7 +1454,7 @@ export function NewLeadershipCopilot({
                 value={input}
                 onChange={e => { setInput(e.target.value); setUserHasTyped(true) }}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
-                placeholder={`${settings.userProfile.name || 'Tell me'}, what would you like to know about your projects, bugs, stories, or Confluence docs?`}
+                placeholder="Message Work Buddy…"
                 disabled={isTyping}
                 rows={2}
                 className="w-full text-sm resize-none outline-none leading-relaxed px-4 pt-3.5 pb-2.5 min-h-[76px] max-h-[170px] wb-scroll disabled:opacity-60 rounded-[22px] placeholder:text-[#C7CEDC]/70"

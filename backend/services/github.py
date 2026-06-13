@@ -48,6 +48,18 @@ class GitHubClient:
                 'User-Agent': 'FalconX-Leadership-Engine'
             }
 
+    def set_token(self, api_token: str, email: Optional[str] = None):
+        """Update credentials and refresh the auth header on the live client.
+
+        _get() sends self._headers, which initialize() builds only once — so
+        mutating config.api_token alone leaves a stale Authorization header.
+        """
+        self.config.api_token = api_token
+        if email:
+            self.config.email = email
+        if self._headers:
+            self._headers['Authorization'] = f'Bearer {api_token}'
+
     async def _get(self, endpoint: str, params: Dict = None) -> Dict[str, Any]:
         """Internal GET helper with detailed logging"""
         if not self._client:
@@ -204,12 +216,20 @@ class GitHubClient:
                     if r["full_name"] not in seen:
                         seen.add(r["full_name"])
                         repos.append(r)
-                logger.info(f"✅ Fetched {len(repos)} repos from org '{self.config.org}'")
+                if repos:
+                    logger.info(f"✅ Fetched {len(repos)} repos from org '{self.config.org}'")
+                else:
+                    logger.warning(
+                        f"⚠️ Org '{self.config.org}' returned no repos — a 403 here usually means "
+                        f"the token is not SAML-SSO-authorized for the org"
+                    )
 
             # 2. Paginate through ALL user repos
+            # NOTE: GitHub rejects `type` combined with `affiliation` (422), so
+            # only affiliation is sent here.
             user_raw = await self._get_all_pages(
                 "/user/repos",
-                params={"type": "all", "sort": "updated", "affiliation": "owner,collaborator,organization_member"}
+                params={"sort": "updated", "affiliation": "owner,collaborator,organization_member"}
             )
             for r in _parse(user_raw):
                 if r["full_name"] not in seen:
@@ -217,7 +237,15 @@ class GitHubClient:
                     repos.append(r)
 
             if not repos:
-                return {"success": False, "repos": [], "error": "No repositories found. Check token permissions (needs repo/read:org scope)."}
+                return {
+                    "success": False,
+                    "repos": [],
+                    "error": (
+                        f"No repositories visible. Check the token scopes (repo, read:org) and, for the "
+                        f"'{self.config.org}' org, authorize the token for SAML SSO "
+                        f"(GitHub → token settings → Configure SSO)."
+                    ),
+                }
 
             logger.info(f"✅ Total repos available: {len(repos)}")
             return {"success": True, "repos": repos}

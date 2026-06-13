@@ -11,6 +11,7 @@ import { Switch } from '../ui/switch'
 import { Separator } from '../ui/separator'
 import { SimpleJiraConnect } from '../SimpleJiraConnect'
 import { SimpleConfluenceConnect } from '../SimpleConfluenceConnect'
+import { SimpleGithubConnect } from '../SimpleGithubConnect'
 import { useTheme } from '../../contexts/ThemeContext'
 import { 
   X, 
@@ -28,7 +29,10 @@ import {
   TestTube,
   Shield,
   Crown,
-  Target
+  Target,
+  Github,
+  Database,
+  FileText
 } from 'lucide-react'
 
 interface Connection {
@@ -197,8 +201,9 @@ export function FigmaConnectionSettings({
 
 
   const tabs = [
-    { id: 'jira', label: 'Jira', icon: Globe, color: 'text-[var(--accent-primary)]' },
-    { id: 'confluence', label: 'Confluence', icon: Globe, color: 'text-[var(--accent-primary)]' }
+    { id: 'jira', label: 'Jira', icon: Database, color: 'text-[var(--accent-primary)]' },
+    { id: 'confluence', label: 'Confluence', icon: FileText, color: 'text-[var(--accent-primary)]' },
+    { id: 'github', label: 'GitHub', icon: Github, color: 'text-[var(--accent-primary)]' }
   ]
 
   return (
@@ -224,7 +229,7 @@ export function FigmaConnectionSettings({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className={`relative w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl border overflow-hidden`}
+          className={`relative w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl border overflow-hidden flex flex-col`}
           style={{
             background: isDarkMode
               ? `linear-gradient(135deg, ${currentTheme.colors.surface}, ${currentTheme.colors.background})`
@@ -233,15 +238,21 @@ export function FigmaConnectionSettings({
           }}
         >
           {/* Header */}
-          <div className={`flex items-center justify-between p-6 border-b`}
+          <div className={`flex items-center justify-between p-6 border-b flex-shrink-0`}
             style={{
               borderColor: currentTheme.colors.border,
               backgroundColor: isDarkMode ? `${currentTheme.colors.surface}80` : undefined
             }}
           >
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-primary to-purple-500 rounded-xl flex items-center justify-center">
-                <Settings className="w-5 h-5 text-white" />
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{
+                  background: 'rgba(212,168,71,0.15)',
+                  border: '1px solid rgba(212,168,71,0.25)'
+                }}
+              >
+                <Settings className="w-5 h-5" style={{ color: '#D4A847' }} />
               </div>
               <div>
                 <h2 className={`text-xl font-bold`} style={{ color: currentTheme.colors.text }}>Connection Settings</h2>
@@ -255,7 +266,8 @@ export function FigmaConnectionSettings({
             </Button>
           </div>
 
-          <div className="flex h-[600px]">
+          {/* Height adapts to content; caps at 600px (or the viewport) then the panel scrolls */}
+          <div className="flex min-h-[340px] max-h-[600px]">
             {/* Sidebar */}
             <div className={`w-64 border-r`}
               style={{
@@ -268,21 +280,41 @@ export function FigmaConnectionSettings({
                   <motion.button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
-                    className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200`}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200`}
                     style={{
-                      backgroundColor: activeTab === tab.id ? currentTheme.colors.primary : 'transparent',
-                      color: activeTab === tab.id ? '#ffffff' : currentTheme.colors.textSecondary
+                      backgroundColor: activeTab === tab.id ? 'var(--bg-active)' : 'transparent',
+                      color: activeTab === tab.id ? 'var(--text-primary)' : 'var(--text-secondary)'
                     }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <tab.icon className={`w-4 h-4`} style={{ color: activeTab === tab.id ? '#ffffff' : currentTheme.colors.accent }} />
-                    <span className="font-medium">{tab.label}</span>
-                    {connections.find(c => c.type === tab.id)?.status === 'connected' && (
-                      <Badge variant="secondary" className="ml-auto text-xs">
-                        <CheckCircle className="w-3 h-3 mr-1" />
+                    <tab.icon className={`w-4 h-4 flex-shrink-0`} style={{ color: '#D4A847' }} />
+                    <span className="font-medium flex-1 min-w-0 truncate text-left">{tab.label}</span>
+                    {connections.find(c => c.name.toLowerCase() === tab.id)?.status === 'connected' && (
+                      <span
+                        className="flex items-center gap-1 whitespace-nowrap"
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 500,
+                          lineHeight: 1,
+                          padding: '3px 8px',
+                          borderRadius: 999,
+                          color: 'var(--text-secondary)',
+                          background: 'rgba(34,197,94,0.10)',
+                          flexShrink: 0
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 7,
+                            height: 7,
+                            borderRadius: '50%',
+                            background: '#22C55E',
+                            flexShrink: 0
+                          }}
+                        />
                         Connected
-                      </Badge>
+                      </span>
                     )}
                   </motion.button>
                 ))}
@@ -621,13 +653,26 @@ export function FigmaConnectionSettings({
                       <SimpleConfluenceConnect />
                     </motion.div>
                   )}
+                  {activeTab === 'github' && (
+                    <motion.div
+                      key="github"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-6"
+                    >
+                      <h3 className={`text-lg font-semibold`} style={{ color: currentTheme.colors.text }}>GitHub Integration</h3>
+                      <SimpleGithubConnect />
+                    </motion.div>
+                  )}
                 </AnimatePresence>
               </div>
             </div>
           </div>
 
           {/* Footer */}
-          <div className={`flex items-center justify-between p-6 border-t`}
+          <div className={`flex items-center justify-between p-6 border-t flex-shrink-0`}
             style={{
               borderColor: currentTheme.colors.border,
               backgroundColor: isDarkMode ? `${currentTheme.colors.surface}80` : `${currentTheme.colors.background}`
