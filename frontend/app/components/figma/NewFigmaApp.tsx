@@ -50,6 +50,7 @@ function NewFigmaAppContent() {
   const [connections, setConnections] = useState<Connection[]>([
     { name: 'Jira', status: 'disconnected', type: 'atlassian' },
     { name: 'Confluence', status: 'disconnected', type: 'atlassian' },
+    { name: 'GitHub', status: 'disconnected', type: 'github' },
   ])
 
   const toggleConnection = (index: number) => {

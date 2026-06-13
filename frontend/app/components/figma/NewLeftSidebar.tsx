@@ -27,9 +27,16 @@ import {
   FileText,
   Code,
   GitBranch,
-  Ticket
+  Ticket,
+  Github,
+  KanbanSquare,
+  LayoutDashboard,
+  FileBarChart,
+  MessagesSquare,
+  LineChart,
+  Cloud
 } from 'lucide-react'
-import { FalconXLogo, MUSTARD, OLIVE } from '../ui/FalconXLogo'
+import { FalconXLogo, MUSTARD, MUSTARD_DIM, OLIVE } from '../ui/FalconXLogo'
 import { getApiUrl } from '../../../lib/api-config'
 import { useRouter } from 'next/navigation'
 import { useTheme } from '../../contexts/ThemeContext'
@@ -75,9 +82,7 @@ export function NewLeftSidebar({
   const [integrationsExpanded, setIntegrationsExpanded] = useState(true)
   const [quickActionsExpanded, setQuickActionsExpanded] = useState(false)
   const [insightsExpanded, setInsightsExpanded] = useState(false)
-  // Removed tcoeExpanded - now QA Metrics is a separate top-level navigation item
   const [showWelcome, setShowWelcome] = useState(true)
-  const [metricsExpanded, setMetricsExpanded] = useState(activeView === 'tcoe-report')
   const showLegacyAboutContent = false
 
   // Theme context
@@ -134,8 +139,8 @@ export function NewLeftSidebar({
   }, [])
 
   React.useEffect(() => {
-    if (activeView === 'tcoe-report') {
-      setMetricsExpanded(true)
+    if (['insights', 'github-insights', 'tcoe-dashboard', 'tcoe-report'].includes(activeView)) {
+      setInsightsExpanded(true)
     }
   }, [activeView])
 
@@ -242,9 +247,29 @@ export function NewLeftSidebar({
                 onClick={() => setActiveView('copilot')}
                 primary={primary}
               >
-                <Bot className="w-4 h-4 flex-shrink-0" style={{ color: activeView === 'copilot' ? primary : 'var(--text-secondary)' }} />
+                <MessagesSquare className="w-4 h-4 flex-shrink-0" style={{ color: activeView === 'copilot' ? MUSTARD : 'var(--text-secondary)' }} />
                 <div className="text-left min-w-0">
-                  <div className="text-sm font-medium leading-none">Work Buddy</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium leading-none">Work Buddy</span>
+                    <span
+                      title="Work Buddy is in beta — it's still being trained, so responses may occasionally be inaccurate."
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        lineHeight: 1,
+                        padding: '2px 6px',
+                        borderRadius: 999,
+                        color: MUSTARD,
+                        background: MUSTARD_DIM,
+                        border: `1px solid ${MUSTARD}40`,
+                        flexShrink: 0
+                      }}
+                    >
+                      Beta
+                    </span>
+                  </div>
                   <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>AI Assistant</div>
                 </div>
               </NavButton>
@@ -252,7 +277,11 @@ export function NewLeftSidebar({
               {/* Insights — Collapsible */}
               <div className="space-y-0.5">
                 {(() => {
-                  const insightsActive = activeView === 'insights' || activeView === 'github-insights'
+                  const insightsActive =
+                    activeView === 'insights' ||
+                    activeView === 'github-insights' ||
+                    activeView === 'tcoe-dashboard' ||
+                    activeView === 'tcoe-report'
                   return (
                     <>
                       <NavButton
@@ -260,7 +289,7 @@ export function NewLeftSidebar({
                         onClick={() => setInsightsExpanded(!insightsExpanded)}
                         primary={primary}
                       >
-                        <BarChart3 className="w-4 h-4 flex-shrink-0" style={{ color: insightsActive ? primary : 'var(--text-secondary)' }} />
+                        <LineChart className="w-4 h-4 flex-shrink-0" style={{ color: insightsActive ? MUSTARD : 'var(--text-secondary)' }} />
                         <div className="text-left flex-1 min-w-0">
                           <div className="text-sm font-medium leading-none">Insights</div>
                           <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Analytics</div>
@@ -281,7 +310,7 @@ export function NewLeftSidebar({
                             onClick={() => setActiveView('insights')}
                             primary={primary}
                           >
-                            <Database className="w-3.5 h-3.5 flex-shrink-0" />
+                            <KanbanSquare className="w-3.5 h-3.5 flex-shrink-0" />
                             Jira Insights
                           </SubNavButton>
 
@@ -290,8 +319,26 @@ export function NewLeftSidebar({
                             onClick={() => setActiveView('github-insights')}
                             primary={primary}
                           >
-                            <Code className="w-3.5 h-3.5 flex-shrink-0" />
+                            <Github className="w-3.5 h-3.5 flex-shrink-0" />
                             GitHub Insights
+                          </SubNavButton>
+
+                          <SubNavButton
+                            active={activeView === 'tcoe-dashboard'}
+                            onClick={() => setActiveView('tcoe-dashboard')}
+                            primary={primary}
+                          >
+                            <LayoutDashboard className="w-3.5 h-3.5 flex-shrink-0" />
+                            QCOE Dashboard
+                          </SubNavButton>
+
+                          <SubNavButton
+                            active={activeView === 'tcoe-report'}
+                            onClick={() => setActiveView('tcoe-report')}
+                            primary={primary}
+                          >
+                            <FileBarChart className="w-3.5 h-3.5 flex-shrink-0" />
+                            QCOE Metrics
                           </SubNavButton>
                         </div>
                       )}
@@ -306,67 +353,32 @@ export function NewLeftSidebar({
                 onClick={() => setActiveView('salesforce-insights')}
                 primary={primary}
               >
-                <Ticket className="w-4 h-4 flex-shrink-0" style={{ color: activeView === 'salesforce-insights' ? primary : 'var(--text-secondary)' }} />
+                <Cloud className="w-4 h-4 flex-shrink-0" style={{ color: activeView === 'salesforce-insights' ? MUSTARD : 'var(--text-secondary)' }} />
                 <div className="text-left min-w-0">
-                  <div className="text-sm font-medium leading-none">Salesforce</div>
-                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>CRM Insights</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium leading-none">Salesforce</span>
+                    <span
+                      title="Salesforce CRM insights are under development and not yet available."
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        lineHeight: 1,
+                        padding: '2px 6px',
+                        borderRadius: 999,
+                        color: MUSTARD,
+                        background: MUSTARD_DIM,
+                        border: `1px solid ${MUSTARD}40`,
+                        flexShrink: 0
+                      }}
+                    >
+                      Coming Soon
+                    </span>
+                  </div>
                 </div>
               </NavButton>
 
-              {/* QCOE Dashboard — Separate top-level */}
-              <NavButton
-                active={activeView === 'tcoe-dashboard'}
-                onClick={() => setActiveView('tcoe-dashboard')}
-                primary={primary}
-              >
-                <BarChart3 className="w-4 h-4 flex-shrink-0" style={{ color: activeView === 'tcoe-dashboard' ? primary : 'var(--text-secondary)' }} />
-                <div className="text-left min-w-0">
-                  <div className="text-sm font-medium leading-none">QCOE Dashboard</div>
-                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Quality Metrics</div>
-                </div>
-              </NavButton>
-
-              {/* Metrics — Collapsible */}
-              <div className="space-y-0.5">
-                {(() => {
-                  const metricsActive = activeView === 'tcoe-report'
-                  return (
-                    <>
-                      <NavButton
-                        active={metricsActive}
-                        onClick={() => setMetricsExpanded(!metricsExpanded)}
-                        primary={primary}
-                      >
-                        <TrendingUp className="w-4 h-4 flex-shrink-0" style={{ color: metricsActive ? primary : 'var(--text-secondary)' }} />
-                        <div className="text-left flex-1 min-w-0">
-                          <div className="text-sm font-medium leading-none">Metrics</div>
-                          <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Performance</div>
-                        </div>
-                        {metricsExpanded
-                          ? <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
-                          : <ChevronRight className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
-                        }
-                      </NavButton>
-
-                      {metricsExpanded && (
-                        <div
-                          className="ml-7 pl-3 space-y-0.5"
-                          style={{ borderLeft: '1px solid var(--border)' }}
-                        >
-                          <SubNavButton
-                            active={activeView === 'tcoe-report'}
-                            onClick={() => setActiveView('tcoe-report')}
-                            primary={primary}
-                          >
-                            <Shield className="w-3.5 h-3.5 flex-shrink-0" />
-                            TCOE Metrics
-                          </SubNavButton>
-                        </div>
-                      )}
-                    </>
-                  )
-                })()}
-              </div>
             </div>
 
             {/* Integrations */}
@@ -399,6 +411,7 @@ export function NewLeftSidebar({
                   {[
                     { name: 'Jira',       label: 'Project Management', icon: Database,  coming: false },
                     { name: 'Confluence', label: 'Documentation',       icon: FileText,  coming: false },
+                    { name: 'GitHub',     label: 'Code & CI/CD',        icon: Github,    coming: false },
                   ].map(({ name, label, icon: Icon, coming }) => {
                     const conn = connections.find(c => c.name === name)
                     const isConnected = conn?.status === 'connected'
@@ -886,8 +899,8 @@ function NavButton({
     >
       {active && (
         <span
-          className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full"
-          style={{ backgroundColor: primary }}
+          className="absolute top-1/2 -translate-y-1/2 rounded-full"
+          style={{ left: 5, width: 3, height: 18, backgroundColor: MUSTARD }}
         />
       )}
       {children}
@@ -949,11 +962,11 @@ function IntegrationRow({
 }) {
   const [hovered, setHovered] = useState(false)
 
-  // Status dot color: cool blue = connected, red = disconnected, gray = coming-soon (no green)
+  // Status dot color: green = connected, red = disconnected, gray = coming-soon
   const dotColor = coming
     ? 'var(--text-muted)'
     : isConnected
-    ? 'var(--accent-cool)'
+    ? '#22C55E'
     : 'var(--red)'
 
   return (

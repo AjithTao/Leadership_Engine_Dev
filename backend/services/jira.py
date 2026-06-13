@@ -250,10 +250,13 @@ class JiraClient:
         myself_url = self._url(self._api('/myself'))
         response = await self._get_with_auth(myself_url)
         if response.status_code != 200:
+            body = (response.text or "").strip()
+            # Jira DC error pages are HTML — useless noise in a UI message
+            detail = "" if body.startswith("<") else f": {body[:200]}"
             return {
                 "success": False,
                 "status_code": response.status_code,
-                "message": f"Jira authentication failed ({response.status_code}): {response.text[:300]}",
+                "message": f"Jira authentication failed ({response.status_code}){detail} — the saved email or token is invalid.",
             }
 
         user = response.json()

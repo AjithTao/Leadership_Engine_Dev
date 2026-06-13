@@ -257,6 +257,8 @@ app.add_middleware(
         "http://127.0.0.1:3001",
         # Extra origins (e.g. a LAN IP for office sharing) come from env, not code
     ] + [o.strip() for o in os.environ.get("EXTRA_CORS_ORIGINS", "").split(",") if o.strip()],
+    # Also allow private-range dev hosts on common frontend ports.
+    allow_origin_regex=r"^http://(10|192\.168|172\.(1[6-9]|2\d|3[01])|100)\.[\d.]+:300[01]$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

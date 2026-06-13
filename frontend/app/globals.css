@@ -317,6 +317,10 @@ html.theme-transitioning *::after {
 
 .animate-fade-in-up    { animation: fade-in-up    0.4s cubic-bezier(0.16,1,0.3,1); }
 .animate-fade-in-down  { animation: fade-in-down  0.4s cubic-bezier(0.16,1,0.3,1); }
+
+/* Chat message entrance (staggered via inline animation-delay) */
+.wb-msg { animation: fade-in-up 0.45s cubic-bezier(0.16,1,0.3,1) both; }
+@media (prefers-reduced-motion: reduce) { .wb-msg { animation: none; } }
 .animate-scale-in      { animation: scale-in      0.3s cubic-bezier(0.16,1,0.3,1); }
 .animate-slide-in-right { animation: slide-in-right 0.35s cubic-bezier(0.16,1,0.3,1); }
 .animate-slide-in-left  { animation: slide-in-left  0.35s cubic-bezier(0.16,1,0.3,1); }

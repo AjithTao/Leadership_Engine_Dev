@@ -6,7 +6,15 @@ import sys
 import os
 
 # Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _BACKEND_DIR)
+
+# Load config/.env BEFORE importing the encryption module: the key is derived
+# from SESSION_SECRET_KEY at import time, and it must be the same key the
+# backend uses to decrypt. Otherwise values get encrypted with the built-in
+# default key and the backend fails with InvalidToken.
+from dotenv import load_dotenv
+load_dotenv(os.path.join(_BACKEND_DIR, 'config', '.env'))
 
 from services.encryption import encrypt_password
 

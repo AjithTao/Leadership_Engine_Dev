@@ -3742,6 +3742,8 @@ Rules for JQL generation:
 - Use ORDER BY updated DESC for lists
 - For counts, don't use ORDER BY
 - **CRITICAL**: If project mappings are provided, use ONLY those exact status and issue type values. Do not use generic values like "To Do" or "Done" unless they appear in the project mappings.
+- **ONLY use real Jira JQL fields.** Allowed: project, issuetype/type, status, priority, assignee, reporter, labels, component, created, updated, resolution, fixVersion, summary, description, and named custom fields from the project mappings. NEVER invent fields such as `workflow`, `module`, `area`, `team`, `feature`, or `process` — they do not exist in Jira and the query will fail with a 400 error.
+- **Functional area / workflow / module filters** (e.g. "AR workflow", "GL workflow", "AP module", "the X area"): these are NOT a JQL field. Map the area token to a valid OR-combined filter using `labels` and free-text `text ~`. Example for "bugs in MODDWTC – AR workflow": `project = "MODDWTC" AND type = "Bug" AND (labels = "AR" OR text ~ "AR")`. Do NOT use `component = "<token>"` for these unless the token is a known component value in the project mappings — Jira returns a 400 error for unknown component values, which fails the whole query. `labels` and `text ~` never 400 on unknown values.
 
 {project_mappings}
 
@@ -4287,7 +4289,18 @@ Generate appropriate JQL and analyze the intent."""
                 logger.info(f"📊 Executing COUNT-ONLY query (maxResults=0 for efficiency)")
                 logger.info(f"📋 Final JQL: {jql}")
                 search_result = await self.jira_client.search(jql, max_results=0)
-                
+
+                # Jira rejected the query (e.g. invalid field). Surface the
+                # failure — never report a failed query as a count of 0.
+                if isinstance(search_result, dict) and search_result.get('error'):
+                    err = search_result.get('error') or {}
+                    logger.warning(f"⚠️  COUNT query rejected by Jira: {err}")
+                    logger.info("=" * 80)
+                    return {
+                        'results': [{'type': 'query_error', 'message': err.get('message', ''), 'status_code': err.get('status_code'), 'jql': jql}],
+                        'is_query_error': True,
+                    }
+
                 if isinstance(search_result, dict):
                     total_count = search_result.get('total', 0)
                     logger.info(f"✅ COUNT-ONLY QUERY RESULT: {total_count} total items matching JQL")
@@ -5000,7 +5013,18 @@ Provide a natural, helpful response that directly answers their question."""
         
         # Determine actual count
         actual_count = total_count if total_count is not None else len(results)
-        
+
+        # A query that Jira rejected (e.g. invalid field) must be reported as a
+        # failure, never as a misleading "0".
+        if results and isinstance(results[0], dict) and results[0].get('type') == 'query_error':
+            return self._format_query_error(query_analysis, results[0])
+
+        # Count-only queries run with maxResults=0, so Jira returns the total but
+        # no issue rows. The total is carried in a synthetic {'type':'count'} item.
+        # Answer it directly instead of mis-rendering that placeholder as an issue.
+        if results and isinstance(results[0], dict) and results[0].get('type') == 'count':
+            return self._format_count_answer(query_analysis, results[0].get('total_count', actual_count))
+
         # Generate adaptive response
         response_dict = await adaptive_engine.generate_adaptive_response(
             user_query=user_query,
@@ -5016,7 +5040,49 @@ Provide a natural, helpful response that directly answers their question."""
         if isinstance(response_dict, dict):
             return response_dict.get('content', str(response_dict))
         return str(response_dict)
-    
+
+    def _format_query_error(self, query_analysis: Dict, err_item: Dict) -> str:
+        """Honest message when Jira rejected the query (instead of a false '0')."""
+        raw = err_item.get('message', '') or ''
+        reason = raw
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict) and parsed.get('errorMessages'):
+                reason = ' '.join(parsed['errorMessages'])
+        except Exception:
+            pass
+        reason = (reason or 'The query could not be run.').strip()[:300]
+        return (
+            f"I couldn't complete that search — Jira rejected the query, so I can't give you a number "
+            f"(this is **not** a count of zero).\n\n"
+            f"**Reason:** {reason}\n\n"
+            f"This usually means part of your question doesn't map to a real Jira field. "
+            f"Try naming a specific component or label, or rephrase the filter."
+        )
+
+    def _format_count_answer(self, query_analysis: Dict, count: int) -> str:
+        """Build a direct, human answer for count-only queries (e.g. "how many …")."""
+        jql = (query_analysis or {}).get('jql', '') or ''
+        proj = re.search(r'project\s*=\s*"?([A-Za-z0-9_]+)"?', jql, re.IGNORECASE)
+        itype = re.search(r'\b(?:issuetype|type)\s*=\s*"?([A-Za-z][A-Za-z \-]*?)"?(?:\s+AND|\s*\)|\s*$)', jql, re.IGNORECASE)
+        label = re.search(r'labels?\s*=\s*"?([^"\s)]+)"?', jql, re.IGNORECASE)
+
+        type_word = (itype.group(1).strip().lower() if itype else '')
+        if type_word in ('test', 'tests'):
+            noun = 'test cases'
+        elif type_word:
+            noun = f'{type_word} issues'
+        else:
+            noun = 'issues'
+
+        parts = [f"There are **{count:,}** {noun}"]
+        if proj:
+            parts.append(f"in **{proj.group(1)}**")
+        if label:
+            parts.append(f"with the label **{label.group(1)}**")
+        return ' '.join(parts) + '.'
+
+
     async def _format_concise_issue_details_with_insights(self, issue: Dict, user_query: str, query_analysis: Dict) -> str:
         """
         Format a single issue in a very simple, human way.

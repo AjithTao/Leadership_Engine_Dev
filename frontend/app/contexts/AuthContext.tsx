@@ -3,10 +3,17 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { getApiUrl } from '../../lib/api-config'
 
+export interface LoginResult {
+  success: boolean
+  /** 'network' = server unreachable, 'rejected' = credentials refused, 'server-error' = backend failure */
+  reason?: 'network' | 'rejected' | 'server-error'
+  message?: string
+}
+
 interface AuthContextType {
   isAuthenticated: boolean
   user: { username: string; email: string; role: string } | null
-  login: (username: string, password: string) => Promise<boolean>
+  login: (username: string, password: string) => Promise<LoginResult>
   logout: () => void
   isLoading: boolean
 }
@@ -71,19 +78,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const login = async (username: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<LoginResult> => {
+    let response: Response
     try {
-      const response = await fetch(getApiUrl('/api/auth/login'), {
+      response = await fetch(getApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ username, password })
       })
+    } catch (error) {
+      console.error('Login error:', error)
+      return {
+        success: false,
+        reason: 'network',
+        message: "Can't reach the FalconX server. Check that the backend is running and reachable, then try again."
+      }
+    }
 
-      const data = await response.json()
+    let data: any = null
+    try {
+      data = await response.json()
+    } catch { /* non-JSON response (e.g. proxy error page) */ }
 
-      if (data.success && data.token) {
+    if (data?.success && data?.token) {
         localStorage.setItem('auth_token', data.token)
         const userData = {
           username: data.username || username,
@@ -122,14 +141,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem('cdk-digital-settings', JSON.stringify(newSettings))
         }
         
-        return true
-      } else {
-        console.error('Login failed:', data.message)
-        return false
+        return { success: true }
       }
-    } catch (error) {
-      console.error('Login error:', error)
-      return false
+
+    if (!response.ok) {
+      const detail = typeof data?.detail === 'string' ? data.detail : (data?.message || `HTTP ${response.status}`)
+      return {
+        success: false,
+        reason: 'server-error',
+        message: `Sign-in failed on the server: ${String(detail).slice(0, 160)}`
+      }
+    }
+
+    console.error('Login failed:', data?.message)
+    return {
+      success: false,
+      reason: 'rejected',
+      message: data?.message || 'Invalid username or password'
     }
   }
 

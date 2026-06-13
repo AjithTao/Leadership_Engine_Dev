@@ -86,6 +86,14 @@ export function SimpleConfluenceConnect() {
     }
   }
 
+  // Remove stale saved credentials so Connect can't replay them
+  const clearSavedDetails = () => {
+    localStorage.removeItem('confluence_config')
+    setSavedConfig(null)
+    setConfig({ url: '', email: '', apiToken: '' })
+    setConnectionResult('✅ Saved connection details cleared.')
+  }
+
   // Save configuration to localStorage
   const saveConfiguration = async () => {
     try {
@@ -131,7 +139,10 @@ export function SimpleConfluenceConnect() {
         setConnectionResult(`✅ Connected successfully! ${data.test_result || 'Confluence connection verified.'}`)
         await checkStatus()
       } else {
-        setConnectionResult(`❌ Connection failed: ${data.detail || data.error || data.message}. Please check your connection details.`)
+        const rawErr = typeof data.detail === 'string'
+          ? data.detail
+          : (data.details || data.error || data.message || `HTTP ${response.status}`)
+        setConnectionResult(`❌ Connection failed: ${String(rawErr).slice(0, 180)}. Please check your connection details.`)
         setShowManualEntry(true)
       }
     } catch (error) {
@@ -192,33 +203,13 @@ export function SimpleConfluenceConnect() {
     checkStatus()
   }, [])
 
-  const getStatusBadge = () => {
-    if (!status) return null
-
-    if (status.configured) {
-      return (
-        <div className="flex items-center gap-2 px-3 py-1 bg-green-100 dark:bg-green-900/30 rounded-full">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="text-green-700 dark:text-green-400 text-sm font-medium">Connected</span>
-        </div>
-      )
-    } else {
-      return (
-        <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full">
-          <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-          <span className="text-gray-600 dark:text-gray-400 text-sm font-medium">Not Connected</span>
-        </div>
-      )
-    }
-  }
-
   return (
     <Card className="h-full shadow-lg border-0 bg-gradient-to-br from-white/80 to-green-50/50 dark:from-gray-800 dark:to-green-900/20 backdrop-blur-sm">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-              <FileText className="w-6 h-6 text-green-600 dark:text-green-400" />
+            <div className="p-2 rounded-lg" style={{ background: 'rgba(212,168,71,0.15)' }}>
+              <FileText className="w-6 h-6" style={{ color: '#D4A847' }} />
             </div>
             <div>
               <CardTitle className="text-xl" style={{ color: currentTheme.colors.text }}>Confluence Integration</CardTitle>
@@ -227,7 +218,6 @@ export function SimpleConfluenceConnect() {
               </p>
             </div>
           </div>
-          {getStatusBadge()}
         </div>
       </CardHeader>
       
@@ -238,7 +228,8 @@ export function SimpleConfluenceConnect() {
             onClick={handleConnect}
             disabled={loading}
             size="lg"
-            className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+            className="flex items-center gap-2 shadow-lg hover:shadow-xl hover:opacity-90 transition-all duration-200 transform hover:scale-105"
+            style={{ backgroundColor: '#D4A847', color: '#13151C' }}
           >
             {loading ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
@@ -380,6 +371,17 @@ export function SimpleConfluenceConnect() {
               >
                 Cancel
               </Button>
+
+              {savedConfig && (
+                <Button
+                  variant="outline"
+                  onClick={clearSavedDetails}
+                  disabled={loading}
+                  style={{ color: 'var(--red)', borderColor: 'var(--red)' }}
+                >
+                  Clear Saved Details
+                </Button>
+              )}
             </div>
 
             {/* Help Information */}
@@ -398,21 +400,6 @@ export function SimpleConfluenceConnect() {
           </div>
         )}
 
-        {/* Quick Status */}
-        {status && (
-          <div className="text-xs border-t pt-3" style={{ color: currentTheme.colors.textSecondary, borderColor: currentTheme.colors.border }}>
-            <div className="flex justify-between items-center">
-              <span style={{ color: currentTheme.colors.textSecondary }}>Status:</span>
-              <span className="font-medium" style={{ color: currentTheme.colors.text }}>{status.message}</span>
-            </div>
-            {status.testResult && (
-              <div className="flex justify-between items-center mt-1">
-                <span style={{ color: currentTheme.colors.textSecondary }}>Test Result:</span>
-                <span style={{ color: currentTheme.colors.text }}>{status.testResult}</span>
-              </div>
-            )}
-          </div>
-        )}
       </CardContent>
     </Card>
   )

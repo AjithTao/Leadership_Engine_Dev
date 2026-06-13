@@ -2,7 +2,10 @@
 
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Eye, EyeOff, AlertCircle, RefreshCw, CheckCircle2 } from 'lucide-react'
+import {
+  Eye, EyeOff, AlertCircle, RefreshCw, CheckCircle2,
+  Sparkles, TrendingUp, ShieldCheck, GitPullRequest, BarChart3, LifeBuoy
+} from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { getApiUrl } from '../../lib/api-config'
@@ -27,12 +30,15 @@ const T = {
 } as const
 
 const features = [
-  { label: 'Sprint Analytics',      desc: 'Real-time velocity & burndown' },
-  { label: 'AI Copilot',            desc: 'Predictive team intelligence'   },
-  { label: 'Defect Tracking',       desc: 'Leakage detection & prevention' },
-  { label: 'KPI Dashboards',        desc: 'Executive-grade metrics'        },
-  { label: 'GitHub & Jira',         desc: 'Unified integration layer'      },
+  { icon: Sparkles,       label: 'Work Buddy AI',        desc: 'Conversational copilot for your work data'      },
+  { icon: TrendingUp,     label: 'Sprint Analytics',     desc: 'Velocity, burndown & top performers'            },
+  { icon: ShieldCheck,    label: 'Quality Intelligence', desc: 'Defect leakage, coverage & TCOE metrics'        },
+  { icon: GitPullRequest, label: 'Engineering Insights', desc: 'GitHub PRs, repos & CI/CD health'               },
+  { icon: BarChart3,      label: 'KPI Dashboards',       desc: 'Executive metrics with AI-driven insights'      },
+  { icon: LifeBuoy,       label: 'Case Intelligence',    desc: 'AI-classified Salesforce case analytics'        },
 ]
+
+const integrations = ['Jira', 'Confluence', 'GitHub', 'Salesforce']
 
 export function IntegratedLoginPage() {
   const { login } = useAuth()
@@ -49,9 +55,9 @@ export function IntegratedLoginPage() {
     setError('')
     setLoading(true)
     try {
-      const success = await login(username, password)
-      if (!success) {
-        setError('Invalid username or password')
+      const result = await login(username, password)
+      if (!result.success) {
+        setError(result.message || 'Invalid username or password')
         setLoading(false)
         return
       }
@@ -66,10 +72,15 @@ export function IntegratedLoginPage() {
         })
         const data = await res.json()
         if (data.success) {
-          const { jira, confluence } = data.results
-          if (jira.success || confluence.success) {
+          const { jira, confluence, github } = data.results
+          if (jira.success || confluence.success || github?.success) {
             window.dispatchEvent(new CustomEvent('integration-update', {
-              detail: { service: 'auto-connect', jira: jira.success, confluence: confluence.success }
+              detail: {
+                service: 'auto-connect',
+                jira: jira.success,
+                confluence: confluence.success,
+                github: github?.success ?? false
+              }
             }))
           }
         }
@@ -84,7 +95,7 @@ export function IntegratedLoginPage() {
 
   return (
     <div
-      className="min-h-screen flex"
+      className="min-h-screen lg:h-screen lg:overflow-hidden flex"
       style={{ backgroundColor: T.bgPage, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
     >
 
@@ -118,8 +129,11 @@ export function IntegratedLoginPage() {
           style={{ background: `radial-gradient(circle, ${T.mustardDim} 0%, transparent 70%)` }}
         />
 
-        {/* Content */}
-        <div className="relative z-10 flex flex-col h-full px-16 py-14">
+        {/* Content — fluid vertical rhythm so the panel always fits the viewport */}
+        <div
+          className="relative z-10 flex flex-col h-full min-h-0"
+          style={{ padding: 'clamp(20px, 3.5vh, 52px) clamp(36px, 4vw, 64px)' }}
+        >
 
           {/* Top — CDK logo */}
           <motion.div
@@ -130,16 +144,18 @@ export function IntegratedLoginPage() {
             <CDKLogo size={26} />
           </motion.div>
 
-          {/* Middle — hero */}
-          <div className="flex-1 flex flex-col justify-center">
+          {/* Middle — hero. my-auto wrapper instead of justify-center: on
+              overflow it top-aligns and clips bottom-only, never the logo */}
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <div className="my-auto">
             {/* FalconX logo */}
             <motion.div
               initial={{ opacity: 0, scale: 0.94 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="mb-8"
+              style={{ marginBottom: 'clamp(14px, 2.5vh, 28px)' }}
             >
-              <FalconXLogo size={52} color={T.mustard} textColor={T.text} showText={true} />
+              <FalconXLogo size={44} color={T.mustard} textColor={T.text} showText={true} />
             </motion.div>
 
             {/* Eyebrow label */}
@@ -153,7 +169,7 @@ export function IntegratedLoginPage() {
                 fontWeight: 600,
                 letterSpacing: '0.12em',
                 textTransform: 'uppercase',
-                marginBottom: 14
+                marginBottom: 'clamp(8px, 1.4vh, 14px)'
               }}
             >
               Leadership Engine
@@ -166,11 +182,11 @@ export function IntegratedLoginPage() {
               transition={{ duration: 0.6, delay: 0.3 }}
               style={{
                 color: T.text,
-                fontSize: 32,
+                fontSize: 'clamp(24px, 3.4vh, 32px)',
                 fontWeight: 700,
                 letterSpacing: '-0.03em',
                 lineHeight: 1.15,
-                marginBottom: 16,
+                marginBottom: 'clamp(10px, 1.6vh, 16px)',
                 maxWidth: 420
               }}
             >
@@ -182,48 +198,111 @@ export function IntegratedLoginPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.38 }}
+              className="[@media(max-height:560px)]:hidden"
               style={{
                 color: T.textSec,
-                fontSize: 14,
+                fontSize: 'clamp(12.5px, 1.6vh, 14px)',
                 lineHeight: 1.65,
-                maxWidth: 380,
-                marginBottom: 40
+                maxWidth: 420,
+                marginBottom: 'clamp(16px, 3vh, 32px)'
               }}
             >
-              Real-time insights, sprint analytics, defect leakage
-              detection, and predictive team intelligence — all in one place.
+              FalconX unifies Jira, Confluence, GitHub, and Salesforce into one
+              intelligent workspace — sprint analytics, quality metrics, and an
+              AI copilot that answers in plain language.
             </motion.p>
 
-            {/* Feature list */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.48 }}
-              className="flex flex-col gap-3"
-            >
-              {features.map((f, i) => (
-                <motion.div
-                  key={f.label}
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.52 + i * 0.07 }}
-                  className="flex items-center gap-3"
-                >
-                  {/* Olive dot indicator */}
-                  <div
+            {/* Feature cards */}
+            <div className="grid grid-cols-2 gap-3" style={{ maxWidth: 560 }}>
+              {features.map((f, i) => {
+                const Icon = f.icon
+                return (
+                  <motion.div
+                    key={f.label}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.46 + i * 0.06 }}
+                    whileHover={{ y: -3 }}
+                    className="flex items-start gap-3"
                     style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      backgroundColor: i % 2 === 0 ? T.mustard : T.olive,
-                      flexShrink: 0
+                      padding: 'clamp(8px, 1.4vh, 12px) 14px',
+                      borderRadius: 12,
+                      background: T.bgCard,
+                      border: `1px solid ${T.border}`
                     }}
-                  />
-                  <span style={{ color: T.text, fontSize: 13, fontWeight: 500 }}>{f.label}</span>
-                  <span style={{ color: T.textMuted, fontSize: 12 }}>{f.desc}</span>
-                </motion.div>
+                  >
+                    <div
+                      className="flex items-center justify-center"
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 8,
+                        background: T.mustardDim,
+                        flexShrink: 0
+                      }}
+                    >
+                      <Icon size={15} style={{ color: T.mustard }} />
+                    </div>
+                    <div>
+                      <p style={{ color: T.text, fontSize: 13, fontWeight: 600, marginBottom: 2 }}>
+                        {f.label}
+                      </p>
+                      <p
+                        className="[@media(max-height:760px)]:line-clamp-1 [@media(max-height:560px)]:hidden"
+                        style={{ color: T.textMuted, fontSize: 11.5, lineHeight: 1.5 }}
+                      >
+                        {f.desc}
+                      </p>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+
+            {/* Integration chips */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.9 }}
+              className="flex items-center gap-2 flex-wrap"
+              style={{ marginTop: 'clamp(14px, 2.4vh, 28px)' }}
+            >
+              <span
+                style={{
+                  color: T.textMuted,
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  marginRight: 4
+                }}
+              >
+                Unified with
+              </span>
+              {integrations.map(name => (
+                <span
+                  key={name}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: 999,
+                    border: `1px solid ${T.border}`,
+                    background: T.bgSurface,
+                    color: T.textSec,
+                    fontSize: 11.5,
+                    fontWeight: 500
+                  }}
+                >
+                  {name}
+                </span>
               ))}
+              <span
+                className="[@media(max-height:760px)]:hidden"
+                style={{ color: T.textMuted, fontSize: 11.5 }}
+              >
+                + PDF, PowerPoint & Excel exports
+              </span>
             </motion.div>
+            </div>
           </div>
 
           {/* Bottom — divider line */}
@@ -234,7 +313,8 @@ export function IntegratedLoginPage() {
             style={{
               height: 1,
               background: `linear-gradient(to right, ${T.mustard}40, ${T.olive}40, transparent)`,
-              marginBottom: 16
+              marginBottom: 'clamp(10px, 1.4vh, 16px)',
+              marginTop: 'clamp(12px, 2vh, 24px)'
             }}
           />
           <motion.p
@@ -254,9 +334,10 @@ export function IntegratedLoginPage() {
         style={{ width: 1, background: T.border, flexShrink: 0 }}
       />
 
-      {/* ── Right login panel ─────────────────────────────────────────── */}
+      {/* ── Right login panel — internal scroll fallback so the form is
+            always reachable even on very short windows ─────────────────── */}
       <div
-        className="w-full lg:flex-1 flex items-center justify-center p-8 relative"
+        className="w-full lg:flex-1 flex p-8 relative overflow-y-auto overflow-x-hidden"
         style={{ backgroundColor: T.bgCard }}
       >
         {/* Subtle mustard glow top-right */}
@@ -265,11 +346,13 @@ export function IntegratedLoginPage() {
           style={{ background: `radial-gradient(circle, ${T.mustardDim} 0%, transparent 70%)` }}
         />
 
+        {/* scale-up entrance (not y-offset) so the transform never extends
+            the scroll container and flashes a scrollbar on short screens */}
         <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, scale: 0.985 }}
+          animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.55, delay: 0.1 }}
-          className="w-full max-w-[360px] relative z-10"
+          className="w-full max-w-[360px] relative z-10 m-auto"
         >
           {/* Mobile logo */}
           <div className="flex lg:hidden justify-center mb-10">
@@ -277,7 +360,7 @@ export function IntegratedLoginPage() {
           </div>
 
           {/* Heading */}
-          <div className="mb-8">
+          <div className="mb-8 [@media(max-height:760px)]:mb-4">
             <h2 style={{ color: T.text, fontSize: 26, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 6 }}>
               Sign in
             </h2>
@@ -286,7 +369,7 @@ export function IntegratedLoginPage() {
             </p>
           </div>
 
-          <form onSubmit={handleLogin} className="flex flex-col gap-5">
+          <form onSubmit={handleLogin} className="flex flex-col gap-5 [@media(max-height:760px)]:gap-3">
 
             {/* Username */}
             <div>
@@ -436,7 +519,7 @@ export function IntegratedLoginPage() {
           </form>
 
           {/* Footer links */}
-          <div style={{ marginTop: 24 }}>
+          <div className="mt-6 [@media(max-height:760px)]:mt-3">
             {/* Divider */}
             <div style={{ height: 1, background: T.border, marginBottom: 18 }} />
 
@@ -470,8 +553,8 @@ export function IntegratedLoginPage() {
 
           {/* Olive accent bar at bottom of card */}
           <div
+            className="mt-7 [@media(max-height:760px)]:mt-3"
             style={{
-              marginTop: 28,
               height: 2,
               borderRadius: 2,
               background: `linear-gradient(to right, ${T.mustard}, ${T.olive}, transparent)`
