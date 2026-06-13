@@ -5,7 +5,7 @@ import VelocityChart from "../../src/components/VelocityChart";
 import { KpiCards } from "../../src/components/KpiCards";
 import BandwidthChart from "../../src/components/BandwidthChart";
 import { Suggestions } from "../../src/components/Suggestions";
-import { getApiUrl } from "../../lib/api-config";
+import { getApiUrl, fetchWithTimeout } from "../../lib/api-config";
 
 export default function Leadership() {
   const [data, setData] = useState<any>(null);
@@ -17,7 +17,7 @@ export default function Leadership() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(getApiUrl(`/api/leadership/overview?board_id=${boardId}`));
+        const response = await fetchWithTimeout(getApiUrl(`/api/leadership/overview?board_id=${boardId}`));
         const result = await response.json();
         setData(result);
         setError(null);

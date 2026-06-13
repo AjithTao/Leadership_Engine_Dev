@@ -580,6 +580,22 @@ input::placeholder, textarea::placeholder {
 }
 .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
 
+/* Spinner — referenced globally as `animation: spin 1s linear infinite` by every
+   lucide Loader2 / RefreshCw across the app. Defined here so spinners rotate on
+   every screen, not just where a component happens to inject its own keyframe. */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.animate-spin { animation: spin 1s linear infinite; }
+
+/* Breathing pulse — used by brand logos (GitHub, Jira) as a loading animation. */
+@keyframes logo-breathe {
+  0%, 100% { transform: scale(0.9);  opacity: 0.55; }
+  50%      { transform: scale(1.06); opacity: 1; }
+}
+.animate-logo-breathe { animation: logo-breathe 1.4s ease-in-out infinite; }
+
 /* ── Utility overrides ───────────────────────────────────────────────────── */
 .text-foreground       { color: var(--text-primary)   !important; }
 .text-muted-foreground { color: var(--text-secondary)  !important; }

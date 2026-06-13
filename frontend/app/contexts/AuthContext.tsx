@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { getApiUrl } from '../../lib/api-config'
+import { getApiUrl, fetchWithTimeout } from '../../lib/api-config'
 
 export interface LoginResult {
   success: boolean
@@ -42,7 +42,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verifyToken = async (token: string) => {
     try {
-      const response = await fetch(getApiUrl('/api/auth/verify'), {
+      // Timeout so an unreachable backend can't freeze the whole app on the
+      // full-screen auth LoadingScreen — on timeout we drop to the login page.
+      const response = await fetchWithTimeout(getApiUrl('/api/auth/verify'), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -86,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (username: string, password: string): Promise<LoginResult> => {
     let response: Response
     try {
-      response = await fetch(getApiUrl('/api/auth/login'), {
+      response = await fetchWithTimeout(getApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

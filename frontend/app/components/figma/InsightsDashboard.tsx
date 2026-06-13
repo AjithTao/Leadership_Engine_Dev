@@ -12,8 +12,8 @@ import { Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, A
 import { exportInsightsAsPDF } from '../../utils/exportUtils';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getApiUrl } from '../../../lib/api-config';
-import { LoadingSkeleton } from './InsightsDashboard/components/LoadingSkeleton';
 import { DashboardLayout } from '../DashboardLayout';
+import { JiraLoader } from './InsightsDashboard/components/JiraLoader';
 
 interface Project {
   id: string;
@@ -1067,9 +1067,9 @@ const avgIssuesPerMember = topAssignees.length > 0
     );
   };
 
-  // Show loading skeleton if loading initial data (no metrics available yet)
+  // Show the Jira logo loading animation while initial data loads (no metrics yet)
   if (loading && !jiraMetrics) {
-    return <LoadingSkeleton />;
+    return <JiraLoader />;
   }
 
   // ─── Shared input style helper ────────────────────────────────────────────

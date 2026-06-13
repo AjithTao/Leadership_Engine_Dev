@@ -12,8 +12,8 @@ import {
   CheckCircle, Activity, BarChart3, PieChart, Award, FileText, Sheet
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
-import { getApiUrl } from '../../lib/api-config';
-import { LoadingSkeleton } from './figma/InsightsDashboard/components/LoadingSkeleton';
+import { getApiUrl, fetchWithTimeout } from '../../lib/api-config';
+import { JiraLoader } from './figma/InsightsDashboard/components/JiraLoader';
 import { DashboardLayout } from './DashboardLayout';
 
 // ─── CDK palette (single source: globals.css / themes.ts) ─────────────────────
@@ -149,7 +149,7 @@ export function QAMetricsDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(getApiUrl('/api/qe-metrics'), {
+      const response = await fetchWithTimeout(getApiUrl('/api/qe-metrics'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ portfolio: selectedPortfolio, product: selectedProduct, container: selectedContainer, timeline: selectedTimeline })
@@ -208,7 +208,7 @@ export function QAMetricsDashboard() {
     }
   };
 
-  if (loading && !data) return <LoadingSkeleton />;
+  if (loading && !data) return <JiraLoader message="Loading QA metrics…" />;
 
   if (error && !data) {
     return (

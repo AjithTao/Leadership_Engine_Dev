@@ -15,7 +15,9 @@ import { getApiUrl } from '../../lib/api-config';
 
 interface Repo { id: number; name: string; full_name: string; private: boolean; owner: string; html_url: string; default_branch: string; }
 interface WorkflowRun { id: number; name: string; status: string; conclusion: string; created_at: string; html_url: string; }
-interface RepoStats { repo: string; total_runs: number; successful: number; failed: number; success_rate: number; runs: WorkflowRun[]; loading?: boolean; error?: string; }
+interface JobCounts { jobs_total: number; jobs_passed: number; jobs_failed: number; }
+interface WorkflowStat { name: string; total: number; successful: number; failed: number; success_rate: number; }
+interface RepoStats { repo: string; total_runs: number; successful: number; failed: number; success_rate: number; runs: WorkflowRun[]; avg_runs_per_day?: number; by_workflow?: WorkflowStat[]; loading?: boolean; error?: string; }
 interface GitHubUser { login: string; org: string; }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -38,35 +40,35 @@ const timeAgo = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
 
-const DAY_OPTIONS = [
-  { label: 'Last 7 days',  value: 7  },
-  { label: 'Last 14 days', value: 14 },
-  { label: 'Last 30 days', value: 30 },
-  { label: 'Last 60 days', value: 60 },
-  { label: 'Last 90 days', value: 90 },
-];
+// Humanise an hours value: "6h", "2.5d", "45m", or "—".
+const formatDuration = (hours: number | null | undefined) => {
+  if (hours == null) return '—';
+  if (hours < 1) return `${Math.round(hours * 60)}m`;
+  if (hours < 24) return `${Math.round(hours)}h`;
+  return `${(hours / 24).toFixed(1)}d`;
+};
 
-// ─── Simple native-select dropdown ───────────────────────────────────────────
+// ── Date helpers for the From/To filter ──
+const toISODate    = (d: Date) => d.toISOString().slice(0, 10);
+const todayISO     = () => toISODate(new Date());
+const daysAgoISO   = (n: number) => toISODate(new Date(Date.now() - n * 86400000));
+const fmtShortDate = (iso: string) => {
+  try { return new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
+  catch { return iso; }
+};
+const spanDays = (from: string, to: string) => {
+  const a = new Date(from + 'T00:00:00').getTime(), b = new Date(to + 'T00:00:00').getTime();
+  return Number.isFinite(a) && Number.isFinite(b) ? Math.max(1, Math.round((b - a) / 86400000) + 1) : 1;
+};
 
-function NativeSelect({ value, onChange, style, children }: {
-  value: string; onChange: (v: string) => void; style?: React.CSSProperties; children: React.ReactNode;
-}) {
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+// Official GitHub mark (Octocat silhouette) — used as the connecting/loading indicator.
+function GitHubMark({ size = 44, style }: { size?: number; style?: React.CSSProperties }) {
   return (
-    <div style={{ position: 'relative', ...style }}>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        style={{
-          appearance: 'none', width: '100%', padding: '9px 36px 9px 12px',
-          background: 'var(--bg-surface)', border: '1px solid var(--border)',
-          borderRadius: '10px', color: 'var(--text-primary)', fontSize: '13px',
-          fontWeight: 500, cursor: 'pointer', outline: 'none',
-        }}
-      >
-        {children}
-      </select>
-      <ChevronDown size={14} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
-    </div>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={style}>
+      <path fillRule="evenodd" clipRule="evenodd" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+    </svg>
   );
 }
 
@@ -210,10 +212,19 @@ export function GitHubInsightsDashboard() {
   const [repos, setRepos]                   = useState<Repo[]>([]);
   const [initialLoading, setInitialLoading]  = useState(true);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [ssoNotice, setSsoNotice]           = useState<string | null>(null);  // SAML-blocked orgs warning
 
   // ── filter state ──
   const [selectedRepo, setSelectedRepo]   = useState<string>('all');
-  const [selectedDays, setSelectedDays]   = useState<number>(30);
+  const [fromDate, setFromDate]           = useState<string>(daysAgoISO(30));
+  const [toDate, setToDate]               = useState<string>(todayISO());
+  const [firstActionDate, setFirstActionDate] = useState<string | null>(null); // repo's 1st Actions run
+  const [firstActionLoading, setFirstActionLoading] = useState(false);
+
+  // ── runs table pagination + lazy per-run job counts ──
+  const [runsPage, setRunsPage]           = useState(1);
+  const [runsPageSize, setRunsPageSize]   = useState(25);
+  const [jobCountsMap, setJobCountsMap]   = useState<Record<string, JobCounts>>({});
 
   // ── insight data ──
   const [hasInsights, setHasInsights]       = useState(false);
@@ -224,20 +235,36 @@ export function GitHubInsightsDashboard() {
   const [repoDetailLoading, setRepoDetailLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Surfaces/text/border stay theme-aware CSS vars. The semantic accents are concrete
+  // hex (not CSS vars) for two reasons: (1) "success" must read GREEN — the design's
+  // --green is aliased to the mustard accent, so var(--green) made success rates gold;
+  // (2) the `${color}NN` 8-digit-hex alpha tints used throughout this file only resolve
+  // for hex — `var(--x)18` is invalid and renders no tint, so icon chips/badges looked
+  // inconsistent (only the hardcoded-hex green chip got a background). These greens/reds
+  // match the hardcoded CI bar colors already used below.
   const colors = {
     bg: 'var(--bg-page)', surface: 'var(--bg-surface)', card: 'var(--bg-card)',
-    primary: 'var(--accent-cool)', text: 'var(--text-primary)',
+    primary: '#D4A847', text: 'var(--text-primary)',
     textSecondary: 'var(--text-secondary)', textMuted: 'var(--text-muted)',
-    border: 'var(--border)', success: 'var(--green)',
-    error: 'var(--red)', warning: 'var(--amber)',
+    border: 'var(--border)',
+    success: '#22C55E',
+    error: '#EF4444',
+    warning: '#F59E0B',
   };
 
   // ── Initial load: only connect + fetch repo list ──────────────────────────
   const loadRepos = useCallback(async () => {
     setConnectionError(null);
+    setSsoNotice(null);
     setInitialLoading(true);
+    // Hard timeout so an unreachable backend can never leave the
+    // "Connecting to GitHub…" spinner up forever — abort and surface a retry.
+    // Created inside try so a throw here can't skip the finally that clears the spinner.
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      const statusRes  = await fetch(getApiUrl(`/api/github/status`));
+      const ctrl = new AbortController();
+      timeout    = setTimeout(() => ctrl.abort(), 20000);
+      const statusRes  = await fetch(getApiUrl(`/api/github/status`), { signal: ctrl.signal });
       const statusData = await statusRes.json();
       if (!statusData.connected) {
         setConnected(false);
@@ -247,7 +274,7 @@ export function GitHubInsightsDashboard() {
       setConnected(true);
       setGhUser({ login: statusData.user || '', org: statusData.config?.org || '' });
 
-      const reposRes  = await fetch(getApiUrl(`/api/github/repos`));
+      const reposRes  = await fetch(getApiUrl(`/api/github/repos`), { signal: ctrl.signal });
       const reposData = await reposRes.json();
       if (reposData.success === false) {
         setConnected(false);
@@ -255,10 +282,16 @@ export function GitHubInsightsDashboard() {
         return;
       }
       setRepos(reposData.repos || []);
+      setSsoNotice(reposData.notice || null);
     } catch (e: any) {
       setConnected(false);
-      setConnectionError(e?.message || 'Network error');
+      setConnectionError(
+        e?.name === 'AbortError'
+          ? `Couldn't reach the backend at ${getApiUrl('')} within 20s. Make sure it's running and reachable from this device.`
+          : (e?.message || 'Network error'),
+      );
     } finally {
+      if (timeout) clearTimeout(timeout);
       setInitialLoading(false);
     }
   }, []);
@@ -266,13 +299,16 @@ export function GitHubInsightsDashboard() {
   useEffect(() => { loadRepos(); }, [loadRepos]);
 
   // ── Fetch CI stats for a single repo ─────────────────────────────────────
-  const fetchRepoStats = useCallback(async (fullName: string, days: number, signal?: AbortSignal) => {
+  const fetchRepoStats = useCallback(async (fullName: string, from: string, to: string, signal?: AbortSignal, paginate = false) => {
     setRepoStatsMap(prev => ({
       ...prev,
       [fullName]: { ...(prev[fullName] || {}), repo: fullName, total_runs: 0, successful: 0, failed: 0, success_rate: 0, runs: [], loading: true },
     }));
     try {
-      const res  = await fetch(getApiUrl(`/api/github/actions/runs?repo=${encodeURIComponent(fullName)}&days=${days}`), { signal });
+      // paginate=true (single repo) fetches ALL runs in the window for the full listing;
+      // the all-repos batch omits it (one fast page per repo).
+      const pg  = paginate ? '&paginate=true' : '';
+      const res  = await fetch(getApiUrl(`/api/github/actions/runs?repo=${encodeURIComponent(fullName)}&from_date=${from}&to_date=${to}${pg}`), { signal });
       const data = await res.json();
       setRepoStatsMap(prev => ({ ...prev, [fullName]: { ...data, repo: fullName, loading: false } }));
     } catch (e: any) {
@@ -319,12 +355,14 @@ export function GitHubInsightsDashboard() {
     setRepoStatsMap({});
     setRepoDetail(null);
     setLoadProgress(0);
+    setRunsPage(1);
+    setJobCountsMap({});
 
     try {
       if (selectedRepo !== 'all') {
-        // ── Single repo: fetch CI + detail in parallel ──
+        // ── Single repo: fetch ALL runs in the window + detail in parallel ──
         await Promise.all([
-          fetchRepoStats(selectedRepo, selectedDays, ctrl.signal),
+          fetchRepoStats(selectedRepo, fromDate, toDate, ctrl.signal, true),
           fetchRepoDetail(selectedRepo),
         ]);
         setLoadProgress(100);
@@ -338,7 +376,7 @@ export function GitHubInsightsDashboard() {
         for (let i = 0; i < total; i += BATCH) {
           if (ctrl.signal.aborted) break;
           const batch = list.slice(i, i + BATCH);
-          await Promise.all(batch.map(r => fetchRepoStats(r.full_name, selectedDays, ctrl.signal)));
+          await Promise.all(batch.map(r => fetchRepoStats(r.full_name, fromDate, toDate, ctrl.signal)));
           done += batch.length;
           setLoadProgress(Math.round((done / total) * 100));
         }
@@ -347,7 +385,36 @@ export function GitHubInsightsDashboard() {
       setInsightsLoading(false);
       setHasInsights(true);
     }
-  }, [selectedRepo, selectedDays, repos, fetchRepoStats, fetchRepoDetail]);
+  }, [selectedRepo, fromDate, toDate, repos, fetchRepoStats, fetchRepoDetail]);
+
+  // ── Select a repo: reset paging and default the From date to its very 1st Actions run ──
+  const selectRepo = useCallback(async (v: string) => {
+    setSelectedRepo(v);
+    setHasInsights(false);
+    setRunsPage(1);
+    setJobCountsMap({});
+    if (v === 'all') {
+      setFirstActionDate(null);
+      setFromDate(daysAgoISO(90));
+      setToDate(todayISO());
+      return;
+    }
+    setFirstActionLoading(true);
+    try {
+      const res  = await fetch(getApiUrl(`/api/github/actions/first-run?repo=${encodeURIComponent(v)}`));
+      const data = await res.json();
+      const fr   = data?.first_run_date ? String(data.first_run_date).slice(0, 10) : null;
+      setFirstActionDate(fr);
+      setFromDate(fr || daysAgoISO(90));
+      setToDate(todayISO());
+    } catch {
+      setFirstActionDate(null);
+      setFromDate(daysAgoISO(90));
+      setToDate(todayISO());
+    } finally {
+      setFirstActionLoading(false);
+    }
+  }, []);
 
   // ── Derived stats ─────────────────────────────────────────────────────────
   const allStats     = Object.values(repoStatsMap).filter(s => !s.loading && !s.error);
@@ -362,11 +429,77 @@ export function GitHubInsightsDashboard() {
     selectedRepo === 'all'
       ? allStats.flatMap(s => (s.runs || []).map(r => ({ ...r, repoName: s.repo })))
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-          .slice(0, 50)
       : (repoStatsMap[selectedRepo]?.runs || []).map(r => ({ ...r, repoName: selectedRepo }));
 
   const selectedRepoObj = repos.find(r => r.full_name === selectedRepo);
   const selectedStats   = selectedRepo === 'all' ? null : repoStatsMap[selectedRepo];
+
+  // ── Date-range + runs-table pagination derived ──
+  const rangeDays       = spanDays(fromDate, toDate);
+  const rangeLabel      = `${fmtShortDate(fromDate)} – ${fmtShortDate(toDate)}`;
+  const runsTotalPages  = Math.max(1, Math.ceil(visibleRuns.length / runsPageSize));
+  const runsPageClamped = Math.min(Math.max(1, runsPage), runsTotalPages);
+  const pagedRuns       = visibleRuns.slice((runsPageClamped - 1) * runsPageSize, runsPageClamped * runsPageSize);
+  const truncatedRuns   = selectedRepo !== 'all' && (repoStatsMap[selectedRepo] as any)?.truncated === true;
+
+  // Lazily fetch per-run job pass/fail counts for just the currently visible page (single
+  // repo) — bounded by page size, so it scales no matter how many total runs there are.
+  const pageRunIdsKey = pagedRuns.map(r => r.id).join(',');
+  useEffect(() => {
+    if (selectedRepo === 'all' || !hasInsights) return;
+    const missing = pagedRuns.map(r => r.id).filter(id => id != null && !jobCountsMap[String(id)]);
+    if (missing.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res  = await fetch(getApiUrl(`/api/github/actions/run-jobs?repo=${encodeURIComponent(selectedRepo)}&run_ids=${missing.join(',')}`));
+        const data = await res.json();
+        if (!cancelled && data && typeof data === 'object' && !data.error) {
+          setJobCountsMap(prev => ({ ...prev, ...data }));
+        }
+      } catch { /* leave those rows showing — */ }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRepo, hasInsights, pageRunIdsKey]);
+
+  // ── Single-repo derived metrics (no new API calls — all from data we already have) ──
+  const selectedRuns    = selectedRepo === 'all' ? [] : (repoStatsMap[selectedRepo]?.runs || []);
+  const lastRun         = selectedRuns[0];                                   // backend returns newest-first
+  const activeBranches7d = repoDetail?.active_branches?.length ?? null;
+  const commits7d       = repoDetail?.active_branches
+    ? repoDetail.active_branches.reduce((s: number, b: any) => s + (b.commits_this_week || 0), 0)
+    : null;
+  const openPrsList     = repoDetail?.open_prs ?? [];
+  const openPrCount     = repoDetail?.open_prs?.length ?? null;
+  const draftPrCount    = repoDetail?.open_prs?.filter((p: any) => p.draft).length ?? 0;
+  const runConclusionColor = (r: WorkflowRun) =>
+    r.conclusion === 'success' ? colors.success
+      : r.conclusion === 'failure' ? colors.error
+      : colors.warning;
+
+  // ── Leadership / delivery-performance metrics (DORA-style) ──
+  const nowMs              = Date.now();
+  const ageDays            = (iso: string) => (nowMs - new Date(iso).getTime()) / 86400000;
+  const changeFailureRate  = selectedStats && selectedStats.total_runs > 0
+    ? (selectedStats.failed / selectedStats.total_runs) * 100 : null;
+  const leadTimeHours      = repoDetail?.merge_stats?.avg_hours_to_merge ?? null;
+  const mergesPerWeek      = repoDetail?.merge_stats?.merged_last_30d != null
+    ? (repoDetail.merge_stats.merged_last_30d / 30) * 7 : null;
+  const stalePrCount       = openPrsList.filter((p: any) => ageDays(p.updated_at || p.created_at) > 7).length;
+  const oldestPrAgeDays    = openPrsList.length
+    ? Math.max(...openPrsList.map((p: any) => ageDays(p.created_at))) : null;
+  // DORA tiers
+  const leadTimeTier = leadTimeHours == null ? null
+    : leadTimeHours < 24 ? 'Elite' : leadTimeHours < 168 ? 'High' : leadTimeHours < 720 ? 'Medium' : 'Low';
+  const cfrTier = changeFailureRate == null ? null
+    : changeFailureRate <= 15 ? 'Elite' : changeFailureRate <= 30 ? 'High' : changeFailureRate <= 45 ? 'Medium' : 'Low';
+  const freqTier = mergesPerWeek == null ? null
+    : mergesPerWeek >= 7 ? 'Elite' : mergesPerWeek >= 1 ? 'High' : mergesPerWeek >= 0.25 ? 'Medium' : 'Low';
+  const tierColor = (tier: string | null) =>
+    tier === 'Elite' || tier === 'High' ? colors.success
+      : tier === 'Medium' ? colors.warning
+      : tier === 'Low' ? colors.error : colors.textMuted;
 
   // ─── Not connected ────────────────────────────────────────────────────────
   if (connected === false) {
@@ -395,9 +528,9 @@ export function GitHubInsightsDashboard() {
     return (
       <DashboardLayout>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: colors.bg }}>
-          <div style={{ textAlign: 'center' }}>
-            <Loader2 size={36} style={{ color: colors.primary, animation: 'spin 1s linear infinite', marginBottom: 12 }} />
-            <p style={{ fontSize: 13, color: colors.textSecondary }}>Connecting to GitHub…</p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            <GitHubMark size={48} style={{ color: colors.primary, animation: 'logo-breathe 1.4s ease-in-out infinite', display: 'block' }} />
+            <p style={{ fontSize: 13, color: colors.textSecondary, margin: 0 }}>Connecting to GitHub…</p>
           </div>
         </div>
       </DashboardLayout>
@@ -433,30 +566,61 @@ export function GitHubInsightsDashboard() {
             </button>
           </div>
 
+          {/* ── SAML SSO notice: org repos hidden until the token is authorized ── */}
+          {ssoNotice && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: colors.surface, border: `1px solid ${colors.border}`, borderLeft: `3px solid ${colors.warning}`, borderRadius: 12, padding: '12px 16px' }}>
+              <AlertCircle size={16} style={{ color: colors.warning, flexShrink: 0, marginTop: 1 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 13, color: colors.text, margin: 0, lineHeight: 1.5 }}>{ssoNotice}</p>
+                <a
+                  href="https://github.com/settings/tokens"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 12, fontWeight: 600, color: colors.warning }}
+                >
+                  <ExternalLink size={11} /> Configure SSO on GitHub
+                </a>
+              </div>
+            </div>
+          )}
+
           {/* ── Filter bar ── */}
           <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 16, padding: '20px 24px' }}>
             <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 14px' }}>
               <Filter size={11} style={{ display: 'inline', marginRight: 5 }} />
               Select Filters
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 200px auto', gap: 12, alignItems: 'end' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 12, alignItems: 'end' }}>
 
               {/* Repo selector */}
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <label style={{ fontSize: 11, color: colors.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Repository</label>
-                <SearchableRepoSelect
-                  repos={repos}
-                  value={selectedRepo}
-                  onChange={v => { setSelectedRepo(v); setHasInsights(false); }}
+                <SearchableRepoSelect repos={repos} value={selectedRepo} onChange={selectRepo} />
+              </div>
+
+              {/* From date */}
+              <div>
+                <label style={{ fontSize: 11, color: colors.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>From</label>
+                <input
+                  type="date"
+                  value={fromDate}
+                  max={toDate}
+                  onChange={e => { setFromDate(e.target.value); setHasInsights(false); setRunsPage(1); }}
+                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text-primary)', fontSize: 13, padding: '8px 10px', outline: 'none', colorScheme: isDarkMode ? 'dark' : 'light' }}
                 />
               </div>
 
-              {/* Days selector */}
+              {/* To date */}
               <div>
-                <label style={{ fontSize: 11, color: colors.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>Time Range</label>
-                <NativeSelect value={String(selectedDays)} onChange={v => { setSelectedDays(Number(v)); setHasInsights(false); }}>
-                  {DAY_OPTIONS.map(o => <option key={o.value} value={String(o.value)}>{o.label}</option>)}
-                </NativeSelect>
+                <label style={{ fontSize: 11, color: colors.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>To</label>
+                <input
+                  type="date"
+                  value={toDate}
+                  min={fromDate}
+                  max={todayISO()}
+                  onChange={e => { setToDate(e.target.value); setHasInsights(false); setRunsPage(1); }}
+                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text-primary)', fontSize: 13, padding: '8px 10px', outline: 'none', colorScheme: isDarkMode ? 'dark' : 'light' }}
+                />
               </div>
 
               {/* Get Insights button */}
@@ -477,6 +641,30 @@ export function GitHubInsightsDashboard() {
                   : <><Play size={13} /> Get Insights</>
                 }
               </button>
+            </div>
+
+            {/* Quick-range presets */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Quick range</span>
+              {[{ label: '30 days', days: 30 }, { label: '90 days', days: 90 }, { label: '1 year', days: 365 }].map(p => (
+                <button
+                  key={p.label}
+                  onClick={() => { setFromDate(daysAgoISO(p.days)); setToDate(todayISO()); setHasInsights(false); setRunsPage(1); }}
+                  style={{ background: 'var(--bg-surface)', border: `1px solid ${colors.border}`, borderRadius: 8, color: colors.textSecondary, fontSize: 12, fontWeight: 500, padding: '4px 12px', cursor: 'pointer' }}
+                >
+                  {p.label}
+                </button>
+              ))}
+              {selectedRepo !== 'all' && firstActionDate && (
+                <button
+                  onClick={() => { setFromDate(firstActionDate); setToDate(todayISO()); setHasInsights(false); setRunsPage(1); }}
+                  style={{ background: `${colors.primary}1F`, border: `1px solid ${colors.primary}55`, borderRadius: 8, color: colors.primary, fontSize: 12, fontWeight: 600, padding: '4px 12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                >
+                  <Flame size={11} /> Since 1st action ({fmtShortDate(firstActionDate)})
+                </button>
+              )}
+              {firstActionLoading && <Loader2 size={13} style={{ color: colors.textMuted, animation: 'spin 1s linear infinite' }} />}
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: colors.textMuted }}>{rangeLabel} · {rangeDays}d</span>
             </div>
 
             {/* Progress bar for batch loading */}
@@ -501,7 +689,7 @@ export function GitHubInsightsDashboard() {
               <h3 style={{ fontSize: 16, fontWeight: 600, color: colors.text, margin: '0 0 8px' }}>Ready to Analyse</h3>
               <p style={{ fontSize: 13, color: colors.textSecondary, maxWidth: 340, margin: '0 auto 24px' }}>
                 {repos.length > 0
-                  ? `${repos.length} repositories loaded. Select a repo and time range, then click Get Insights.`
+                  ? `${repos.length} repositories loaded. Pick a repo (its From date defaults to its 1st GitHub Action), adjust the date range, then click Get Insights.`
                   : 'Loading repositories…'}
               </p>
               <button
@@ -518,48 +706,28 @@ export function GitHubInsightsDashboard() {
           {(hasInsights || insightsLoading) && (
 
             <>
-              {/* ── Summary cards ── */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
-                {[
-                  { label: selectedRepo === 'all' ? 'Repos w/ Activity' : 'CI Runs', value: selectedRepo === 'all' ? activeRepos.length : (selectedStats?.total_runs ?? '—'), icon: Code, color: colors.primary, sub: selectedRepo === 'all' ? `of ${repos.length} total` : `last ${selectedDays}d` },
-                  { label: 'Total CI Runs', value: totalRuns || '—', icon: Activity, color: colors.primary, sub: `last ${selectedDays} days` },
-                  { label: 'Success Rate', value: totalRuns > 0 ? `${overallRate.toFixed(1)}%` : '—', icon: TrendingUp, color: overallRate >= 70 ? colors.success : colors.error },
-                ].map(({ label, value, icon: Icon, color, sub }) => (
-                  <div key={label} style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 14, padding: '18px 20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                      <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: 0 }}>{label}</p>
-                      <div style={{ width: 34, height: 34, borderRadius: 10, background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Icon size={16} style={{ color }} />
+              {/* ── Summary cards (All Repositories overview only) ── */}
+              {selectedRepo === 'all' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+                  {[
+                    { label: 'Repos w/ Activity', value: activeRepos.length, icon: Code, color: colors.primary, sub: `of ${repos.length} total` },
+                    { label: 'Total CI Runs', value: totalRuns || '—', icon: Activity, color: colors.primary, sub: rangeLabel },
+                    { label: 'Success Rate', value: totalRuns > 0 ? `${overallRate.toFixed(1)}%` : '—', icon: TrendingUp, color: overallRate >= 70 ? colors.success : colors.error, sub: totalRuns > 0 ? `${totalSuccess}/${totalRuns} passed` : undefined },
+                    { label: 'Failed Runs', value: totalRuns > 0 ? totalFailed : '—', icon: XCircle, color: totalFailed > 0 ? colors.error : colors.success, sub: `across ${activeRepos.length} active repos` },
+                  ].map(({ label, value, icon: Icon, color, sub }) => (
+                    <div key={label} style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 14, padding: '18px 20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: 0 }}>{label}</p>
+                        <div style={{ width: 34, height: 34, borderRadius: 10, background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Icon size={16} style={{ color }} />
+                        </div>
                       </div>
+                      <p style={{ fontSize: 26, fontWeight: 700, color, lineHeight: 1, margin: 0 }}>{value}</p>
+                      {sub && <p style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>{sub}</p>}
                     </div>
-                    <p style={{ fontSize: 26, fontWeight: 700, color, lineHeight: 1, margin: 0 }}>{value}</p>
-                    {sub && <p style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>{sub}</p>}
-                  </div>
-                ))}
-
-                {/* Open PRs card — shows spinner while repo detail is loading */}
-                <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 14, padding: '18px 20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: 0 }}>Open PRs</p>
-                    <div style={{ width: 34, height: 34, borderRadius: 10, background: '#22C55E18', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {repoDetailLoading
-                        ? <Loader2 size={16} style={{ color: '#22C55E', animation: 'spin 1s linear infinite' }} />
-                        : <GitPullRequest size={16} style={{ color: '#22C55E' }} />
-                      }
-                    </div>
-                  </div>
-                  {repoDetailLoading ? (
-                    <p style={{ fontSize: 13, color: colors.textMuted, margin: 0 }}>Loading…</p>
-                  ) : (
-                    <p style={{ fontSize: 26, fontWeight: 700, color: '#22C55E', lineHeight: 1, margin: 0 }}>
-                      {repoDetail?.open_prs?.length ?? (selectedRepo === 'all' ? '—' : '—')}
-                    </p>
-                  )}
-                  <p style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>
-                    {selectedRepo !== 'all' ? 'this repo' : 'select a repo'}
-                  </p>
+                  ))}
                 </div>
-              </div>
+              )}
 
               {/* ── CI Success rate bar (all repos) ── */}
               {selectedRepo === 'all' && totalRuns > 0 && (
@@ -578,26 +746,108 @@ export function GitHubInsightsDashboard() {
                 </div>
               )}
 
-              {/* ── Single repo: CI stats row ── */}
+              {/* ── Single repo: CI stats + activity ── */}
               {selectedRepo !== 'all' && selectedStats && !selectedStats.loading && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
-                  {[
-                    { label: 'Total CI Runs', value: selectedStats.total_runs, color: colors.primary, icon: Activity },
-                    { label: 'Successful',    value: selectedStats.successful,  color: colors.success,  icon: CheckCircle },
-                    { label: 'Failed',        value: selectedStats.failed,       color: colors.error,    icon: XCircle },
-                    { label: 'Success Rate',  value: `${selectedStats.success_rate.toFixed(1)}%`, color: selectedStats.success_rate >= 70 ? colors.success : colors.error, icon: TrendingUp },
-                  ].map(({ label, value, color, icon: Icon }) => (
-                    <div key={label} style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 14, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div>
-                        <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 6px' }}>{label}</p>
-                        <p style={{ fontSize: 22, fontWeight: 700, color, margin: 0 }}>{value}</p>
+                <>
+                  {/* Primary CI metrics */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+                    {[
+                      { label: 'Total CI Runs', value: selectedStats.total_runs, color: colors.primary, icon: Activity, sub: selectedStats.total_runs > 0 ? `${(selectedStats.avg_runs_per_day ?? selectedStats.total_runs / rangeDays).toFixed(1)}/day · ${rangeDays}d` : rangeLabel },
+                      { label: 'Successful',    value: selectedStats.successful,  color: colors.success,  icon: CheckCircle, sub: 'passed' },
+                      { label: 'Failed',        value: selectedStats.failed,       color: selectedStats.failed > 0 ? colors.error : colors.success, icon: XCircle, sub: selectedStats.failed > 0 ? 'needs attention' : 'none' },
+                      { label: 'Success Rate',  value: `${selectedStats.success_rate.toFixed(1)}%`, color: selectedStats.success_rate >= 70 ? colors.success : colors.error, icon: TrendingUp, sub: selectedStats.success_rate >= 70 ? 'healthy' : 'below target' },
+                    ].map(({ label, value, color, icon: Icon, sub }) => (
+                      <div key={label} style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 14, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 6px' }}>{label}</p>
+                          <p style={{ fontSize: 22, fontWeight: 700, color, margin: 0 }}>{value}</p>
+                          {sub && <p style={{ fontSize: 11, color: colors.textMuted, margin: '4px 0 0' }}>{sub}</p>}
+                        </div>
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Icon size={17} style={{ color }} />
+                        </div>
                       </div>
-                      <div style={{ width: 36, height: 36, borderRadius: 10, background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Icon size={17} style={{ color }} />
+                    ))}
+                  </div>
+
+                  {/* Activity metrics (PRs / branches / recency) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+                    {[
+                      { label: 'Open PRs',        icon: GitPullRequest, color: '#22C55E',      value: openPrCount,     sub: draftPrCount > 0 ? `${draftPrCount} draft` : 'awaiting review', loading: repoDetailLoading },
+                      { label: 'Active Branches', icon: GitBranch,      color: colors.primary, value: activeBranches7d, sub: 'last 7 days', loading: repoDetailLoading },
+                      { label: 'Commits',         icon: GitCommit,      color: colors.primary, value: commits7d,       sub: 'last 7 days', loading: repoDetailLoading },
+                      { label: 'Last CI Run',     icon: Clock,          color: lastRun ? runConclusionColor(lastRun) : colors.textMuted, value: lastRun ? timeAgo(lastRun.created_at) : '—', sub: lastRun ? (lastRun.conclusion || lastRun.status || 'pending') : 'no runs in range', loading: false },
+                    ].map(({ label, icon: Icon, color, value, sub, loading }) => (
+                      <div key={label} style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 14, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 6px' }}>{label}</p>
+                          {loading
+                            ? <Loader2 size={18} style={{ color, animation: 'spin 1s linear infinite' }} />
+                            : <p style={{ fontSize: 22, fontWeight: 700, color, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value ?? '—'}</p>}
+                          {sub && !loading && <p style={{ fontSize: 11, color: colors.textMuted, margin: '4px 0 0', textTransform: 'capitalize' }}>{sub}</p>}
+                        </div>
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Icon size={17} style={{ color }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Delivery performance — leadership / DORA-style indicators (shown above CI Workflows) */}
+                  {(selectedStats?.total_runs || repoDetail?.merge_stats?.merged_total || (openPrCount ?? 0) > 0) && (
+                    <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 16, overflow: 'hidden' }}>
+                      <div style={{ padding: '13px 20px', borderBottom: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <TrendingUp size={14} style={{ color: colors.primary }} />
+                        <span style={{ fontWeight: 600, fontSize: 13, color: colors.text }}>Delivery Performance</span>
+                        <span style={{ marginLeft: 'auto', fontSize: 11, color: colors.textMuted }}>DORA-style delivery indicators</span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                        {[
+                          { label: 'Lead Time for Changes', value: formatDuration(leadTimeHours), tier: leadTimeTier, color: undefined as string | undefined, sub: 'avg PR open → merge' },
+                          { label: 'Change Failure Rate', value: changeFailureRate != null ? `${changeFailureRate.toFixed(1)}%` : '—', tier: cfrTier, color: undefined as string | undefined, sub: selectedStats ? `${selectedStats.failed}/${selectedStats.total_runs} CI runs` : 'CI failures' },
+                          { label: 'Merge Frequency', value: mergesPerWeek != null ? `${mergesPerWeek.toFixed(1)}/wk` : '—', tier: freqTier, color: undefined as string | undefined, sub: repoDetail?.merge_stats ? `${repoDetail.merge_stats.merged_last_30d} merged · 30d` : 'PRs merged' },
+                          { label: 'Review Backlog', value: openPrCount ?? 0, tier: null as string | null, color: stalePrCount > 0 ? colors.warning : colors.success, sub: `${stalePrCount} stale >7d${oldestPrAgeDays != null && oldestPrAgeDays >= 1 ? ` · oldest ${Math.round(oldestPrAgeDays)}d` : ''}` },
+                        ].map((m, i) => (
+                          <div key={m.label} style={{ padding: '16px 20px', borderLeft: i > 0 ? `1px solid ${colors.border}` : 'none' }}>
+                            <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 8px' }}>{m.label}</p>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: 22, fontWeight: 700, color: m.color ?? (m.tier ? tierColor(m.tier) : colors.text) }}>{m.value}</span>
+                              {m.tier && (
+                                <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: tierColor(m.tier), background: `${tierColor(m.tier)}1F`, border: `1px solid ${tierColor(m.tier)}55`, borderRadius: 5, padding: '1px 6px' }}>{m.tier}</span>
+                              )}
+                            </div>
+                            <p style={{ fontSize: 11, color: colors.textMuted, margin: '6px 0 0' }}>{m.sub}</p>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
-                </div>
+                  )}
+
+                  {/* CI workflow breakdown — per-workflow run counts and pass rate */}
+                  {(selectedStats.by_workflow?.length ?? 0) > 1 && (
+                    <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 16, overflow: 'hidden' }}>
+                      <div style={{ padding: '13px 20px', borderBottom: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <GitCommit size={14} style={{ color: colors.primary }} />
+                        <span style={{ fontWeight: 600, fontSize: 13, color: colors.text }}>CI Workflows</span>
+                        <span style={{ marginLeft: 'auto', fontSize: 11, color: colors.textMuted }}>{selectedStats.by_workflow?.length} workflows · {rangeDays}d</span>
+                      </div>
+                      {(selectedStats.by_workflow ?? []).map((wf, idx, arr) => (
+                        <div key={wf.name} style={{ padding: '12px 20px', borderBottom: idx < arr.length - 1 ? `1px solid ${colors.border}40` : 'none', display: 'flex', alignItems: 'center', gap: 14 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: colors.text, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wf.name}</span>
+                          <span style={{ fontSize: 11, color: colors.textMuted, flexShrink: 0, minWidth: 56, textAlign: 'right' }}>{wf.total} run{wf.total !== 1 ? 's' : ''}</span>
+                          <div style={{ flex: 1, maxWidth: 160, height: 6, background: `${colors.error}25`, borderRadius: 3, overflow: 'hidden', flexShrink: 0 }}>
+                            <div style={{ height: '100%', width: `${wf.success_rate}%`, background: wf.success_rate >= 70 ? 'linear-gradient(90deg,#22C55E,#16A34A)' : 'linear-gradient(90deg,#EF4444,#DC2626)', borderRadius: 3 }} />
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: wf.success_rate >= 70 ? colors.success : colors.error, minWidth: 44, textAlign: 'right', flexShrink: 0 }}>{wf.success_rate.toFixed(0)}%</span>
+                          <span style={{ display: 'flex', gap: 8, flexShrink: 0, minWidth: 72, justifyContent: 'flex-end' }}>
+                            <span style={{ fontSize: 11, color: colors.success }}>✓ {wf.successful}</span>
+                            <span style={{ fontSize: 11, color: colors.error }}>✗ {wf.failed}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
               {selectedRepo !== 'all' && selectedStats?.loading && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 14 }}>
@@ -752,7 +1002,7 @@ export function GitHubInsightsDashboard() {
                       return (
                         <button
                           key={repo.full_name}
-                          onClick={() => { setSelectedRepo(repo.full_name); setHasInsights(false); }}
+                          onClick={() => selectRepo(repo.full_name)}
                           style={{ textAlign: 'left', background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 12, padding: 16, cursor: 'pointer', transition: 'border-color 0.15s' }}
                           onMouseEnter={e => (e.currentTarget.style.borderColor = colors.primary)}
                           onMouseLeave={e => (e.currentTarget.style.borderColor = colors.border)}
@@ -807,9 +1057,11 @@ export function GitHubInsightsDashboard() {
                   <div style={{ padding: '14px 20px', borderBottom: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <GitCommit size={14} style={{ color: colors.primary }} />
                     <span style={{ fontWeight: 600, fontSize: 13, color: colors.text }}>
-                      {selectedRepo === 'all' ? `Recent CI Workflow Runs — All Repos` : `CI Workflow Runs — ${selectedRepoObj?.name || selectedRepo.split('/')[1]}`}
+                      {selectedRepo === 'all' ? `CI Workflow Runs — All Repos` : `CI Workflow Runs — ${selectedRepoObj?.name || selectedRepo.split('/')[1]}`}
                     </span>
-                    <span style={{ marginLeft: 'auto', fontSize: 11, color: colors.textMuted }}>{visibleRuns.length} runs</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, color: colors.textMuted }}>
+                      {`${(runsPageClamped - 1) * runsPageSize + 1}–${Math.min(runsPageClamped * runsPageSize, visibleRuns.length)} of ${visibleRuns.length}${truncatedRuns ? '+' : ''} runs`}
+                    </span>
                   </div>
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -818,16 +1070,18 @@ export function GitHubInsightsDashboard() {
                           {selectedRepo === 'all' && <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>Repo</th>}
                           <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>Workflow</th>
                           <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>Result</th>
+                          {selectedRepo !== 'all' && <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>Jobs (pass / fail)</th>}
                           <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>Date</th>
                           <th style={{ padding: '10px 16px' }} />
                         </tr>
                       </thead>
                       <tbody>
-                        {visibleRuns.map((run, idx) => {
+                        {pagedRuns.map((run, idx) => {
                           const ok   = run.conclusion === 'success';
                           const fail = run.conclusion === 'failure';
                           const busy = run.status === 'in_progress' || run.status === 'queued';
                           const clr  = ok ? colors.success : fail ? colors.error : colors.warning;
+                          const jc   = jobCountsMap[String(run.id)];
                           return (
                             <tr key={`${run.id}-${idx}`} style={{ borderBottom: `1px solid ${colors.border}30` }}>
                               {selectedRepo === 'all' && (
@@ -849,6 +1103,19 @@ export function GitHubInsightsDashboard() {
                                   {run.conclusion || run.status || 'pending'}
                                 </span>
                               </td>
+                              {selectedRepo !== 'all' && (
+                                <td style={{ padding: '10px 16px' }}>
+                                  {jc ? (
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 600 }}>
+                                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: colors.success }}><CheckCircle size={11} /> {jc.jobs_passed}</span>
+                                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: jc.jobs_failed > 0 ? colors.error : colors.textMuted }}><XCircle size={11} /> {jc.jobs_failed}</span>
+                                      <span style={{ color: colors.textMuted, fontWeight: 400 }}>of {jc.jobs_total}</span>
+                                    </span>
+                                  ) : (
+                                    <span style={{ fontSize: 11, color: colors.textMuted }}>…</span>
+                                  )}
+                                </td>
+                              )}
                               <td style={{ padding: '10px 16px', fontSize: 11, color: colors.textMuted }}>
                                 {new Date(run.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                               </td>
@@ -863,6 +1130,41 @@ export function GitHubInsightsDashboard() {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Pagination footer */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderTop: `1px solid ${colors.border}`, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 11, color: colors.textMuted }}>Rows per page</span>
+                    <select
+                      value={runsPageSize}
+                      onChange={e => { setRunsPageSize(Number(e.target.value)); setRunsPage(1); }}
+                      style={{ background: 'var(--bg-surface)', border: `1px solid ${colors.border}`, borderRadius: 8, color: colors.text, fontSize: 12, padding: '4px 8px', cursor: 'pointer', colorScheme: isDarkMode ? 'dark' : 'light' }}
+                    >
+                      {PAGE_SIZE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                    <span style={{ marginLeft: 'auto', fontSize: 12, color: colors.textSecondary }}>Page {runsPageClamped} of {runsTotalPages}</span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        onClick={() => setRunsPage(p => Math.max(1, p - 1))}
+                        disabled={runsPageClamped <= 1}
+                        style={{ background: 'var(--bg-surface)', border: `1px solid ${colors.border}`, borderRadius: 8, color: runsPageClamped <= 1 ? colors.textMuted : colors.text, fontSize: 12, fontWeight: 500, padding: '5px 14px', cursor: runsPageClamped <= 1 ? 'not-allowed' : 'pointer' }}
+                      >
+                        Prev
+                      </button>
+                      <button
+                        onClick={() => setRunsPage(p => Math.min(runsTotalPages, p + 1))}
+                        disabled={runsPageClamped >= runsTotalPages}
+                        style={{ background: 'var(--bg-surface)', border: `1px solid ${colors.border}`, borderRadius: 8, color: runsPageClamped >= runsTotalPages ? colors.textMuted : colors.text, fontSize: 12, fontWeight: 500, padding: '5px 14px', cursor: runsPageClamped >= runsTotalPages ? 'not-allowed' : 'pointer' }}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+
+                  {truncatedRuns && (
+                    <div style={{ padding: '8px 20px', borderTop: `1px solid ${colors.border}`, fontSize: 11, color: colors.warning }}>
+                      Showing the first {visibleRuns.length} runs in this range (capped). Narrow the date range to load earlier runs.
+                    </div>
+                  )}
                 </div>
               )}
 
