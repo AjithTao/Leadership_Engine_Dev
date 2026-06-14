@@ -7918,9 +7918,11 @@ async def get_mercury_dashboard():
     """
     import httpx
     import asyncio
+    from services.encryption import get_encrypted_env
 
     JIRA_BASE = os.getenv("JIRA_BASE_URL", "https://projects.cdk.com")
-    JIRA_TOKEN = os.getenv("JIRA_SERVICE_API_TOKEN", "")
+    # Service token is Fernet-encrypted in .env — decrypt it before use as a Bearer token.
+    JIRA_TOKEN = get_encrypted_env("JIRA_SERVICE_API_TOKEN") or ""
     headers = {"Authorization": f"Bearer {JIRA_TOKEN}", "Accept": "application/json"}
 
     PROJECT_ID = "21500"
@@ -8103,9 +8105,11 @@ async def get_findings_analysis():
     import httpx
     import asyncio
     import re
+    from services.encryption import get_encrypted_env
 
     CONF_BASE  = os.getenv("CONFLUENCE_BASE_URL", "https://confluence.cdk.com")
-    CONF_TOKEN = os.getenv("CONFLUENCE_SERVICE_API_TOKEN", "")
+    # Service token is Fernet-encrypted in .env — decrypt it before use as a Bearer token.
+    CONF_TOKEN = get_encrypted_env("CONFLUENCE_SERVICE_API_TOKEN") or ""
     OBS_PAGE   = "502140070"
     BLK_PAGE   = "502140072"
     ch = {"Authorization": f"Bearer {CONF_TOKEN}", "Accept": "application/json"}
