@@ -1961,6 +1961,55 @@ async def get_current_sprint():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/jira/period-context", tags=["JIRA"], summary="Get Sprint and PI Date Ranges")
+async def get_period_context():
+    """
+    Returns the current PI dates (from the shared PI calendar) and current/recent
+    sprint dates (from Jira Agile API) so the frontend can populate date-range presets
+    with real Sprint and PI boundaries instead of fixed day counts.
+    """
+    from datetime import date as date_cls
+    from services.pi_date_utils import PI_DATE_RANGES, get_pi_by_date
+
+    today = date_cls.today().isoformat()
+    current_pi = get_pi_by_date(today)
+
+    # Convert snake_case keys to camelCase for frontend
+    def pi_to_frontend(pi: dict) -> dict:
+        return {
+            "value":     pi["value"],
+            "label":     pi["label"],
+            "pi":        pi["pi"],
+            "year":      pi["year"],
+            "startDate": pi["start_date"],
+            "endDate":   pi["end_date"],
+        }
+
+    all_pis_fe = [pi_to_frontend(p) for p in PI_DATE_RANGES]
+    current_pi_fe = pi_to_frontend(current_pi) if current_pi else None
+
+    # Try to get recent sprints from Jira Agile API
+    recent_sprints = []
+    if app_state.jira_configured and app_state.jira_client and app_state.jira_board_id:
+        try:
+            history = await app_state.jira_client.get_sprint_history(
+                int(app_state.jira_board_id), limit=6
+            )
+            recent_sprints = history or []
+        except Exception as e:
+            logger.warning(f"Could not fetch sprint history for period-context: {e}")
+
+    # Current sprint = the last sprint in history (most recent active/closed)
+    current_sprint = recent_sprints[-1] if recent_sprints else None
+
+    return {
+        "success": True,
+        "current_pi": current_pi_fe,
+        "all_pis": all_pis_fe,
+        "current_sprint": current_sprint,
+        "recent_sprints": recent_sprints,
+    }
+
 @app.post("/api/jira/search")
 async def search_jira_issues(request: Dict[str, Any]):
     """Search Jira issues"""
@@ -7857,6 +7906,383 @@ async def salesforce_metrics():
     except Exception as e:
         logger.error(f"❌ Salesforce metrics error: {e}")
         return create_error_response("Failed to fetch metrics", str(e))
+
+
+@app.get("/api/mercury-dashboard", tags=["Mercury Dashboard"], summary="PROJECT MERCURY - STATUS SUMMARY")
+async def get_mercury_dashboard():
+    """
+    Fetches all data for the PROJECT MERCURY - STATUS SUMMARY JIRA dashboard (ID 39900).
+    Replicates all 7 gadgets: Focused Test Suite, Comprehensive Test Suite,
+    Bugs Distribution, Zephyr Execution Charts, Execution Summary Table,
+    Findings links, and Two-Dimensional Bug Stats.
+    """
+    import httpx
+    import asyncio
+
+    JIRA_BASE = os.getenv("JIRA_BASE_URL", "https://projects.cdk.com")
+    JIRA_TOKEN = os.getenv("JIRA_SERVICE_API_TOKEN", "")
+    headers = {"Authorization": f"Bearer {JIRA_TOKEN}", "Accept": "application/json"}
+
+    PROJECT_ID = "21500"
+    VERSION_ID = "63449"  # MOD ACCOUNTING UAT
+    CYCLES = [
+        {"id": "18725", "name": "MERCED HONDA",       "color": "#0052CC"},
+        {"id": "18939", "name": "Team Nissan Group",   "color": "#00875A"},
+        {"id": "19128", "name": "Highland Park Ford",  "color": "#FF5630"},
+        {"id": "19129", "name": "Mike Burch Ford",     "color": "#FF7A00"},
+        {"id": "18938", "name": "TOYOTA OF GLENDORA",  "color": "#6554C0"},
+    ]
+    # Bug distribution grouped by JIRA project (functional module)
+    MODDWTC_BUG_PROJECTS = [
+        {"project": "APMODACC", "label": "Accounts Payable",    "color": "#0052CC"},
+        {"project": "GLMODACC", "label": "General Ledger",       "color": "#00875A"},
+        {"project": "ARMODACC", "label": "Accounts Receivable",  "color": "#FF5630"},
+        {"project": "POMODACC", "label": "Purchase Orders",      "color": "#FF8B00"},
+        {"project": "MODSRCH",  "label": "Search & Navigation",  "color": "#6554C0"},
+    ]
+    FOCUSED_BASE  = ('project = MODDWTC AND ((component IN (JournalEntry,GL_Inquiry,'
+                     'AdjustReverse,RecurringEntries) AND labels = GL-MH) OR '
+                     '(component IN (Name-Records,AccountsReceivable,AP-Payments,ODC,'
+                     'PaymentsRegister,PurchaseOrder,FS,ETC,Mod_DailyProcess,1099,'
+                     '1099E2ERegression,APInvoice) AND labels IN (MSWT-E2ERegression,M-DailyProcess)))')
+    BUG_BASE_JQL  = ('labels in (M-Bug-MH,M-Bug-Nissan,M-Bug-Toyota,M-Bug-Mike,'
+                     '"M-Bug-T&L",M-Bug-Highlandford,M-Bug-Mikeburchford) and type = bug')
+    # Component area JQLs for test suite breakdown (Focused)
+    COMP_AREAS_FOCUSED = [
+        {"label": "General Ledger",      "color": "#0052CC",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (JournalEntry,GL_Inquiry,AdjustReverse,RecurringEntries) AND labels = GL-MH"},
+        {"label": "Accounts Payable",    "color": "#00875A",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (AP-Payments,ODC,PaymentsRegister,PurchaseOrder,APInvoice) AND labels IN (MSWT-E2ERegression,M-DailyProcess)"},
+        {"label": "Accounts Receivable", "color": "#FF8B00",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (AccountsReceivable) AND labels IN (MSWT-E2ERegression,M-DailyProcess)"},
+        {"label": "1099 / Tax",          "color": "#6554C0",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (1099,1099E2ERegression) AND labels IN (MSWT-E2ERegression,M-DailyProcess)"},
+        {"label": "Other",               "color": "#8B929A",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (Name-Records,FS,ETC,Mod_DailyProcess) AND labels IN (MSWT-E2ERegression,M-DailyProcess)"},
+    ]
+    # Component area JQLs for test suite breakdown (Comprehensive)
+    COMP_AREAS_ALL = [
+        {"label": "General Ledger",      "color": "#0052CC",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (JournalEntry,GL_Inquiry,AdjustReverse,RecurringEntries)"},
+        {"label": "Accounts Payable",    "color": "#00875A",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (AP-Payments,ODC,PaymentsRegister,PurchaseOrder,APInvoice)"},
+        {"label": "Accounts Receivable", "color": "#FF8B00",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (AccountsReceivable)"},
+        {"label": "1099 / Tax",          "color": "#6554C0",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (1099,1099E2ERegression)"},
+        {"label": "Other",               "color": "#8B929A",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (Name-Records,FS,ETC,Mod_DailyProcess)"},
+    ]
+
+    async def jql_count(client: httpx.AsyncClient, jql: str) -> int:
+        try:
+            r = await client.get(f"{JIRA_BASE}/rest/api/2/search",
+                                  params={"jql": jql, "maxResults": "0"}, headers=headers, timeout=20)
+            return r.json().get("total", 0) if r.status_code == 200 else 0
+        except Exception:
+            return 0
+
+    async def cycle_exec_summary(client: httpx.AsyncClient, cycle_id: str) -> dict:
+        try:
+            r = await client.get(
+                f"{JIRA_BASE}/rest/zapi/latest/cycle/{cycle_id}/folders",
+                params={"projectId": PROJECT_ID, "versionId": VERSION_ID},
+                headers=headers, timeout=30)
+            folders = r.json() if r.status_code == 200 and isinstance(r.json(), list) else []
+            totals = {"PASS": 0, "FAIL": 0, "WIP": 0, "BLOCKED": 0, "UNEXECUTED": 0}
+            for f in folders:
+                for s in f.get("executionSummaries", {}).get("executionSummary", []):
+                    key = s.get("statusName", "UNEXECUTED")
+                    totals[key] = totals.get(key, 0) + s.get("count", 0)
+            return totals
+        except Exception:
+            return {"PASS": 0, "FAIL": 0, "WIP": 0, "BLOCKED": 0, "UNEXECUTED": 0}
+
+    async with httpx.AsyncClient() as client:
+        # ── Parallel JIRA JQL counts ────────────────────────────────────────
+        counts = await asyncio.gather(
+            # Focused test suite
+            jql_count(client, f"{FOCUSED_BASE} AND issuetype = Test"),
+            jql_count(client, f"{FOCUSED_BASE} AND issuetype = Test AND labels != MSWT-Refactored"),
+            jql_count(client, f"{FOCUSED_BASE} AND issuetype = Test AND labels = MSWT-Refactored"),
+            # Comprehensive test suite
+            jql_count(client, "project = MODDWTC AND issuetype = Test"),
+            jql_count(client, "project = MODDWTC AND issuetype = Test AND labels != MSWT-Refactored"),
+            jql_count(client, "project = MODDWTC AND issuetype = Test AND labels = MSWT-Refactored"),
+            # Bug totals and priority breakdown
+            jql_count(client, BUG_BASE_JQL),
+            jql_count(client, f"{BUG_BASE_JQL} AND priority = High"),
+            jql_count(client, f"{BUG_BASE_JQL} AND priority = Medium"),
+            jql_count(client, f"{BUG_BASE_JQL} AND priority = Low"),
+            jql_count(client, f"{BUG_BASE_JQL} AND priority = Minor"),
+            jql_count(client, f"{BUG_BASE_JQL} AND priority = Blocker"),
+        )
+        (focused_total, focused_manual, focused_auto,
+         comp_total,    comp_manual,    comp_auto,
+         bugs_total,    bugs_high,      bugs_medium, bugs_low, bugs_minor, bugs_blocker) = counts
+
+        # ── Bug counts per JIRA project (parallel) ───────────────────────────
+        bug_proj_counts, focused_area_counts, comp_area_counts, exec_summaries = await asyncio.gather(
+            asyncio.gather(*[
+                jql_count(client, f'{BUG_BASE_JQL} AND project = {seg["project"]}')
+                for seg in MODDWTC_BUG_PROJECTS
+            ]),
+            asyncio.gather(*[jql_count(client, a["jql"]) for a in COMP_AREAS_FOCUSED]),
+            asyncio.gather(*[jql_count(client, a["jql"]) for a in COMP_AREAS_ALL]),
+            asyncio.gather(*[cycle_exec_summary(client, c["id"]) for c in CYCLES]),
+        )
+
+    bugs_distribution = [
+        {**seg, "count": bug_proj_counts[i]}
+        for i, seg in enumerate(MODDWTC_BUG_PROJECTS)
+    ]
+
+    execution_summary = []
+    for i, c in enumerate(CYCLES):
+        s = exec_summaries[i]
+        total = sum(s.values())
+        pass_rate = round(s["PASS"] / total * 100, 1) if total > 0 else 0
+        execution_summary.append({
+            "cycle":       c["name"],
+            "color":       c["color"],
+            "pass":        s["PASS"],
+            "fail":        s["FAIL"],
+            "wip":         s["WIP"],
+            "blocked":     s["BLOCKED"],
+            "unexecuted":  s["UNEXECUTED"],
+            "total":       total,
+            "pass_rate":   pass_rate,
+        })
+
+    return {
+        "focused_test_suite": {
+            "total":     focused_total,
+            "manual":    focused_manual,
+            "automated": focused_auto,
+            "by_area": [
+                {k: v for k, v in {**a, "count": focused_area_counts[i]}.items() if k != "jql"}
+                for i, a in enumerate(COMP_AREAS_FOCUSED)
+            ],
+        },
+        "comprehensive_test_suite": {
+            "total":     comp_total,
+            "manual":    comp_manual,
+            "automated": comp_auto,
+            "by_area": [
+                {k: v for k, v in {**a, "count": comp_area_counts[i]}.items() if k != "jql"}
+                for i, a in enumerate(COMP_AREAS_ALL)
+            ],
+        },
+        "bugs_distribution": bugs_distribution,
+        "bug_priorities": {
+            "Blocker": bugs_blocker,
+            "High":    bugs_high,
+            "Medium":  bugs_medium,
+            "Low":     bugs_low,
+            "Minor":   bugs_minor,
+        },
+        "bugs_total": bugs_total,
+        "execution_summary": execution_summary,
+        "version":      "MOD ACCOUNTING UAT",
+        "project":      "MODDWTC",
+        "dashboard_id": "39900",
+        "findings": {
+            "observations_url": "https://confluence.cdk.com/pages/viewpage.action?pageId=502140070",
+            "blockers_url":     "https://confluence.cdk.com/pages/viewpage.action?pageId=502140072",
+        },
+        "last_updated": datetime.utcnow().isoformat() + "Z",
+    }
+
+
+@app.get("/api/mercury-dashboard/findings", tags=["Mercury Dashboard"])
+async def get_findings_analysis():
+    """
+    Fetch both Confluence findings pages (observations + blockers), parse the HTML tables,
+    and return a structured high-level analysis for the FalconX Services Dashboard.
+    """
+    import httpx
+    import asyncio
+    import re
+
+    CONF_BASE  = os.getenv("CONFLUENCE_BASE_URL", "https://confluence.cdk.com")
+    CONF_TOKEN = os.getenv("CONFLUENCE_SERVICE_API_TOKEN", "")
+    OBS_PAGE   = "502140070"
+    BLK_PAGE   = "502140072"
+    ch = {"Authorization": f"Bearer {CONF_TOKEN}", "Accept": "application/json"}
+
+    # ── HTML table parser ────────────────────────────────────────────────────────
+    def parse_rows(html_content: str) -> list:
+        try:
+            from lxml import html as lx
+            tree = lx.fromstring(html_content)
+            out = []
+            for tr in tree.xpath("//tr")[2:]:          # skip title + header rows
+                cells = tr.xpath(".//td")
+                if len(cells) < 8:
+                    continue
+                def t(c): return re.sub(r"\s+", " ", c.text_content()).strip()
+                tx = [t(c) for c in cells]
+                desc = tx[1]
+                if not desc:
+                    continue
+                out.append({
+                    "num":    tx[0],
+                    "desc":   desc,
+                    "wf":     tx[2] if len(tx) > 2 else "",
+                    "mh":     tx[3].upper() if len(tx) > 3 else "",
+                    "ty":     tx[4].upper() if len(tx) > 4 else "",
+                    "ns":     tx[5].upper() if len(tx) > 5 else "",
+                    "hp":     tx[6].upper() if len(tx) > 6 else "",
+                    "mb":     tx[7].upper() if len(tx) > 7 else "",
+                    "status": tx[8] if len(tx) > 8 else "",
+                })
+            return out
+        except Exception:
+            return []
+
+    # ── Helpers ──────────────────────────────────────────────────────────────────
+    WF_LABELS = {
+        "1099": "1099 Workflow",
+        "AP Invoice": "AP Invoice",
+        "AP (Daily Process flows)": "AP Daily Processing",
+        "AP Payments": "AP Payments",
+        "PO": "Purchase Order",
+        "PO (Daily Process flows)": "PO Daily Processing",
+        "ETC (Daily Process flows)": "ETC",
+        "GL (Daily Process Flows)": "GL Processing",
+        "GL Inquiry (Daily Process Flows)": "GL Inquiry",
+        "GL Inquiry(Adjust/Reverse)": "GL Adjust/Reverse",
+        "GL Inquiry": "GL Inquiry",
+        "AR (Daily Process Flows)": "AR Processing",
+        "AR (Daily Process flow)": "AR Processing",
+        "AR": "AR",
+        "NE (Daily Process Flows)": "Name Entity",
+        "NE": "Name Entity",
+        "FS (Daily Process Flows)": "Financial Statement",
+        "FS": "Financial Statement",
+    }
+    DEALERS = {"mh": "Merced Honda", "ty": "Toyota", "ns": "Nissan", "hp": "Highland Park", "mb": "Mike Burch"}
+
+    def wf(s): return WF_LABELS.get(s.strip(), s.strip()) if s.strip() else "Other"
+
+    def classify(s):
+        s = s.lower()
+        if any(x in s for x in ["resolved", "solved", "no more a blocker", "expected behaviour", "expected behavior"]):
+            return "resolved"
+        if any(x in s for x in ["logged a bug", "raised bug", "bug logged", "existing bug", "already a bug", "defect", "projects.cdk.com/browse/"]):
+            return "bug_logged"
+        if any(x in s for x in ["in progress", "waiting", "awaiting", "discussed", "discussing", "on hold", "will be", "to check", "development"]):
+            return "in_progress"
+        return "pending"
+
+    def jids(s): return list(set(re.findall(r"[A-Z]+-\d+", s)))
+
+    def dealers(row):
+        conf = [DEALERS[k] for k in ("mh","ty","ns","hp","mb") if "YES" in row.get(k,"")]
+        pend = [DEALERS[k] for k in ("mh","ty","ns","hp","mb") if "YET" in row.get(k,"") or row.get(k,"").strip() == ""]
+        return conf, pend
+
+    def clip(s, n=120): return s[:n] + "…" if len(s) > n else s
+
+    # ── Observations analysis ────────────────────────────────────────────────────
+    def analyze_obs(rows):
+        groups: dict = {}
+        stats = {"bug_logged": 0, "resolved": 0, "in_progress": 0, "pending": 0}
+        for row in rows:
+            st  = classify(row["status"])
+            stats[st] = stats.get(st, 0) + 1
+            label = wf(row["wf"])
+            ids   = jids(row["status"])
+            conf, pend = dealers(row)
+            if label not in groups:
+                groups[label] = {"workflow": label, "count": 0, "statuses": set(), "conf": set(), "pend": set(), "ids": [], "items": []}
+            g = groups[label]
+            g["count"] += 1
+            g["statuses"].add(st)
+            g["conf"].update(conf)
+            g["pend"].update(pend)
+            g["ids"].extend(ids)
+            if len(g["items"]) < 2:
+                g["items"].append({"description": clip(row["desc"]), "status": st, "jira_ids": ids})
+        return {
+            "total": len(rows),
+            "stats": stats,
+            "by_workflow": sorted([
+                {"workflow": g["workflow"], "count": g["count"],
+                 "statuses": list(g["statuses"]),
+                 "confirmed_dealers": sorted(g["conf"]),
+                 "pending_dealers":   sorted(g["pend"]),
+                 "jira_ids": list(set(g["ids"])),
+                 "items": g["items"]}
+                for g in groups.values()
+            ], key=lambda x: -x["count"]),
+        }
+
+    # ── Blockers analysis ────────────────────────────────────────────────────────
+    def analyze_blk(rows):
+        active, resolved = [], []
+        for row in rows:
+            if not row["desc"].strip():
+                continue
+            st   = classify(row["status"])
+            conf, pend = dealers(row)
+            ids  = jids(row["status"])
+            item = {
+                "id": row["num"],
+                "description": clip(row["desc"]),
+                "workflow": wf(row["wf"]),
+                "status_type": st,
+                "status_text": clip(row["status"], 80),
+                "jira_ids": ids,
+                "confirmed_dealers": sorted(conf),
+                "pending_dealers":   sorted(pend),
+            }
+            (resolved if st == "resolved" else active).append(item)
+        return {
+            "total": len(active) + len(resolved),
+            "active_count":   len(active),
+            "resolved_count": len(resolved),
+            "active":   active,
+            "resolved": resolved,
+        }
+
+    # ── Fetch + parse ────────────────────────────────────────────────────────────
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=30) as client:
+            obs_r, blk_r = await asyncio.gather(
+                client.get(f"{CONF_BASE}/rest/api/content/{OBS_PAGE}", params={"expand": "body.storage"}, headers=ch),
+                client.get(f"{CONF_BASE}/rest/api/content/{BLK_PAGE}",  params={"expand": "body.storage"}, headers=ch),
+            )
+        obs_html = obs_r.json().get("body", {}).get("storage", {}).get("value", "")
+        blk_html = blk_r.json().get("body", {}).get("storage", {}).get("value", "")
+        return {
+            "observations": analyze_obs(parse_rows(obs_html)),
+            "blockers":     analyze_blk(parse_rows(blk_html)),
+            "obs_url": f"{CONF_BASE}/pages/viewpage.action?pageId={OBS_PAGE}",
+            "blk_url": f"{CONF_BASE}/pages/viewpage.action?pageId={BLK_PAGE}",
+            "last_fetched": datetime.utcnow().isoformat() + "Z",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Services Dashboard - Jira Fields Discovery Endpoint
+@app.get("/api/jira/fields")
+async def get_jira_fields():
+    """Get list of searchable Jira fields for Services Dashboard configuration"""
+    if not app_state.jira_configured or not app_state.jira_client:
+        raise HTTPException(status_code=400, detail="Jira not configured")
+
+    try:
+        fields = await app_state.jira_client.get_fields()
+        return {
+            "success": True,
+            "fields": fields if fields else [],
+            "total": len(fields) if fields else 0,
+            "note": "Look for custom field IDs like 'customfield_12345' for Zephyr test cycle and execution status fields"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

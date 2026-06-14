@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, AlertTriangle, CheckCircle2, Clock3, Download, RefreshCw, ShieldCheck } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Activity, AlertTriangle, CheckCircle2, ChevronDown, Clock3, Download, Filter, RefreshCw, Search, ShieldCheck, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { DashboardLayout } from './DashboardLayout';
 import { getApiUrl, fetchWithTimeout } from '../../lib/api-config';
@@ -153,6 +153,152 @@ function trendClass(row: TcoeTableRow, value: number, isProgress = false) {
   return 'tcoe-trend-total';
 }
 
+// ── Searchable multi-select for metric filtering ──────────────────────────────
+function SearchableMultiSelect({
+  options, selected, onChange, placeholder,
+}: {
+  options: { key: string; label: string }[];
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
+  const allSelected = selected.size === 0 || selected.size === options.length;
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false); setSearch('');
+      }
+    }
+    if (open) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  function toggle(key: string) {
+    const next = new Set(selected);
+    if (next.has(key)) { next.delete(key); } else { next.add(key); }
+    if (next.size === options.length) onChange(new Set());
+    else onChange(next);
+  }
+
+  function toggleAll() { onChange(new Set()); }
+
+  const displayLabel = allSelected
+    ? `All Metrics (${options.length})`
+    : `${selected.size} of ${options.length} selected`;
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      <div
+        onClick={() => { setOpen(o => !o); if (!open) setTimeout(() => inputRef.current?.focus(), 30); }}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '8px 12px', background: 'var(--bg-card)', border: '1px solid var(--border)',
+          borderRadius: 8, cursor: 'pointer', userSelect: 'none', gap: 8, minWidth: 200,
+        }}
+      >
+        <span style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {displayLabel}
+        </span>
+        {!allSelected && (
+          <div
+            onClick={e => { e.stopPropagation(); toggleAll(); }}
+            style={{ color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+          >
+            <X size={12} />
+          </div>
+        )}
+        <ChevronDown size={12} style={{ color: 'var(--text-muted)', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+      </div>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, minWidth: '100%',
+          background: 'var(--bg-surface)', border: '1px solid var(--border)',
+          borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+          zIndex: 9999, overflow: 'hidden',
+        }}>
+          {/* Search */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
+            <Search size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Search metrics…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                flex: 1, border: 'none', outline: 'none', background: 'transparent',
+                fontSize: 12, color: 'var(--text-primary)', fontFamily: 'inherit',
+              }}
+              autoFocus
+            />
+            {search && <X size={11} style={{ cursor: 'pointer', color: 'var(--text-muted)' }} onClick={() => setSearch('')} />}
+          </div>
+
+          {/* All option */}
+          <div
+            onMouseDown={e => { e.preventDefault(); toggleAll(); }}
+            style={{
+              padding: '8px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+              color: allSelected ? 'var(--accent-cool)' : 'var(--text-secondary)',
+              background: allSelected ? 'var(--accent-cool-bg)' : 'transparent',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}
+          >
+            <div style={{
+              width: 14, height: 14, borderRadius: 4, border: `2px solid ${allSelected ? 'var(--accent-cool)' : 'var(--border)'}`,
+              background: allSelected ? 'var(--accent-cool)' : 'transparent',
+              flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {allSelected && <CheckCircle2 size={9} style={{ color: '#fff' }} />}
+            </div>
+            All Metrics
+          </div>
+
+          {/* Filtered options */}
+          <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding: '12px', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>No match</div>
+            ) : filtered.map(o => {
+              const isOn = allSelected ? true : selected.has(o.key);
+              return (
+                <div
+                  key={o.key}
+                  onMouseDown={e => { e.preventDefault(); toggle(o.key); }}
+                  style={{
+                    padding: '8px 12px', cursor: 'pointer', fontSize: 12,
+                    color: isOn ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    background: isOn ? 'var(--bg-card)' : 'transparent',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    borderBottom: '1px solid var(--border)',
+                  }}
+                >
+                  <div style={{
+                    width: 14, height: 14, borderRadius: 4, border: `2px solid ${isOn ? 'var(--accent-cool)' : 'var(--border)'}`,
+                    background: isOn ? 'var(--accent-cool)' : 'transparent',
+                    flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {isOn && <CheckCircle2 size={9} style={{ color: '#fff' }} />}
+                  </div>
+                  {o.label}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatusBadge({ status }: { status: string }) {
   const style = statusStyles[status] || statusStyles.pending;
   return (
@@ -222,7 +368,13 @@ function LoadingMetricTable() {
   );
 }
 
-function TcoeTable({ spec, previousWeek, currentWeek }: { spec: TcoeTableSpec; previousWeek: string; currentWeek: string }) {
+function TcoeTable({ spec, previousWeek, currentWeek, portfolioFilter }: {
+  spec: TcoeTableSpec; previousWeek: string; currentWeek: string; portfolioFilter?: string;
+}) {
+  const visibleRows = portfolioFilter
+    ? spec.rows.filter(row => row.isGrandTotal || row.label.toLowerCase().includes(portfolioFilter.toLowerCase()))
+    : spec.rows;
+
   const headers = [
     'Portfolio',
     ...spec.countHeaders,
@@ -280,7 +432,7 @@ function TcoeTable({ spec, previousWeek, currentWeek }: { spec: TcoeTableSpec; p
           </tr>
         </thead>
         <tbody>
-          {spec.rows.map((row, rowIndex) => {
+          {visibleRows.map((row, rowIndex) => {
             const rowBg = row.isGrandTotal
               ? 'var(--tcoe-grand-total-bg)'
               : rowIndex % 2 === 0
@@ -381,7 +533,7 @@ function TcoeTable({ spec, previousWeek, currentWeek }: { spec: TcoeTableSpec; p
   );
 }
 
-function MetricSection({ metric, run }: { metric: MetricState; run: DashboardRun }) {
+function MetricSection({ metric, run, portfolioFilter }: { metric: MetricState; run: DashboardRun; portfolioFilter?: string }) {
   const tableSpecs = useMemo(
     () => (metric.status === 'completed' ? buildTcoeTableSpecs(metric.key, metric.rows || []) : []),
     [metric.key, metric.rows, metric.status]
@@ -483,6 +635,7 @@ function MetricSection({ metric, run }: { metric: MetricState; run: DashboardRun
               spec={spec}
               previousWeek={run.previous_week_ending}
               currentWeek={run.current_week_ending}
+              portfolioFilter={portfolioFilter}
             />
           ))}
         </div>
@@ -500,6 +653,9 @@ export function TCOEDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Filter state
+  const [selectedMetricKeys, setSelectedMetricKeys] = useState<Set<string>>(new Set());
+  const [portfolioSearch, setPortfolioSearch] = useState('');
 
   const applyResponse = useCallback((payload: any) => {
     if (payload?.metrics?.length) {
@@ -596,6 +752,12 @@ export function TCOEDashboard() {
         errors: run?.metrics?.[config.key]?.errors || [],
       })) as MetricState[];
   }, [metricConfigs, run?.metrics]);
+
+  // Apply metric key filter to derive visible metrics
+  const visibleMetrics = useMemo(() => {
+    if (selectedMetricKeys.size === 0) return orderedMetrics;
+    return orderedMetrics.filter(m => selectedMetricKeys.has(m.key));
+  }, [orderedMetrics, selectedMetricKeys]);
 
   const totals = useMemo(() => {
     const total = orderedMetrics.length || VISIBLE_FALLBACK_METRICS.length;
@@ -827,73 +989,108 @@ export function TCOEDashboard() {
           </div>
         </section>
 
-        <nav
+        {/* ── Filter bar ─────────────────────────────────────────────────── */}
+        <div
           data-html2canvas-ignore="true"
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            flexWrap: 'wrap',
-            background: 'rgba(255,255,255,0.04)',
+            background: 'var(--bg-card)',
             border: '1px solid var(--border)',
-            borderRadius: 8,
-            padding: 10,
+            borderRadius: 10,
+            padding: '14px 18px',
             boxShadow: 'var(--shadow-small)',
           }}
         >
-          {orderedMetrics.map((metric) => {
-            const status = metric.status || 'pending';
-            const statusColor = status === 'completed'
-              ? 'var(--green)'
-              : status === 'failed'
-              ? 'var(--red)'
-              : status === 'processing'
-              ? 'var(--blue)'
-              : 'var(--text-muted)';
-            const statusGlow = status === 'completed'
-              ? 'var(--green-bg)'
-              : status === 'failed'
-              ? 'var(--red-bg)'
-              : status === 'processing'
-              ? 'var(--blue-bg)'
-              : 'var(--bg-surface)';
-
-            return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+            <Filter size={13} style={{ color: 'var(--accent-cool)' }} />
+            <span style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>
+              Filters
+            </span>
+            {(selectedMetricKeys.size > 0 || portfolioSearch) && (
               <button
-                key={metric.key}
-                type="button"
-                onClick={() => scrollToMetric(metric.key)}
+                onClick={() => { setSelectedMetricKeys(new Set()); setPortfolioSearch(''); }}
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  minHeight: 34,
-                  borderRadius: 8,
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg-card)',
-                  color: 'var(--text-primary)',
-                  padding: '7px 10px',
-                  fontSize: 12,
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                  marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4,
+                  padding: '2px 8px', borderRadius: 6, border: '1px solid var(--border)',
+                  background: 'transparent', color: 'var(--text-muted)', fontSize: 11,
+                  fontWeight: 600, cursor: 'pointer',
                 }}
               >
-                <span
+                <X size={10} /> Clear filters
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {/* Metric multi-select */}
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                Metrics
+              </label>
+              <SearchableMultiSelect
+                options={orderedMetrics.map(m => ({ key: m.key, label: m.label }))}
+                selected={selectedMetricKeys}
+                onChange={setSelectedMetricKeys}
+                placeholder="All metrics"
+              />
+            </div>
+            {/* Portfolio search */}
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                Portfolio
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Search size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                <input
+                  type="text"
+                  placeholder="Search portfolios…"
+                  value={portfolioSearch}
+                  onChange={e => setPortfolioSearch(e.target.value)}
                   style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 999,
-                    background: statusColor,
-                    boxShadow: `0 0 0 3px ${statusGlow}`,
-                    flexShrink: 0,
+                    width: '100%', paddingLeft: 30, paddingRight: portfolioSearch ? 28 : 12, paddingTop: 8, paddingBottom: 8,
+                    background: 'var(--bg-card)', border: '1px solid var(--border)',
+                    borderRadius: 8, fontSize: 12, color: 'var(--text-primary)',
+                    fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
                   }}
                 />
-                <span>{metric.order}. {metric.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+                {portfolioSearch && (
+                  <X size={11} onClick={() => setPortfolioSearch('')} style={{
+                    position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                    color: 'var(--text-muted)', cursor: 'pointer',
+                  }} />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Quick-jump nav buttons */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', alignSelf: 'center', marginRight: 4 }}>Jump to:</span>
+            {orderedMetrics.map((metric) => {
+              const status = metric.status || 'pending';
+              const statusColor = status === 'completed' ? 'var(--green)' : status === 'failed' ? 'var(--red)' : status === 'processing' ? 'var(--blue)' : 'var(--text-muted)';
+              const isVisible = selectedMetricKeys.size === 0 || selectedMetricKeys.has(metric.key);
+              return (
+                <button
+                  key={metric.key}
+                  type="button"
+                  onClick={() => scrollToMetric(metric.key)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    minHeight: 28, borderRadius: 6, padding: '4px 9px',
+                    border: `1px solid var(--border)`,
+                    background: isVisible ? 'var(--bg-surface)' : 'var(--bg-page)',
+                    color: isVisible ? 'var(--text-primary)' : 'var(--text-muted)',
+                    fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                    opacity: isVisible ? 1 : 0.45,
+                    transition: 'opacity 0.15s',
+                  }}
+                >
+                  <span style={{ width: 6, height: 6, borderRadius: 999, background: statusColor, flexShrink: 0 }} />
+                  {metric.order}. {metric.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {error && (
           <div
@@ -935,8 +1132,8 @@ export function TCOEDashboard() {
           </div>
         ) : run ? (
           <div style={{ display: 'grid', gap: 14 }}>
-            {orderedMetrics.map((metric) => (
-              <MetricSection key={metric.key} metric={metric} run={run} />
+            {visibleMetrics.map((metric) => (
+              <MetricSection key={metric.key} metric={metric} run={run} portfolioFilter={portfolioSearch || undefined} />
             ))}
           </div>
         ) : null}

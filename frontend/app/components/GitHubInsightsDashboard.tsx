@@ -201,6 +201,40 @@ function SearchableRepoSelect({ repos, value, onChange }: {
   );
 }
 
+// ─── Hover tooltip ────────────────────────────────────────────────────────────
+// Wraps a label; on hover shows an absolutely-positioned bubble above the child
+// with a small CSS triangle arrow.
+function Tooltip({ text, children }: { text: string; children: React.ReactNode }) {
+  const [show, setShow] = useState(false);
+  return (
+    <span
+      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      {children}
+      {show && (
+        <span style={{
+          position: 'absolute', bottom: 'calc(100% + 6px)', left: '50%', transform: 'translateX(-50%)',
+          background: 'var(--bg-surface)', border: '1px solid var(--border)',
+          borderRadius: 8, padding: '6px 10px', fontSize: 11, color: 'var(--text-secondary)',
+          whiteSpace: 'pre-wrap', textAlign: 'left', zIndex: 9999, pointerEvents: 'none',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.18)', minWidth: 200, maxWidth: 280,
+          lineHeight: 1.5,
+        }}>
+          {text}
+          <span style={{
+            position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
+            width: 0, height: 0,
+            borderLeft: '5px solid transparent', borderRight: '5px solid transparent',
+            borderTop: '5px solid var(--border)',
+          }} />
+        </span>
+      )}
+    </span>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function GitHubInsightsDashboard() {
@@ -719,14 +753,16 @@ export function GitHubInsightsDashboard() {
               {selectedRepo === 'all' && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
                   {[
-                    { label: 'Repos w/ Activity', value: activeRepos.length, icon: Code, color: colors.primary, sub: `of ${repos.length} total` },
-                    { label: 'Total CI Runs', value: totalRuns || '—', icon: Activity, color: colors.primary, sub: rangeLabel },
-                    { label: 'Success Rate', value: totalRuns > 0 ? `${overallRate.toFixed(1)}%` : '—', icon: TrendingUp, color: overallRate >= 70 ? colors.success : colors.error, sub: totalRuns > 0 ? `${totalSuccess}/${totalRuns} passed` : undefined },
-                    { label: 'Failed Runs', value: totalRuns > 0 ? totalFailed : '—', icon: XCircle, color: totalFailed > 0 ? colors.error : colors.success, sub: `across ${activeRepos.length} active repos` },
-                  ].map(({ label, value, icon: Icon, color, sub }) => (
+                    { label: 'Repos w/ Activity', value: activeRepos.length, icon: Code, color: colors.primary, sub: `of ${repos.length} total`, tooltip: `Number of repositories that had at least one CI workflow run between ${rangeLabel} (${rangeDays}d). Repositories with no activity in this range are excluded.` },
+                    { label: 'Total CI Runs', value: totalRuns || '—', icon: Activity, color: colors.primary, sub: rangeLabel, tooltip: `Aggregate count of all GitHub Actions workflow runs across all selected repositories for ${rangeLabel} (${rangeDays}d). Each run represents one pipeline execution (triggered by a push, PR, or schedule).` },
+                    { label: 'Success Rate', value: totalRuns > 0 ? `${overallRate.toFixed(1)}%` : '—', icon: TrendingUp, color: overallRate >= 70 ? colors.success : colors.error, sub: totalRuns > 0 ? `${totalSuccess}/${totalRuns} passed` : undefined, tooltip: `Percentage of CI runs that completed successfully (conclusion = "success") over ${rangeLabel} (${rangeDays}d). A rate above 70% is considered healthy. Below 70% suggests instability — frequent failures may indicate flaky tests, dependency issues, or frequent breaking changes.` },
+                    { label: 'Failed Runs', value: totalRuns > 0 ? totalFailed : '—', icon: XCircle, color: totalFailed > 0 ? colors.error : colors.success, sub: `across ${activeRepos.length} active repos`, tooltip: `Number of CI workflow runs that ended in failure (conclusion = "failure") across all active repositories for ${rangeLabel} (${rangeDays}d). Failed runs are pipeline executions where one or more steps did not pass and need attention.` },
+                  ].map(({ label, value, icon: Icon, color, sub, tooltip }) => (
                     <div key={label} style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 14, padding: '18px 20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                        <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: 0 }}>{label}</p>
+                        <Tooltip text={tooltip}>
+                          <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: 0, cursor: 'help', borderBottom: '1px dashed var(--border)' }}>{label}</p>
+                        </Tooltip>
                         <div style={{ width: 34, height: 34, borderRadius: 10, background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Icon size={16} style={{ color }} />
                         </div>
@@ -742,7 +778,9 @@ export function GitHubInsightsDashboard() {
               {selectedRepo === 'all' && totalRuns > 0 && (
                 <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 16, padding: '18px 22px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Overall CI Success Rate</span>
+                    <Tooltip text={`Proportion of CI runs that succeeded across all repositories for ${rangeLabel} (${rangeDays}d). Industry benchmark is typically 70%+ for a healthy codebase. Low rates suggest frequent build/test failures that need attention.`}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: colors.text, cursor: 'help', borderBottom: '1px dashed var(--border)' }}>Overall CI Success Rate</span>
+                    </Tooltip>
                     <span style={{ fontSize: 14, fontWeight: 700, color: overallRate >= 70 ? colors.success : colors.error }}>{overallRate.toFixed(1)}%</span>
                   </div>
                   <div style={{ height: 8, borderRadius: 999, overflow: 'hidden', background: `${colors.error}25` }}>
@@ -761,14 +799,20 @@ export function GitHubInsightsDashboard() {
                   {/* Primary CI metrics */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
                     {[
-                      { label: 'Total CI Runs', value: selectedStats.total_runs, color: colors.primary, icon: Activity, sub: selectedStats.total_runs > 0 ? `${(selectedStats.avg_runs_per_day ?? selectedStats.total_runs / rangeDays).toFixed(1)}/day · ${rangeDays}d` : rangeLabel },
-                      { label: 'Successful',    value: selectedStats.successful,  color: colors.success,  icon: CheckCircle, sub: 'passed' },
-                      { label: 'Failed',        value: selectedStats.failed,       color: selectedStats.failed > 0 ? colors.error : colors.success, icon: XCircle, sub: selectedStats.failed > 0 ? 'needs attention' : 'none' },
-                      { label: 'Success Rate',  value: `${selectedStats.success_rate.toFixed(1)}%`, color: selectedStats.success_rate >= 70 ? colors.success : colors.error, icon: TrendingUp, sub: selectedStats.success_rate >= 70 ? 'healthy' : 'below target' },
-                    ].map(({ label, value, color, icon: Icon, sub }) => (
+                      { label: 'Total CI Runs', value: selectedStats.total_runs, color: colors.primary, icon: Activity, sub: selectedStats.total_runs > 0 ? `${(selectedStats.avg_runs_per_day ?? selectedStats.total_runs / rangeDays).toFixed(1)}/day · ${rangeDays}d` : rangeLabel, tooltip: `Total number of CI/CD pipeline runs triggered on this repository over ${rangeLabel} (${rangeDays}d). Includes all workflow types (build, test, deploy).` },
+                      { label: 'Successful',    value: selectedStats.successful,  color: colors.success,  icon: CheckCircle, sub: 'passed', tooltip: undefined as string | undefined },
+                      { label: 'Failed',        value: selectedStats.failed,       color: selectedStats.failed > 0 ? colors.error : colors.success, icon: XCircle, sub: selectedStats.failed > 0 ? 'needs attention' : 'none', tooltip: `Number of CI workflow runs on this repository that ended in failure (conclusion = "failure") over ${rangeLabel} (${rangeDays}d). Failed runs are pipeline executions where one or more steps did not pass and need attention.` },
+                      { label: 'Success Rate',  value: `${selectedStats.success_rate.toFixed(1)}%`, color: selectedStats.success_rate >= 70 ? colors.success : colors.error, icon: TrendingUp, sub: selectedStats.success_rate >= 70 ? 'healthy' : 'below target', tooltip: `Percentage of CI runs on this repository that completed successfully (conclusion = "success") over ${rangeLabel} (${rangeDays}d). A rate above 70% is considered healthy. Below 70% suggests instability — frequent failures may indicate flaky tests, dependency issues, or frequent breaking changes.` },
+                    ].map(({ label, value, color, icon: Icon, sub, tooltip }) => (
                       <div key={label} style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 14, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div>
-                          <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 6px' }}>{label}</p>
+                          {tooltip ? (
+                            <Tooltip text={tooltip}>
+                              <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 6px', cursor: 'help', borderBottom: '1px dashed var(--border)' }}>{label}</p>
+                            </Tooltip>
+                          ) : (
+                            <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 6px' }}>{label}</p>
+                          )}
                           <p style={{ fontSize: 22, fontWeight: 700, color, margin: 0 }}>{value}</p>
                           {sub && <p style={{ fontSize: 11, color: colors.textMuted, margin: '4px 0 0' }}>{sub}</p>}
                         </div>
@@ -782,14 +826,20 @@ export function GitHubInsightsDashboard() {
                   {/* Activity metrics (PRs / branches / recency) */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
                     {[
-                      { label: 'Open PRs',        icon: GitPullRequest, color: '#22C55E',      value: openPrCount,     sub: draftPrCount > 0 ? `${draftPrCount} draft` : 'awaiting review', loading: repoDetailLoading },
-                      { label: 'Active Branches', icon: GitBranch,      color: colors.primary, value: activeBranches7d, sub: 'last 7 days', loading: repoDetailLoading },
-                      { label: 'Commits',         icon: GitCommit,      color: colors.primary, value: commits7d,       sub: 'last 7 days', loading: repoDetailLoading },
-                      { label: 'Last CI Run',     icon: Clock,          color: lastRun ? runConclusionColor(lastRun) : colors.textMuted, value: lastRun ? timeAgo(lastRun.created_at) : '—', sub: lastRun ? (lastRun.conclusion || lastRun.status || 'pending') : 'no runs in range', loading: false },
-                    ].map(({ label, icon: Icon, color, value, sub, loading }) => (
+                      { label: 'Open PRs',        icon: GitPullRequest, color: '#22C55E',      value: openPrCount,     sub: draftPrCount > 0 ? `${draftPrCount} draft` : 'awaiting review', loading: repoDetailLoading, tooltip: 'Number of currently open Pull Requests on this repository. Open PRs represent work-in-progress code waiting for review or merge. A high count may indicate a review bottleneck or large feature branches.' },
+                      { label: 'Active Branches', icon: GitBranch,      color: colors.primary, value: activeBranches7d, sub: 'last 7 days', loading: repoDetailLoading, tooltip: 'Number of branches with commits pushed in the last 7 days. Active branches indicate areas of the codebase currently under development. A high count can mean many parallel work streams.' },
+                      { label: 'Commits',         icon: GitCommit,      color: colors.primary, value: commits7d,       sub: 'last 7 days', loading: repoDetailLoading, tooltip: undefined as string | undefined },
+                      { label: 'Last CI Run',     icon: Clock,          color: lastRun ? runConclusionColor(lastRun) : colors.textMuted, value: lastRun ? timeAgo(lastRun.created_at) : '—', sub: lastRun ? (lastRun.conclusion || lastRun.status || 'pending') : 'no runs in range', loading: false, tooltip: undefined as string | undefined },
+                    ].map(({ label, icon: Icon, color, value, sub, loading, tooltip }) => (
                       <div key={label} style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 14, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ minWidth: 0 }}>
-                          <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 6px' }}>{label}</p>
+                          {tooltip ? (
+                            <Tooltip text={tooltip}>
+                              <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 6px', cursor: 'help', borderBottom: '1px dashed var(--border)' }}>{label}</p>
+                            </Tooltip>
+                          ) : (
+                            <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 6px' }}>{label}</p>
+                          )}
                           {loading
                             ? <Loader2 size={18} style={{ color, animation: 'spin 1s linear infinite' }} />
                             : <p style={{ fontSize: 22, fontWeight: 700, color, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value ?? '—'}</p>}
@@ -914,7 +964,9 @@ export function GitHubInsightsDashboard() {
                       <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 16, overflow: 'hidden' }}>
                         <div style={{ padding: '13px 20px', borderBottom: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
                           <Flame size={14} style={{ color: colors.warning }} />
-                          <span style={{ fontWeight: 600, fontSize: 13, color: colors.text }}>Most Active Branches — Last 7 Days</span>
+                          <Tooltip text="Branches ranked by number of commits pushed in the last 7 days. Shows which areas of the codebase are most actively being developed. Branches near the top of the list are seeing the most engineering activity this week.">
+                            <span style={{ fontWeight: 600, fontSize: 13, color: colors.text, cursor: 'help', borderBottom: '1px dashed var(--border)' }}>Most Active Branches — Last 7 Days</span>
+                          </Tooltip>
                           <span style={{ marginLeft: 'auto', fontSize: 11, color: colors.textMuted }}>{repoDetail.active_branches.length} active</span>
                         </div>
                         {repoDetail.active_branches.map((branch: any, idx: number) => {
@@ -946,7 +998,9 @@ export function GitHubInsightsDashboard() {
                       <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 16, overflow: 'hidden' }}>
                         <div style={{ padding: '13px 20px', borderBottom: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
                           <GitPullRequest size={14} style={{ color: '#22C55E' }} />
-                          <span style={{ fontWeight: 600, fontSize: 13, color: colors.text }}>Open Pull Requests</span>
+                          <Tooltip text="Pull Requests currently open for review on this repository. Each PR represents a set of code changes proposed by a developer, awaiting review and approval before being merged into the main branch. Author and branch info help identify ownership.">
+                            <span style={{ fontWeight: 600, fontSize: 13, color: colors.text, cursor: 'help', borderBottom: '1px dashed var(--border)' }}>Open Pull Requests</span>
+                          </Tooltip>
                           <span style={{ marginLeft: 'auto', background: '#16653425', color: '#22C55E', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
                             {repoDetail.open_prs.length} open
                           </span>
@@ -999,9 +1053,13 @@ export function GitHubInsightsDashboard() {
               {/* ── All repos: per-repo grid ── */}
               {selectedRepo === 'all' && allStats.length > 0 && (
                 <div>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 12px' }}>
-                    Per-Repository CI Breakdown
-                  </p>
+                  <div style={{ marginBottom: 12 }}>
+                    <Tooltip text="Each card shows one repository's CI health. The percentage is the success rate for that repository. Click any card to drill into its detailed branch and PR activity.">
+                      <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0, cursor: 'help', borderBottom: '1px dashed var(--border)' }}>
+                        Per-Repository CI Breakdown
+                      </p>
+                    </Tooltip>
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
                     {repos.filter(r => repoStatsMap[r.full_name]).map(repo => {
                       const stats   = repoStatsMap[repo.full_name];
@@ -1065,9 +1123,11 @@ export function GitHubInsightsDashboard() {
                 <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 16, overflow: 'hidden' }}>
                   <div style={{ padding: '14px 20px', borderBottom: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <GitCommit size={14} style={{ color: colors.primary }} />
-                    <span style={{ fontWeight: 600, fontSize: 13, color: colors.text }}>
-                      {selectedRepo === 'all' ? `CI Workflow Runs — All Repos` : `CI Workflow Runs — ${selectedRepoObj?.name || selectedRepo.split('/')[1]}`}
-                    </span>
+                    <Tooltip text="Each row represents one GitHub Actions workflow run — an automated pipeline execution triggered by code activity. 'Workflow' is the pipeline name, 'Result' shows whether it passed or failed, and 'Date' is when it was triggered.">
+                      <span style={{ fontWeight: 600, fontSize: 13, color: colors.text, cursor: 'help', borderBottom: '1px dashed var(--border)' }}>
+                        {selectedRepo === 'all' ? `CI Workflow Runs — All Repos` : `CI Workflow Runs — ${selectedRepoObj?.name || selectedRepo.split('/')[1]}`}
+                      </span>
+                    </Tooltip>
                     <span style={{ marginLeft: 'auto', fontSize: 11, color: colors.textMuted }}>
                       {`${(runsPageClamped - 1) * runsPageSize + 1}–${Math.min(runsPageClamped * runsPageSize, visibleRuns.length)} of ${visibleRuns.length}${truncatedRuns ? '+' : ''} runs`}
                     </span>
@@ -1077,10 +1137,22 @@ export function GitHubInsightsDashboard() {
                       <thead>
                         <tr style={{ borderBottom: `1px solid ${colors.border}` }}>
                           {selectedRepo === 'all' && <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>Repo</th>}
-                          <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>Workflow</th>
-                          <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>Result</th>
+                          <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>
+                            <Tooltip text="The name of the automated pipeline / GitHub Actions workflow that ran (e.g., 'Build & Test', 'Deploy to Prod').">
+                              <span style={{ cursor: 'help', borderBottom: '1px dashed var(--border)' }}>Workflow</span>
+                            </Tooltip>
+                          </th>
+                          <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>
+                            <Tooltip text="The outcome of the pipeline run. 'Success' means all steps passed. 'Failure' means one or more steps failed. 'In progress' means still running.">
+                              <span style={{ cursor: 'help', borderBottom: '1px dashed var(--border)' }}>Result</span>
+                            </Tooltip>
+                          </th>
                           {selectedRepo !== 'all' && <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>Jobs (pass / fail)</th>}
-                          <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>Date</th>
+                          <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>
+                            <Tooltip text="The date and time when this workflow run was triggered.">
+                              <span style={{ cursor: 'help', borderBottom: '1px dashed var(--border)' }}>Date</span>
+                            </Tooltip>
+                          </th>
                           <th style={{ padding: '10px 16px' }} />
                         </tr>
                       </thead>
