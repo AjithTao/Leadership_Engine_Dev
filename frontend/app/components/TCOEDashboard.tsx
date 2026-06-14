@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Activity, AlertTriangle, CheckCircle2, ChevronDown, Clock3, Download, Filter, RefreshCw, Search, ShieldCheck, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { DashboardLayout } from './DashboardLayout';
-import { getApiUrl } from '../../lib/api-config';
+import { getApiUrl, fetchWithTimeout } from '../../lib/api-config';
 import { exportTcoeReportAsPDF } from '../utils/exportUtils';
 import {
   TCOE_METRIC_ORDER,
@@ -670,7 +670,7 @@ export function TCOEDashboard() {
     setError(null);
     if (force) setRefreshing(true);
     try {
-      const response = await fetch(getApiUrl('/api/quality/tcoe-dashboard/start'), {
+      const response = await fetchWithTimeout(getApiUrl('/api/quality/tcoe-dashboard/start'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ force }),
@@ -693,7 +693,7 @@ export function TCOEDashboard() {
 
     const load = async () => {
       try {
-        const response = await fetch(getApiUrl('/api/quality/tcoe-dashboard/latest'));
+        const response = await fetchWithTimeout(getApiUrl('/api/quality/tcoe-dashboard/latest'));
         const data = await response.json();
         if (!mounted) return;
         if (response.ok && data.success && data.run && data.is_current !== false) {
@@ -718,7 +718,8 @@ export function TCOEDashboard() {
 
     const poll = async () => {
       try {
-        const response = await fetch(getApiUrl(`/api/quality/tcoe-dashboard/status/${run.run_id}`));
+        // Sub-interval timeout (< the 2s poll cadence) so requests can't stack against a stalled backend.
+        const response = await fetchWithTimeout(getApiUrl(`/api/quality/tcoe-dashboard/status/${run.run_id}`), {}, 1800);
         const data = await response.json();
         if (response.ok && data.success) {
           applyResponse(data);

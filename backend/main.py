@@ -7225,13 +7225,35 @@ async def github_configure(config: Dict[str, str]):
         return create_error_response("Configuration failed", str(e))
 
 @app.get("/api/github/actions/runs", tags=["GitHub"], summary="Get GitHub Actions Runs")
-async def github_actions_runs(repo: str, days: int = 30, workflow: str = None):
-    """Get automation runs for a specific repository or workflow"""
+async def github_actions_runs(repo: str, days: int = 30, workflow: str = None,
+                              from_date: str = None, to_date: str = None, paginate: bool = False):
+    """Get automation runs for a repo/workflow. Pass from_date/to_date (YYYY-MM-DD) for an
+    explicit window; paginate=true returns all runs in the window (single-repo full listing)."""
     try:
-        return await app_state.github_client.get_workflow_runs(repo, days, workflow)
+        return await app_state.github_client.get_workflow_runs(
+            repo, days, workflow, from_date=from_date, to_date=to_date, paginate=paginate)
     except Exception as e:
         logger.error(f"GitHub actions error: {e}")
         return create_error_response("Failed to fetch actions", str(e))
+
+@app.get("/api/github/actions/first-run", tags=["GitHub"], summary="Get repo's first Actions run date")
+async def github_first_action(repo: str):
+    """Return the date of the repo's very first GitHub Actions run (to default the filter)."""
+    try:
+        return await app_state.github_client.get_first_action_date(repo)
+    except Exception as e:
+        logger.error(f"GitHub first-run error: {e}")
+        return create_error_response("Failed to fetch first run", str(e))
+
+@app.get("/api/github/actions/run-jobs", tags=["GitHub"], summary="Batch per-run job pass/fail counts")
+async def github_run_jobs(repo: str, run_ids: str):
+    """run_ids = comma-separated run IDs. Returns {run_id: {jobs_total, jobs_passed, jobs_failed}}."""
+    try:
+        ids = [int(x) for x in run_ids.split(",") if x.strip().isdigit()]
+        return await app_state.github_client.get_run_jobs_batch(repo, ids)
+    except Exception as e:
+        logger.error(f"GitHub run-jobs error: {e}")
+        return create_error_response("Failed to fetch run jobs", str(e))
 
 @app.get("/api/github/prs", tags=["GitHub"], summary="Get Recent Pull Requests")
 async def get_github_prs(

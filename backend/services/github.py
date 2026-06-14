@@ -1,7 +1,7 @@
 import os
 import httpx
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
@@ -149,43 +149,85 @@ class GitHubClient:
             logger.error(f"❌ Unexpected error during GitHub status check: {e}", exc_info=True)
             return {"connected": False, "error": str(e)}
 
-    async def _get_all_pages(self, endpoint: str, params: Dict = None, max_pages: int = 20) -> List[Dict]:
-        """Paginate through all pages of a GitHub list endpoint (follows Link headers)."""
+    async def _get_all_pages(self, endpoint: str, params: Dict = None, max_pages: int = 50) -> List[Dict]:
+        """Paginate a GitHub list endpoint using explicit page=N (offset) paging.
+
+        We deliberately do NOT follow the Link `next` header: on this GitHub Enterprise the
+        cursor `next` link disappears prematurely on large org/user repo lists (capping the
+        result well below the true total). Offset paging returns full pages until the last,
+        so a short page reliably marks the end."""
         if not self._client:
             await self.initialize()
         all_items: List[Dict] = []
         url = endpoint if endpoint.startswith('http') else f"{self.config.base_url}{endpoint}"
-        page_params = {**(params or {}), "per_page": 100}
-        for _ in range(max_pages):
+        base_params = {**(params or {}), "per_page": 100}
+        for page in range(1, max_pages + 1):
             try:
-                response = await self._client.get(url, headers=self._headers, params=page_params)
+                response = await self._client.get(url, headers=self._headers, params={**base_params, "page": page})
                 if response.status_code != 200:
                     break
                 data = response.json()
-                if isinstance(data, list):
-                    all_items.extend(data)
-                    if len(data) < 100:
-                        break  # Last page
-                    # Follow Link: next header
-                    link_header = response.headers.get("Link", "")
-                    next_url = None
-                    for part in link_header.split(","):
-                        if 'rel="next"' in part:
-                            next_url = part.split(";")[0].strip().strip("<>")
-                            break
-                    if not next_url:
-                        break
-                    url = next_url
-                    page_params = {}  # URL already has params encoded
-                else:
+                if not isinstance(data, list):
                     break
+                all_items.extend(data)
+                if len(data) < 100:
+                    break  # last page
             except Exception as e:
                 logger.error(f"❌ Pagination error: {e}")
                 break
         return all_items
 
+    async def _list_org_repos(self, org: str, max_pages: int = 50) -> Dict[str, Any]:
+        """Fetch all repos for one org, distinguishing a SAML-SSO block from an empty org.
+
+        Unlike _get_all_pages (which silently breaks on any non-200), this inspects the
+        status/body so a 403 'organization SAML enforcement' can be surfaced to the caller
+        instead of vanishing into an empty list.
+
+        Returns {"repos": [...raw...], "saml_blocked": bool, "status": int|None}.
+        """
+        if not self._client:
+            await self.initialize()
+        base = f"{self.config.base_url}/orgs/{org}/repos"
+        # Explicit page=N (offset) paging, NOT Link-`next` following: on this GitHub Enterprise
+        # the cursor `next` link disappears early on big org lists, capping results well below
+        # the true total (e.g. 147 then 197 of 674). Offset paging returns full pages to the end.
+        items: List[Dict] = []
+        saml_blocked = False
+        last_status: Optional[int] = None
+        for page in range(1, max_pages + 1):
+            try:
+                resp = await self._client.get(
+                    base, headers=self._headers,
+                    params={"type": "all", "per_page": 100, "page": page})
+            except Exception as e:
+                logger.error(f"❌ Org repos request failed for '{org}': {e}")
+                break
+            last_status = resp.status_code
+            if resp.status_code == 403:
+                body = (resp.text or "").lower()
+                if "saml" in body or "single sign-on" in body or "single-sign-on" in body:
+                    saml_blocked = True
+                    logger.warning(f"⚠️ Org '{org}' is SAML-protected; token is not SSO-authorized for it.")
+                else:
+                    logger.warning(f"⚠️ Org '{org}' repos returned 403 (token lacks access).")
+                break
+            if resp.status_code != 200:
+                logger.warning(f"⚠️ Org '{org}' repos returned HTTP {resp.status_code}.")
+                break
+            data = resp.json()
+            if not isinstance(data, list):
+                break
+            items.extend(data)
+            if len(data) < 100:
+                break  # last page
+        return {"repos": items, "saml_blocked": saml_blocked, "status": last_status}
+
     async def list_repositories(self, per_page: int = 100) -> Dict[str, Any]:
-        """List ALL repositories for the authenticated user and configured org (paginated)."""
+        """List every repository visible to the token: the user's own repos plus the repos
+        of every org the user belongs to (configured org first). Orgs whose repos are blocked
+        by SAML SSO are reported in `sso_required_orgs` so the UI can prompt the user to
+        authorize the token, rather than silently showing only the user's own repos."""
         def _parse(raw_list: Any) -> List[Dict]:
             if not isinstance(raw_list, list):
                 return []
@@ -207,28 +249,36 @@ class GitHubClient:
         try:
             repos: List[Dict] = []
             seen: set = set()
+            sso_required_orgs: List[str] = []
 
-            # 1. Paginate through ALL org repos
+            # 1. Build the org list: the configured org first, then every org the user
+            #    is a member of — so we are not limited to one hardcoded org.
+            org_list: List[str] = []
             if self.config.org:
-                org_raw = await self._get_all_pages(
-                    f"/orgs/{self.config.org}/repos",
-                    params={"type": "all", "sort": "updated"}
-                )
-                for r in _parse(org_raw):
+                org_list.append(self.config.org)
+            user_orgs_raw = await self._get("/user/orgs", {"per_page": 100})
+            if isinstance(user_orgs_raw, list):
+                for o in user_orgs_raw:
+                    login = o.get("login") if isinstance(o, dict) else None
+                    if login:
+                        org_list.append(login)
+            org_list = list(dict.fromkeys(org_list))  # de-dupe, preserve order
+
+            # 2. Fetch each org's repos, recording which ones are blocked by SAML SSO.
+            for org in org_list:
+                res = await self._list_org_repos(org)
+                for r in _parse(res["repos"]):
                     if r["full_name"] not in seen:
                         seen.add(r["full_name"])
                         repos.append(r)
-                if repos:
-                    logger.info(f"✅ Fetched {len(repos)} repos from org '{self.config.org}'")
-                else:
-                    logger.warning(
-                        f"⚠️ Org '{self.config.org}' returned no repos — a 403 here usually means "
-                        f"the token is not SAML-SSO-authorized for the org"
-                    )
+                if res["saml_blocked"]:
+                    sso_required_orgs.append(org)
+            if repos:
+                logger.info(f"✅ Fetched {len(repos)} org repos across {len(org_list)} org(s)")
 
-            # 2. Paginate through ALL user repos
-            # NOTE: GitHub rejects `type` combined with `affiliation` (422), so
-            # only affiliation is sent here.
+            # 3. Paginate through the user's own repos.
+            #    NOTE: GitHub rejects `type` combined with `affiliation` (422), so
+            #    only affiliation is sent here.
             user_raw = await self._get_all_pages(
                 "/user/repos",
                 params={"sort": "updated", "affiliation": "owner,collaborator,organization_member"}
@@ -238,57 +288,200 @@ class GitHubClient:
                     seen.add(r["full_name"])
                     repos.append(r)
 
+            notice = None
+            if sso_required_orgs:
+                notice = (
+                    f"Repos from {len(sso_required_orgs)} organization(s) are hidden because this token "
+                    f"isn't authorized for their SAML SSO: {', '.join(sso_required_orgs)}. "
+                    f"Authorize it at GitHub → Settings → Developer settings → Personal access tokens "
+                    f"→ (your token) → Configure SSO, then click Refresh repos."
+                )
+
             if not repos:
                 return {
                     "success": False,
                     "repos": [],
-                    "error": (
-                        f"No repositories visible. Check the token scopes (repo, read:org) and, for the "
-                        f"'{self.config.org}' org, authorize the token for SAML SSO "
-                        f"(GitHub → token settings → Configure SSO)."
+                    "sso_required_orgs": sso_required_orgs,
+                    "error": notice or (
+                        f"No repositories visible. Check the token scopes (repo, read:org) and authorize "
+                        f"the token for SAML SSO (GitHub → token settings → Configure SSO)."
                     ),
                 }
 
+            repos.sort(key=lambda r: (r.get("full_name") or "").lower())  # stable, scannable dropdown order
             logger.info(f"✅ Total repos available: {len(repos)}")
-            return {"success": True, "repos": repos}
+            return {"success": True, "repos": repos, "sso_required_orgs": sso_required_orgs, "notice": notice}
         except Exception as e:
             logger.error(f"❌ Failed to list repositories: {e}", exc_info=True)
             return {"success": False, "repos": [], "error": str(e)}
 
-    async def get_workflow_runs(self, repo: str, days: int = 30, workflow: Optional[str] = None) -> Dict[str, Any]:
-        """Get automation run counts for a repo or specific workflow file/id"""
-        # Calculate date window
-        since_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
-        
-        # Fetch runs
-        # Allow callers to pass either "repo-name" or "owner/repo-name"
+    async def get_first_action_date(self, repo: str) -> Dict[str, Any]:
+        """Return the date of the repo's very first (oldest) GitHub Actions run plus the
+        total run count. Found via the last page of the runs list (runs come newest-first,
+        so the last item of the last page is the oldest). Used to default the date filter's
+        from-date per repo."""
         owner_repo = repo if "/" in repo else f"{self.config.org}/{repo}"
-        if workflow:
-            # GitHub accepts workflow file name (e.g., is-smoke-dev.yml) or workflow id
-            endpoint = f"/repos/{owner_repo}/actions/workflows/{workflow}/runs"
+        first = await self._get(f"/repos/{owner_repo}/actions/runs", {"per_page": 1})
+        total = first.get("total_count", 0) if isinstance(first, dict) else 0
+        if not total:
+            return {"first_run_date": None, "total_count": 0}
+        # Fetch the LAST page with per_page=100 so the page number stays small (ceil(total/100))
+        # and we don't hit GitHub's pagination-depth ceiling on high-volume repos. Runs come
+        # newest-first, so the oldest run is the LAST item on the last page.
+        per_page = 100
+        last_page = (total + per_page - 1) // per_page
+        last = await self._get(f"/repos/{owner_repo}/actions/runs", {"per_page": per_page, "page": last_page})
+        runs = last.get("workflow_runs", []) if isinstance(last, dict) else []
+        return {"first_run_date": runs[-1].get("created_at") if runs else None, "total_count": total}
+
+    @staticmethod
+    def _date_span_days(from_date: str, to_date: str) -> int:
+        try:
+            a = datetime.strptime(from_date, '%Y-%m-%d')
+            b = datetime.strptime(to_date, '%Y-%m-%d')
+            return max(1, (b - a).days + 1)  # clamp so from>to never yields <=0
+        except Exception:
+            return 1
+
+    async def _paginate_runs(self, endpoint: str, params: Dict, max_runs: int) -> Tuple[List[Dict], bool]:
+        """Page through the workflow_runs list up to max_runs. Returns (runs, truncated)."""
+        if not self._client:
+            await self.initialize()
+        url = f"{self.config.base_url}{endpoint}"
+        page_params = {**params, "per_page": 100, "page": 1}
+        out: List[Dict] = []
+        truncated = False
+        total_count: Optional[int] = None
+        for _ in range(50):  # hard cap: 50 pages * 100 = 5000 runs
+            try:
+                resp = await self._client.get(url, headers=self._headers, params=page_params)
+            except Exception as e:
+                logger.error(f"❌ runs pagination error: {e}")
+                break
+            if resp.status_code != 200:
+                break
+            try:
+                body = resp.json()
+            except Exception:
+                break
+            if not isinstance(body, dict):
+                break
+            if total_count is None:
+                total_count = body.get("total_count")
+            chunk = body.get("workflow_runs", [])
+            out.extend(chunk)
+            if len(out) >= max_runs:
+                out = out[:max_runs]
+                truncated = True
+                break
+            # Stop on an empty page or once we've collected the reported total — not on a
+            # short page, which the runs API can return mid-sequence.
+            if not chunk:
+                break
+            if isinstance(total_count, int) and len(out) >= total_count:
+                break
+            page_params = {**page_params, "page": page_params["page"] + 1}
+        return out, truncated
+
+    async def get_workflow_runs(self, repo: str, days: int = 30, workflow: Optional[str] = None,
+                                from_date: Optional[str] = None, to_date: Optional[str] = None,
+                                paginate: bool = False, max_runs: int = 2000) -> Dict[str, Any]:
+        """Get automation run stats for a repo over a date window.
+
+        Date window: explicit from_date/to_date (YYYY-MM-DD) take precedence, else the last
+        `days` days. When paginate is True, ALL runs in the window are fetched (up to max_runs)
+        and returned in `runs`; otherwise a single page (<=100) is fetched and the top 10
+        returned — the all-repos overview uses the fast single-page path."""
+        owner_repo = repo if "/" in repo else f"{self.config.org}/{repo}"
+        endpoint = (f"/repos/{owner_repo}/actions/workflows/{workflow}/runs" if workflow
+                    else f"/repos/{owner_repo}/actions/runs")
+
+        # Build the `created` filter and the effective span (days) for rate math.
+        if from_date and to_date:
+            created = f"{from_date}..{to_date}"
+            span_days = self._date_span_days(from_date, to_date)
+        elif from_date:
+            created = f">={from_date}"
+            span_days = self._date_span_days(from_date, datetime.now().strftime('%Y-%m-%d'))
         else:
-            endpoint = f"/repos/{owner_repo}/actions/runs"
-        params = {
-            "created": f">{since_date}",
-            "per_page": 100
-        }
-        
-        data = await self._get(endpoint, params)
-        runs = data.get("workflow_runs", [])
-        
-        # Aggregate statistics
+            since_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            created = f">{since_date}"
+            span_days = max(1, days)
+        params = {"created": created}
+
+        truncated = False
+        if paginate:
+            runs, truncated = await self._paginate_runs(endpoint, params, max_runs)
+        else:
+            data = await self._get(endpoint, {**params, "per_page": 100})
+            runs = data.get("workflow_runs", []) if isinstance(data, dict) else []
+
         total = len(runs)
         successful = sum(1 for r in runs if r.get('conclusion') == 'success')
         failed = sum(1 for r in runs if r.get('conclusion') == 'failure')
-        
+
+        # Per-workflow breakdown (over ALL fetched runs).
+        by_wf: Dict[str, Dict[str, Any]] = {}
+        for r in runs:
+            name = r.get('name') or r.get('workflow_id') or 'Unknown'
+            w = by_wf.setdefault(str(name), {"name": str(name), "total": 0, "successful": 0, "failed": 0})
+            w["total"] += 1
+            if r.get('conclusion') == 'success':
+                w["successful"] += 1
+            elif r.get('conclusion') == 'failure':
+                w["failed"] += 1
+        by_workflow = sorted(by_wf.values(), key=lambda x: x["total"], reverse=True)
+        for w in by_workflow:
+            w["success_rate"] = (w["successful"] / w["total"] * 100) if w["total"] else 0
+
+        # paginate -> return ALL runs; else top 10. Slim to the fields the UI renders so the
+        # payload stays small even with thousands of runs.
+        out_runs = runs if paginate else runs[:10]
+        slim = [{
+            "id": r.get("id"),
+            "name": r.get("name"),
+            "status": r.get("status"),
+            "conclusion": r.get("conclusion"),
+            "created_at": r.get("created_at"),
+            "html_url": r.get("html_url"),
+        } for r in out_runs]
+
         return {
             "repo": repo,
+            "days": span_days,
+            "from": from_date,
+            "to": to_date,
             "total_runs": total,
             "successful": successful,
             "failed": failed,
             "success_rate": (successful / total * 100) if total > 0 else 0,
-            "runs": runs[:10] # Return top 10 for display
+            "avg_runs_per_day": round(total / span_days, 2) if span_days > 0 else 0,
+            "by_workflow": by_workflow,
+            "runs": slim,
+            "truncated": truncated,
         }
+
+    async def get_run_jobs_batch(self, repo: str, run_ids: List[int]) -> Dict[str, Any]:
+        """Per-run job pass/fail counts for a batch of run IDs — used to lazily enrich the
+        currently visible page of the runs table (bounded by page size, not total runs)."""
+        import asyncio
+        owner_repo = repo if "/" in repo else f"{self.config.org}/{repo}"
+
+        async def one(run_id: int) -> Tuple[str, Dict[str, int]]:
+            jdata = await self._get(f"/repos/{owner_repo}/actions/runs/{run_id}/jobs", {"per_page": 100})
+            jobs = jdata.get("jobs", []) if isinstance(jdata, dict) else []
+            return str(run_id), {
+                "jobs_total": len(jobs),
+                "jobs_passed": sum(1 for j in jobs if j.get("conclusion") == "success"),
+                "jobs_failed": sum(1 for j in jobs if j.get("conclusion") == "failure"),
+            }
+
+        results = await asyncio.gather(*[one(rid) for rid in run_ids[:100]], return_exceptions=True)
+        out: Dict[str, Any] = {}
+        for res in results:
+            if isinstance(res, tuple):
+                out[res[0]] = res[1]
+        return out
 
     async def get_recent_prs(self, repo: str, state: str = "all", per_page: int = 20) -> Dict[str, Any]:
         """Get recent pull requests for a repository"""
@@ -434,12 +627,40 @@ class GitHubClient:
                     "body_preview": body[:400].strip() if body else "",
                 })
 
+        # ── PR merge velocity (from the closed PRs already fetched above) ─────
+        merge_stats: Dict[str, Any] = {
+            "merged_total": 0, "merged_last_7d": 0, "merged_last_30d": 0, "avg_hours_to_merge": None,
+        }
+        if isinstance(merged_prs_raw, list):
+            now = datetime.now()
+            ttm_hours: List[float] = []
+            for pr in merged_prs_raw:
+                if not isinstance(pr, dict) or not pr.get("merged_at"):
+                    continue
+                merge_stats["merged_total"] += 1
+                try:
+                    merged_at  = datetime.strptime(pr["merged_at"], "%Y-%m-%dT%H:%M:%SZ")
+                    created_at = datetime.strptime(pr.get("created_at", ""), "%Y-%m-%dT%H:%M:%SZ")
+                    hrs = (merged_at - created_at).total_seconds() / 3600.0
+                    if hrs >= 0:
+                        ttm_hours.append(hrs)
+                    age_days = (now - merged_at).total_seconds() / 86400.0
+                    if age_days <= 7:
+                        merge_stats["merged_last_7d"] += 1
+                    if age_days <= 30:
+                        merge_stats["merged_last_30d"] += 1
+                except (ValueError, TypeError):
+                    continue
+            if ttm_hours:
+                merge_stats["avg_hours_to_merge"] = round(sum(ttm_hours) / len(ttm_hours), 1)
+
         return {
             "repo": owner_repo,
             "default_branch": default_branch,
             "last_merged_pr": last_merged_pr,
             "active_branches": active_branches,
             "open_prs": open_prs,
+            "merge_stats": merge_stats,
         }
 
     async def search_issues_and_prs(self, query: str, use_semantic: bool = True) -> List[Dict[str, Any]]:

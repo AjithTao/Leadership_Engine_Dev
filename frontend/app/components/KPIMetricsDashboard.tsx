@@ -13,8 +13,8 @@ import {
   ChevronRight, Building2, Code, Zap
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
-import { getApiUrl } from '../../lib/api-config';
-import { LoadingSkeleton } from './figma/InsightsDashboard/components/LoadingSkeleton';
+import { getApiUrl, fetchWithTimeout } from '../../lib/api-config';
+import { JiraLoader } from './figma/InsightsDashboard/components/JiraLoader';
 import { DashboardLayout } from './DashboardLayout';
 
 // ─── CDK palette (single source: globals.css / themes.ts) ─────────────────────
@@ -187,7 +187,7 @@ export function KPIMetricsDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(getApiUrl('/api/kpi-metrics'), {
+      const response = await fetchWithTimeout(getApiUrl('/api/kpi-metrics'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -284,7 +284,7 @@ export function KPIMetricsDashboard() {
     }
   };
 
-  if (loading && !data) return <LoadingSkeleton />;
+  if (loading && !data) return <JiraLoader message="Loading KPI metrics…" />;
 
   if (error && !data) {
     return (
