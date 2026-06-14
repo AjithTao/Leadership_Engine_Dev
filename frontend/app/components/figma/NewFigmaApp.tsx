@@ -16,9 +16,9 @@ import { GitHubInsightsDashboard } from '../GitHubInsightsDashboard'
 import { SalesforceInsightsDashboard } from '../SalesforceInsightsDashboard'
 import { useTheme } from '../../contexts/ThemeContext'
 import { SettingsProvider } from '../../contexts/SettingsContext'
-import { getApiUrl } from '../../../lib/api-config'
+import { ServicesDashboard } from '../ServicesDashboard'
 
-export type ActiveView = 'copilot' | 'insights' | 'github-insights' | 'leadership' | 'tcoe-report' | 'tcoe-dashboard' | 'qa-metrics' | 'kpi-metrics' | 'salesforce-insights'
+export type ActiveView = 'copilot' | 'insights' | 'github-insights' | 'leadership' | 'tcoe-report' | 'tcoe-dashboard' | 'qa-metrics' | 'kpi-metrics' | 'salesforce-insights' | 'services-dashboard'
 export type Theme = 'light' | 'dark'
 
 export interface Connection {
@@ -48,9 +48,9 @@ function NewFigmaAppContent() {
   const [showSettings, setShowSettings] = useState(false)
   const [quickActionPrompt, setQuickActionPrompt] = useState<string | null>(null)
   const [connections, setConnections] = useState<Connection[]>([
-    { name: 'Jira', status: 'disconnected', type: 'atlassian' },
+    { name: 'Jira',       status: 'disconnected', type: 'atlassian' },
     { name: 'Confluence', status: 'disconnected', type: 'atlassian' },
-    { name: 'GitHub', status: 'disconnected', type: 'github' },
+    { name: 'GitHub',     status: 'disconnected', type: 'github'    },
   ])
 
   const toggleConnection = (index: number) => {
@@ -84,7 +84,7 @@ function NewFigmaAppContent() {
       
       if (connectionType === 'atlassian') {
         // Make API call to configure Jira
-        const response = await fetch(getApiUrl('/api/jira/configure'), {
+        const response = await fetch('http://localhost:8000/api/jira/configure', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -128,9 +128,10 @@ function NewFigmaAppContent() {
 
     const refreshStatuses = async () => {
       try {
-        const jiraRes = await fetch(getApiUrl(`/api/jira/status`)).then(r => r.json()).catch(() => null)
-        const confRes = await fetch(getApiUrl(`/api/confluence/status`)).then(r => r.json()).catch(() => null)
-        const githubRes = await fetch(getApiUrl(`/api/github/status`)).then(r => r.json()).catch(() => null)
+        const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
+        const jiraRes = await fetch(`${apiBase}/api/jira/status`).then(r => r.json()).catch(() => null)
+        const confRes = await fetch(`${apiBase}/api/confluence/status`).then(r => r.json()).catch(() => null)
+        const githubRes = await fetch(`${apiBase}/api/github/status`).then(r => r.json()).catch(() => null)
 
         if (!mounted) return
 
@@ -202,6 +203,8 @@ function NewFigmaAppContent() {
         return <SalesforceInsightsDashboard />
       case 'leadership':
         return <FigmaDashboard hasActiveConnections={hasActiveConnections} theme={isDarkMode ? 'dark' : 'light'} />
+      case 'services-dashboard':
+        return <ServicesDashboard />
       default:
         return <NewLeadershipCopilot 
           hasActiveConnections={hasActiveConnections} 

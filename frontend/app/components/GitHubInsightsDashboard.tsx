@@ -39,11 +39,13 @@ const timeAgo = (dateStr: string) => {
 };
 
 const DAY_OPTIONS = [
-  { label: 'Last 7 days',  value: 7  },
-  { label: 'Last 14 days', value: 14 },
-  { label: 'Last 30 days', value: 30 },
-  { label: 'Last 60 days', value: 60 },
-  { label: 'Last 90 days', value: 90 },
+  { label: 'Last Week',   value: 7   },
+  { label: 'Sprint',      value: 14  },
+  { label: 'Last Month',  value: 30  },
+  { label: 'PI',          value: 70  },
+  { label: 'Quarter',     value: 90  },
+  { label: '6 Months',    value: 180 },
+  { label: 'Last Year',   value: 365 },
 ];
 
 // ─── Simple native-select dropdown ───────────────────────────────────────────
@@ -70,6 +72,26 @@ function NativeSelect({ value, onChange, style, children }: {
   );
 }
 
+// ─── Repo display helpers ─────────────────────────────────────────────────────
+
+function repoDisplayName(r: Repo): string {
+  // Convert kebab/snake repo name to title-case words
+  return r.name
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function repoKey(r: Repo): string {
+  // Uppercase short key from repo name (first 3-6 chars, or acronym if multi-word)
+  const words = r.name.replace(/[-_]/g, ' ').split(' ').filter(Boolean);
+  if (words.length === 1) return r.name.slice(0, 6).toUpperCase();
+  return words.map(w => w[0]).join('').toUpperCase();
+}
+
+function orgDisplayName(owner: string): string {
+  return owner.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 // ─── Searchable combobox for repo selection ───────────────────────────────────
 
 function SearchableRepoSelect({ repos, value, onChange }: {
@@ -82,12 +104,20 @@ function SearchableRepoSelect({ repos, value, onChange }: {
   const containerRef              = useRef<HTMLDivElement>(null);
   const inputRef                  = useRef<HTMLInputElement>(null);
 
+  const selectedRepo = repos.find(r => r.full_name === value);
   const displayLabel = value === 'all'
     ? `All Repositories (${repos.length})`
-    : value;
+    : selectedRepo
+      ? `${repoDisplayName(selectedRepo)} / ${orgDisplayName(selectedRepo.owner)}`
+      : value;
 
   const filtered = search
-    ? repos.filter(r => r.full_name.toLowerCase().includes(search.toLowerCase()))
+    ? repos.filter(r =>
+        r.full_name.toLowerCase().includes(search.toLowerCase()) ||
+        repoDisplayName(r).toLowerCase().includes(search.toLowerCase()) ||
+        repoKey(r).toLowerCase().includes(search.toLowerCase()) ||
+        r.owner.toLowerCase().includes(search.toLowerCase())
+      )
     : repos;
 
   // Close on outside click
@@ -110,7 +140,7 @@ function SearchableRepoSelect({ repos, value, onChange }: {
 
   return (
     <div ref={containerRef} style={{ position: 'relative' }}>
-      {/* Trigger input */}
+      {/* Trigger */}
       <div
         style={{ position: 'relative', cursor: 'pointer' }}
         onClick={() => { setOpen(o => !o); if (!open) setTimeout(() => inputRef.current?.focus(), 0); }}
@@ -121,7 +151,7 @@ function SearchableRepoSelect({ repos, value, onChange }: {
             <input
               ref={inputRef}
               type="text"
-              placeholder="Search repositories…"
+              placeholder="Search by project name or key…"
               value={search}
               onChange={e => setSearch(e.target.value)}
               onClick={e => e.stopPropagation()}
@@ -154,13 +184,13 @@ function SearchableRepoSelect({ repos, value, onChange }: {
           position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
           background: 'var(--bg-surface)', border: '1px solid var(--border)',
           borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-          zIndex: 9999, maxHeight: 260, overflowY: 'auto',
+          zIndex: 9999, maxHeight: 300, overflowY: 'auto',
         }}>
           {/* All Repositories option */}
           <div
             onMouseDown={() => selectItem('all')}
             style={{
-              padding: '9px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              padding: '10px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
               color: value === 'all' ? 'var(--accent-cool)' : 'var(--text-secondary)',
               background: value === 'all' ? 'var(--accent-cool)12' : 'transparent',
               borderBottom: '1px solid var(--border)',
@@ -174,28 +204,88 @@ function SearchableRepoSelect({ repos, value, onChange }: {
               No repositories match "{search}"
             </div>
           ) : (
-            filtered.map(r => (
-              <div
-                key={r.full_name}
-                onMouseDown={() => selectItem(r.full_name)}
-                style={{
-                  padding: '8px 14px', fontSize: 13, cursor: 'pointer',
-                  color: value === r.full_name ? 'var(--accent-cool)' : 'var(--text-primary)',
-                  background: value === r.full_name ? 'var(--accent-cool)12' : 'transparent',
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  transition: 'background 0.1s',
-                }}
-                onMouseEnter={e => { if (value !== r.full_name) (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-card)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = value === r.full_name ? 'var(--accent-cool)12' : 'transparent'; }}
-              >
-                {r.private ? <Lock size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} /> : <Globe size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />}
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.full_name}</span>
-              </div>
-            ))
+            filtered.map(r => {
+              const isSelected = value === r.full_name;
+              const key = repoKey(r);
+              const displayName = repoDisplayName(r);
+              const org = orgDisplayName(r.owner);
+              return (
+                <div
+                  key={r.full_name}
+                  onMouseDown={() => selectItem(r.full_name)}
+                  style={{
+                    padding: '10px 14px', cursor: 'pointer',
+                    color: isSelected ? 'var(--accent-cool)' : 'var(--text-primary)',
+                    background: isSelected ? 'var(--accent-cool)12' : 'transparent',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    borderBottom: '1px solid var(--border)30',
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-card)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = isSelected ? 'var(--accent-cool)12' : 'transparent'; }}
+                >
+                  {r.private
+                    ? <Lock size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                    : <Globe size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                  }
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {displayName}
+                      </span>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
+                        background: isSelected ? 'var(--accent-cool)30' : 'var(--bg-card)',
+                        color: isSelected ? 'var(--accent-cool)' : 'var(--text-muted)',
+                        border: '1px solid var(--border)', whiteSpace: 'nowrap', flexShrink: 0,
+                      }}>
+                        {key}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                      {org}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Tooltip ─────────────────────────────────────────────────────────────────
+
+function Tooltip({ text, children }: { text: string; children: React.ReactNode }) {
+  const [show, setShow] = useState(false);
+  return (
+    <span
+      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      {children}
+      {show && (
+        <span style={{
+          position: 'absolute', bottom: 'calc(100% + 6px)', left: '50%', transform: 'translateX(-50%)',
+          background: 'var(--bg-surface)', border: '1px solid var(--border)',
+          borderRadius: 8, padding: '6px 10px', fontSize: 11, color: 'var(--text-secondary)',
+          whiteSpace: 'pre-wrap', textAlign: 'left', zIndex: 9999, pointerEvents: 'none',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.18)', minWidth: 200, maxWidth: 280,
+          lineHeight: 1.5,
+        }}>
+          {text}
+          <span style={{
+            position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
+            width: 0, height: 0,
+            borderLeft: '5px solid transparent', borderRight: '5px solid transparent',
+            borderTop: '5px solid var(--border)',
+          }} />
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -435,10 +525,21 @@ export function GitHubInsightsDashboard() {
 
           {/* ── Filter bar ── */}
           <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 16, padding: '20px 24px' }}>
-            <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 14px' }}>
-              <Filter size={11} style={{ display: 'inline', marginRight: 5 }} />
-              Select Filters
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
+                <Filter size={11} style={{ display: 'inline', marginRight: 5 }} />
+                Select Filters
+              </p>
+              {hasInsights && (
+                <span style={{ fontSize: 11, color: colors.textMuted }}>
+                  Showing data for <strong style={{ color: colors.text }}>
+                    {selectedRepo === 'all' ? 'all repositories' : (repos.find(r => r.full_name === selectedRepo)?.name || selectedRepo)}
+                  </strong> · <strong style={{ color: colors.text }}>
+                    {DAY_OPTIONS.find(o => o.value === selectedDays)?.label || `last ${selectedDays} days`}
+                  </strong>
+                </span>
+              )}
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 200px auto', gap: 12, alignItems: 'end' }}>
 
               {/* Repo selector */}
@@ -521,13 +622,36 @@ export function GitHubInsightsDashboard() {
               {/* ── Summary cards ── */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
                 {[
-                  { label: selectedRepo === 'all' ? 'Repos w/ Activity' : 'CI Runs', value: selectedRepo === 'all' ? activeRepos.length : (selectedStats?.total_runs ?? '—'), icon: Code, color: colors.primary, sub: selectedRepo === 'all' ? `of ${repos.length} total` : `last ${selectedDays}d` },
-                  { label: 'Total CI Runs', value: totalRuns || '—', icon: Activity, color: colors.primary, sub: `last ${selectedDays} days` },
-                  { label: 'Success Rate', value: totalRuns > 0 ? `${overallRate.toFixed(1)}%` : '—', icon: TrendingUp, color: overallRate >= 70 ? colors.success : colors.error },
-                ].map(({ label, value, icon: Icon, color, sub }) => (
+                  {
+                    label: selectedRepo === 'all' ? 'Repos w/ Activity' : 'CI Runs',
+                    value: selectedRepo === 'all' ? activeRepos.length : (selectedStats?.total_runs ?? '—'),
+                    icon: Code, color: colors.primary,
+                    sub: selectedRepo === 'all' ? `of ${repos.length} total` : `last ${selectedDays} days`,
+                    tooltip: selectedRepo === 'all'
+                      ? `Number of repositories that had at least one CI workflow run in the last ${selectedDays} days. Repositories with no activity in this period are excluded.`
+                      : `Total number of CI/CD pipeline runs triggered on this repository over the last ${selectedDays} days. Includes all workflow types (build, test, deploy).`,
+                  },
+                  {
+                    label: 'Total CI Runs',
+                    value: totalRuns || '—',
+                    icon: Activity, color: colors.primary,
+                    sub: `last ${selectedDays} days`,
+                    tooltip: `Aggregate count of all GitHub Actions workflow runs across ${selectedRepo === 'all' ? 'all selected repositories' : 'this repository'} in the last ${selectedDays} days. Each run represents one pipeline execution (triggered by a push, PR, or schedule).`,
+                  },
+                  {
+                    label: 'CI Success Rate',
+                    value: totalRuns > 0 ? `${overallRate.toFixed(1)}%` : '—',
+                    icon: TrendingUp,
+                    color: overallRate >= 70 ? colors.success : colors.error,
+                    sub: `${totalSuccess} passed · ${totalFailed} failed`,
+                    tooltip: `Percentage of CI runs that completed successfully (conclusion = "success"). A rate above 70% is considered healthy. Below 70% suggests instability — frequent failures may indicate flaky tests, dependency issues, or frequent breaking changes.`,
+                  },
+                ].map(({ label, value, icon: Icon, color, sub, tooltip }) => (
                   <div key={label} style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 14, padding: '18px 20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                      <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: 0 }}>{label}</p>
+                      <Tooltip text={tooltip}>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: 0, cursor: 'help', borderBottom: '1px dashed var(--border)' }}>{label}</p>
+                      </Tooltip>
                       <div style={{ width: 34, height: 34, borderRadius: 10, background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Icon size={16} style={{ color }} />
                       </div>
@@ -540,7 +664,9 @@ export function GitHubInsightsDashboard() {
                 {/* Open PRs card — shows spinner while repo detail is loading */}
                 <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 14, padding: '18px 20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: 0 }}>Open PRs</p>
+                    <Tooltip text="Number of currently open Pull Requests on this repository. Open PRs represent work-in-progress code waiting for review or merge. A high count may indicate a review bottleneck or large feature branches.">
+                      <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', margin: 0, cursor: 'help', borderBottom: '1px dashed var(--border)' }}>Open PRs</p>
+                    </Tooltip>
                     <div style={{ width: 34, height: 34, borderRadius: 10, background: '#22C55E18', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {repoDetailLoading
                         ? <Loader2 size={16} style={{ color: '#22C55E', animation: 'spin 1s linear infinite' }} />
@@ -565,7 +691,9 @@ export function GitHubInsightsDashboard() {
               {selectedRepo === 'all' && totalRuns > 0 && (
                 <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 16, padding: '18px 22px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>Overall CI Success Rate</span>
+                    <Tooltip text={`Proportion of CI runs that succeeded across all repositories in the last ${selectedDays} days. Industry benchmark is typically 70%+ for a healthy codebase. Low rates suggest frequent build/test failures that need attention.`}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: colors.text, cursor: 'help', borderBottom: '1px dashed var(--border)' }}>Overall CI Success Rate</span>
+                    </Tooltip>
                     <span style={{ fontSize: 14, fontWeight: 700, color: overallRate >= 70 ? colors.success : colors.error }}>{overallRate.toFixed(1)}%</span>
                   </div>
                   <div style={{ height: 8, borderRadius: 999, overflow: 'hidden', background: `${colors.error}25` }}>
@@ -655,7 +783,9 @@ export function GitHubInsightsDashboard() {
                       <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 16, overflow: 'hidden' }}>
                         <div style={{ padding: '13px 20px', borderBottom: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
                           <Flame size={14} style={{ color: colors.warning }} />
-                          <span style={{ fontWeight: 600, fontSize: 13, color: colors.text }}>Most Active Branches — Last 7 Days</span>
+                          <Tooltip text="Branches ranked by number of commits pushed in the last 7 days. Shows which areas of the codebase are most actively being developed. Branches near the top of the list are seeing the most engineering activity this week.">
+                            <span style={{ fontWeight: 600, fontSize: 13, color: colors.text, cursor: 'help', borderBottom: '1px dashed var(--border)' }}>Most Active Branches — Last 7 Days</span>
+                          </Tooltip>
                           <span style={{ marginLeft: 'auto', fontSize: 11, color: colors.textMuted }}>{repoDetail.active_branches.length} active</span>
                         </div>
                         {repoDetail.active_branches.map((branch: any, idx: number) => {
@@ -687,7 +817,9 @@ export function GitHubInsightsDashboard() {
                       <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 16, overflow: 'hidden' }}>
                         <div style={{ padding: '13px 20px', borderBottom: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
                           <GitPullRequest size={14} style={{ color: '#22C55E' }} />
-                          <span style={{ fontWeight: 600, fontSize: 13, color: colors.text }}>Open Pull Requests</span>
+                          <Tooltip text="Pull Requests currently open for review on this repository. Each PR represents a set of code changes proposed by a developer, awaiting review and approval before being merged into the main branch. Author and branch info help identify ownership.">
+                            <span style={{ fontWeight: 600, fontSize: 13, color: colors.text, cursor: 'help', borderBottom: '1px dashed var(--border)' }}>Open Pull Requests</span>
+                          </Tooltip>
                           <span style={{ marginLeft: 'auto', background: '#16653425', color: '#22C55E', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
                             {repoDetail.open_prs.length} open
                           </span>
@@ -740,9 +872,16 @@ export function GitHubInsightsDashboard() {
               {/* ── All repos: per-repo grid ── */}
               {selectedRepo === 'all' && allStats.length > 0 && (
                 <div>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 12px' }}>
-                    Per-Repository CI Breakdown
-                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <Tooltip text="Each card shows one repository's CI health. The percentage is the success rate for that repository. Click any card to drill into its detailed branch and PR activity.">
+                      <p style={{ fontSize: 11, fontWeight: 600, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0, cursor: 'help', borderBottom: '1px dashed var(--border)' }}>
+                        Per-Repository CI Breakdown
+                      </p>
+                    </Tooltip>
+                    <span style={{ fontSize: 11, color: colors.textMuted }}>
+                      — {DAY_OPTIONS.find(o => o.value === selectedDays)?.label || `last ${selectedDays}d`} · click a card to drill in
+                    </span>
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
                     {repos.filter(r => repoStatsMap[r.full_name]).map(repo => {
                       const stats   = repoStatsMap[repo.full_name];
@@ -761,9 +900,14 @@ export function GitHubInsightsDashboard() {
                             <div style={{ minWidth: 0 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
                                 {repo.private ? <Lock size={11} style={{ color: colors.textMuted, flexShrink: 0 }} /> : <Globe size={11} style={{ color: colors.textMuted, flexShrink: 0 }} />}
-                                <span style={{ fontSize: 13, fontWeight: 600, color: colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{repo.name}</span>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {repoDisplayName(repo)}
+                                </span>
+                                <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: 'var(--bg-page)', color: colors.textMuted, border: '1px solid var(--border)', flexShrink: 0 }}>
+                                  {repoKey(repo)}
+                                </span>
                               </div>
-                              <span style={{ fontSize: 11, color: colors.textMuted }}>{repo.owner}</span>
+                              <span style={{ fontSize: 10, color: colors.textMuted }}>{orgDisplayName(repo.owner)}</span>
                             </div>
                             <a href={repo.html_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ opacity: 0.5, flexShrink: 0 }}>
                               <ExternalLink size={12} style={{ color: colors.textSecondary }} />
@@ -806,19 +950,33 @@ export function GitHubInsightsDashboard() {
                 <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 16, overflow: 'hidden' }}>
                   <div style={{ padding: '14px 20px', borderBottom: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <GitCommit size={14} style={{ color: colors.primary }} />
-                    <span style={{ fontWeight: 600, fontSize: 13, color: colors.text }}>
-                      {selectedRepo === 'all' ? `Recent CI Workflow Runs — All Repos` : `CI Workflow Runs — ${selectedRepoObj?.name || selectedRepo.split('/')[1]}`}
-                    </span>
-                    <span style={{ marginLeft: 'auto', fontSize: 11, color: colors.textMuted }}>{visibleRuns.length} runs</span>
+                    <Tooltip text="Each row represents one GitHub Actions workflow run — an automated pipeline execution triggered by code activity. 'Workflow' is the pipeline name, 'Result' shows whether it passed or failed, and 'Date' is when it was triggered.">
+                      <span style={{ fontWeight: 600, fontSize: 13, color: colors.text, cursor: 'help', borderBottom: '1px dashed var(--border)' }}>
+                        {selectedRepo === 'all' ? `Recent CI Workflow Runs — All Repos` : `CI Workflow Runs — ${selectedRepoObj?.name || selectedRepo.split('/')[1]}`}
+                      </span>
+                    </Tooltip>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, color: colors.textMuted }}>{visibleRuns.length} runs · {DAY_OPTIONS.find(o => o.value === selectedDays)?.label || `last ${selectedDays}d`}</span>
                   </div>
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                       <thead>
                         <tr style={{ borderBottom: `1px solid ${colors.border}` }}>
-                          {selectedRepo === 'all' && <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>Repo</th>}
-                          <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>Workflow</th>
-                          <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>Result</th>
-                          <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>Date</th>
+                          {selectedRepo === 'all' && <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>Repository</th>}
+                          <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>
+                            <Tooltip text="The name of the automated pipeline / GitHub Actions workflow that ran (e.g., 'Build & Test', 'Deploy to Prod').">
+                              <span style={{ cursor: 'help', borderBottom: '1px dashed var(--border)' }}>Workflow</span>
+                            </Tooltip>
+                          </th>
+                          <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>
+                            <Tooltip text="The outcome of the pipeline run. 'Success' means all steps passed. 'Failure' means one or more steps failed. 'In progress' means still running.">
+                              <span style={{ cursor: 'help', borderBottom: '1px dashed var(--border)' }}>Result</span>
+                            </Tooltip>
+                          </th>
+                          <th style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: colors.textMuted }}>
+                            <Tooltip text="The date and time when this workflow run was triggered.">
+                              <span style={{ cursor: 'help', borderBottom: '1px dashed var(--border)' }}>Triggered</span>
+                            </Tooltip>
+                          </th>
                           <th style={{ padding: '10px 16px' }} />
                         </tr>
                       </thead>

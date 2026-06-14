@@ -226,37 +226,24 @@ export function SimpleJiraConnect() {
       
       <CardContent className="space-y-4">
         {/* Main Connect Button */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <Button
-            onClick={handleConnect}
-            disabled={loading}
-            size="lg"
-            className="flex items-center gap-2 shadow-lg hover:shadow-xl hover:opacity-90 transition-all duration-200 transform hover:scale-105"
-            style={{ backgroundColor: '#D4A847', color: '#13151C' }}
-          >
-            {loading ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
-            ) : (
-              <Zap className="w-4 h-4" />
-            )}
-            {loading ? 'Connecting...' : 'Connect to Jira'}
-          </Button>
-
-          {/* Manual Entry Toggle */}
-          <Button
-            variant="outline"
-            onClick={() => setShowManualEntry(!showManualEntry)}
-            className="flex items-center gap-2 transition-all duration-200"
-            style={{
-              borderColor: currentTheme.colors.border,
-              color: currentTheme.colors.text,
-              backgroundColor: 'transparent'
-            }}
-          >
-            <Settings className="w-4 h-4" />
-            Enter Connection Details
-            {showManualEntry ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </Button>
+        <div className="flex items-center gap-3">
+          {status?.configured ? (
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg" style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)' }}>
+              <CheckCircle className="w-4 h-4" style={{ color: '#22C55E' }} />
+              <span className="text-sm font-semibold" style={{ color: '#22C55E' }}>Connected</span>
+            </div>
+          ) : (
+            <Button
+              onClick={handleConnect}
+              disabled={loading}
+              size="lg"
+              className="flex items-center gap-2 hover:opacity-90 transition-all duration-200"
+              style={{ backgroundColor: '#D4A847', color: '#13151C' }}
+            >
+              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+              {loading ? 'Connecting...' : 'Connect to Jira'}
+            </Button>
+          )}
         </div>
 
 
@@ -275,142 +262,6 @@ export function SimpleJiraConnect() {
           </Alert>
         )}
 
-        {/* Manual Entry Form */}
-        {showManualEntry && (
-          <div className="space-y-4 border-t pt-4" style={{ borderColor: currentTheme.colors.border }}>
-            <h4 className="font-medium text-sm" style={{ color: currentTheme.colors.text }}>Jira Connection Details</h4>
-            
-            {/* Saved Configuration Display */}
-            {savedConfig && (
-              <div className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <div className="p-1 bg-green-100 dark:bg-green-900/40 rounded-full">
-                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div className="flex-1">
-                    <h5 className="font-semibold text-green-800 dark:text-green-200 mb-1 text-sm">Saved Configuration Found</h5>
-                    <p className="text-xs text-green-700 dark:text-green-300">
-                      Ready to connect as: <span className="font-medium">{savedConfig.email}</span>
-                    </p>
-                    <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-mono">
-                      {savedConfig.url}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <Label htmlFor="jira-url" className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>Jira URL</Label>
-                <Input
-                  id="jira-url"
-                  type="url"
-                  placeholder="https://projects.yourcompany.com"
-                  value={config.url}
-                  onChange={(e) => setConfig(prev => ({ ...prev, url: e.target.value }))}
-                  className="text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder:text-slate-400"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="jira-email" className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>Email</Label>
-                <Input
-                  id="jira-email"
-                  type="email"
-                  placeholder="your.email@company.com"
-                  value={config.email}
-                  onChange={(e) => setConfig(prev => ({ ...prev, email: e.target.value }))}
-                  className="text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder:text-slate-400"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="jira-token" className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>Password or API Token</Label>
-                <div className="relative">
-                  <Input
-                    id="jira-token"
-                    type={showToken ? "text" : "password"}
-                    placeholder="your-jira-password-or-token"
-                    value={config.apiToken}
-                    onChange={(e) => setConfig(prev => ({ ...prev, apiToken: e.target.value }))}
-                    className="text-sm pr-8 dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder:text-slate-400"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-2 hover:bg-transparent"
-                    onClick={() => setShowToken(!showToken)}
-                  >
-                    {showToken ? (
-                      <EyeOff className="h-3 w-3 text-gray-400 dark:text-gray-500" />
-                    ) : (
-                      <Eye className="h-3 w-3 text-gray-400 dark:text-gray-500" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="jira-board" className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>Board ID (Optional)</Label>
-                <Input
-                  id="jira-board"
-                  type="text"
-                  placeholder="123 (leave empty for all boards)"
-                  value={config.boardId}
-                  onChange={(e) => setConfig(prev => ({ ...prev, boardId: e.target.value }))}
-                  className="text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder:text-slate-400"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                onClick={handleSaveAndConnect}
-                disabled={loading}
-                className="flex items-center gap-2"
-              >
-                {loading ? (
-                  <RefreshCw className="w-3 h-3 animate-spin" />
-                ) : (
-                  <CheckCircle className="w-3 h-3" />
-                )}
-                Save & Connect
-              </Button>
-              
-              <Button
-                variant="outline"
-                onClick={() => setShowManualEntry(false)}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-
-              {savedConfig && (
-                <Button
-                  variant="outline"
-                  onClick={clearSavedDetails}
-                  disabled={loading}
-                  style={{ color: 'var(--red)', borderColor: 'var(--red)' }}
-                >
-                  Clear Saved Details
-                </Button>
-              )}
-            </div>
-
-            {/* Help Information */}
-            <Alert className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
-              <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <AlertTitle className="text-blue-800 dark:text-blue-200">Authentication options</AlertTitle>
-              <AlertDescription className="space-y-2 text-xs text-blue-700 dark:text-blue-300">
-                <p><strong>Server/Data Center:</strong> Enter your Jira <strong>password</strong> in the field above.</p>
-                <p><strong>Cloud:</strong> Use an <strong>API token</strong> from Atlassian Account Settings → Security → API tokens.</p>
-                <p>The app automatically tries the correct method for your Jira.</p>
-              </AlertDescription>
-            </Alert>
-          </div>
-        )}
 
       </CardContent>
     </Card>

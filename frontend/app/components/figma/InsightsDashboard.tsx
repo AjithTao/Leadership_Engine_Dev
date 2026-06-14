@@ -1,13 +1,13 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { RefreshCw, TrendingUp, Users, Clock, Target, AlertTriangle, CheckCircle, BarChart3, PieChart, Activity, Zap, Sparkles, ArrowUpRight, Trophy, Crown, Star, Medal, Award, Download, FileText, Brain, Lightbulb, Info, X, TrendingDown, LineChart, Settings, Maximize2, Minimize2, ChevronDown, ChevronUp, Calendar, Layers, Eye, EyeOff } from 'lucide-react';
+import { RefreshCw, TrendingUp, Users, Clock, Target, AlertTriangle, CheckCircle, BarChart3, PieChart, Activity, Zap, Sparkles, ArrowUpRight, Trophy, Crown, Star, Medal, Award, Download, FileText, Brain, Lightbulb, Info, X, TrendingDown, LineChart, Settings, Maximize2, Minimize2, ChevronDown, ChevronUp, Calendar, Layers, Eye, EyeOff, Search } from 'lucide-react';
 import { Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, ComposedChart, Scatter } from 'recharts';
 import { exportInsightsAsPDF } from '../../utils/exportUtils';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -19,6 +19,32 @@ interface Project {
   id: string;
   key: string;
   name: string;
+}
+
+interface PIRange {
+  value: string;
+  label: string;
+  pi: string;
+  year: string;
+  startDate: string;
+  endDate: string;
+}
+
+interface SprintInfo {
+  sprintName: string;
+  startDate: string;
+  endDate: string;
+  committedPoints?: number;
+  completedPoints?: number;
+  velocity?: number;
+  sprintGoal?: string;
+}
+
+interface PeriodContext {
+  current_pi: PIRange | null;
+  all_pis: PIRange[];
+  current_sprint: SprintInfo | null;
+  recent_sprints: SprintInfo[];
 }
 
 interface JiraMetrics {
@@ -218,6 +244,12 @@ export default function InsightsDashboard() {
     bottlenecks: true
   });
 
+  const [activeInfoTooltip, setActiveInfoTooltip] = useState<string | null>(null);
+  const [projectSearch, setProjectSearch] = useState('');
+  const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+  const projectDropdownRef = useRef<HTMLDivElement>(null);
+  const [periodContext, setPeriodContext] = useState<PeriodContext | null>(null);
+
   const applyAlpha = (hexColor: string, alpha: number) => {
     if (!hexColor) return `rgba(0,0,0,${alpha})`;
     const sanitized = hexColor.replace('#', '');
@@ -267,6 +299,40 @@ export default function InsightsDashboard() {
     console.log('🔄 Filters changed after initial fetch - refreshing data...');
     fetchData();
   }, [selectedProject, dateFrom, dateTo]);
+
+  // Close project dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (projectDropdownRef.current && !projectDropdownRef.current.contains(e.target as Node)) {
+        setProjectDropdownOpen(false);
+        setProjectSearch('');
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Fetch Sprint and PI context for date range presets
+  useEffect(() => {
+    const fetchPeriodContext = async () => {
+      try {
+        const res = await fetch(getApiUrl('/api/jira/period-context'));
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success) {
+          setPeriodContext({
+            current_pi: data.current_pi || null,
+            all_pis: data.all_pis || [],
+            current_sprint: data.current_sprint || null,
+            recent_sprints: data.recent_sprints || [],
+          });
+        }
+      } catch (e) {
+        console.warn('Could not load period context:', e);
+      }
+    };
+    fetchPeriodContext();
+  }, []);
 
   const loadCachedData = (initialize: boolean = false) => {
     try {
@@ -1153,6 +1219,186 @@ const avgIssuesPerMember = topAssignees.length > 0
   // ─── Divider ──────────────────────────────────────────────────────────────
   const divider = <div style={{ height: 1, background: 'var(--border)', margin: '0 0 28px' }} />;
 
+  // ─── Date presets (real Sprint/PI dates when context is loaded) ────────────
+  interface DatePreset {
+    key: string;
+    label: string;
+    tip: string;
+    startDate?: string;
+    endDate?: string;
+    days?: number;
+  }
+
+  const DATE_PRESETS: DatePreset[] = useMemo(() => {
+    const sprint = periodContext?.current_sprint;
+    const pi = periodContext?.current_pi;
+
+    const sprintLabel = sprint?.sprintName
+      ? (sprint.sprintName.length > 16 ? sprint.sprintName.slice(0, 16) + '…' : sprint.sprintName)
+      : 'Sprint';
+    const sprintTip = sprint
+      ? `${sprint.sprintName} · ${sprint.startDate} → ${sprint.endDate}`
+      : '1 Sprint · 2 weeks';
+
+    const piLabel = pi ? `${pi.pi} · ${pi.year}` : 'PI';
+    const piTip = pi
+      ? `${pi.label} · ${pi.startDate} → ${pi.endDate}`
+      : 'Program Increment · 5 Sprints · 10 weeks';
+
+    return [
+      { key: 'week',    label: 'Week',      tip: 'Last 7 days',              days: 7 },
+      { key: 'sprint',  label: sprintLabel, tip: sprintTip,
+        ...(sprint ? { startDate: sprint.startDate, endDate: sprint.endDate } : { days: 14 }) },
+      { key: 'month',   label: 'Month',     tip: 'Last 30 days',             days: 30 },
+      { key: 'pi',      label: piLabel,     tip: piTip,
+        ...(pi ? { startDate: pi.startDate, endDate: pi.endDate } : { days: 70 }) },
+      { key: 'quarter', label: 'Quarter',   tip: 'Last 90 days · 1 Quarter', days: 90 },
+      { key: 'year',    label: 'Year',      tip: 'Last 12 months',           days: 365 },
+    ];
+  }, [periodContext]);
+
+  const applyDatePreset = (preset: DatePreset) => {
+    if (preset.startDate && preset.endDate) {
+      setDateFrom(preset.startDate);
+      setDateTo(preset.endDate);
+    } else if (preset.days) {
+      const end = new Date();
+      const start = new Date();
+      start.setDate(end.getDate() - (preset.days - 1));
+      setDateTo(end.toISOString().split('T')[0]);
+      setDateFrom(start.toISOString().split('T')[0]);
+    }
+  };
+
+  const daysDiff = dateFrom && dateTo
+    ? Math.ceil((new Date(dateTo).getTime() - new Date(dateFrom).getTime()) / (1000 * 60 * 60 * 24)) + 1
+    : null;
+
+  const activePresetKey = useMemo((): string | null => {
+    if (!dateFrom || !dateTo) return null;
+    for (const p of DATE_PRESETS) {
+      if (p.startDate && p.endDate && dateFrom === p.startDate && dateTo === p.endDate) return p.key;
+      if (!p.startDate && p.days && daysDiff === p.days) return p.key;
+    }
+    return null;
+  }, [dateFrom, dateTo, DATE_PRESETS, daysDiff]);
+
+  // ─── Info Tooltip ─────────────────────────────────────────────────────────
+  const InfoTooltip = ({ id, text, width = 240 }: { id: string; text: string; width?: number }) => (
+    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+      <button
+        onMouseEnter={() => setActiveInfoTooltip(id)}
+        onMouseLeave={() => setActiveInfoTooltip(null)}
+        style={{ background: 'none', border: 'none', padding: '0 0 0 5px', cursor: 'default', display: 'flex', alignItems: 'center', color: 'var(--text-muted)', lineHeight: 1 }}
+      >
+        <Info size={11} />
+      </button>
+      {activeInfoTooltip === id && (
+        <div style={{
+          position: 'absolute', bottom: 'calc(100% + 7px)', left: '50%', transform: 'translateX(-50%)',
+          background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 9,
+          padding: '9px 12px', width, zIndex: 9999, boxShadow: '0 8px 28px rgba(0,0,0,0.22)',
+          pointerEvents: 'none',
+        }}>
+          <p style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.55, margin: 0 }}>{text}</p>
+          <div style={{ position: 'absolute', bottom: -5, left: '50%', transform: 'translateX(-50%) rotate(45deg)', width: 8, height: 8, background: 'var(--bg-card)', borderRight: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }} />
+        </div>
+      )}
+    </div>
+  );
+
+  // ─── Searchable Project Select ────────────────────────────────────────────
+  const SearchableProjectSelect = () => {
+    const q = projectSearch.toLowerCase();
+    const filtered = projects.filter(p => !q || p.name.toLowerCase().includes(q) || p.key.toLowerCase().includes(q));
+    const selectedObj = projects.find(p => p.key === selectedProject);
+    const displayName = selectedProject === 'ALL' || !selectedProject ? 'All Projects' : (selectedObj?.name || selectedProject);
+
+    return (
+      <div ref={projectDropdownRef} style={{ position: 'relative' }}>
+        <button
+          onClick={() => setProjectDropdownOpen(v => !v)}
+          style={{
+            width: '100%', height: 36,
+            background: 'var(--bg-surface)', border: `1px solid ${projectDropdownOpen ? 'var(--accent-cool)' : 'var(--border)'}`,
+            borderRadius: 10, padding: '0 10px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+            cursor: 'pointer', fontSize: 13, color: 'var(--text-primary)',
+          }}
+        >
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500, flex: 1 }}>{displayName}</span>
+            {selectedObj && (
+              <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--accent-cool)18', color: 'var(--accent-cool)', borderRadius: 5, padding: '1px 6px', flexShrink: 0, letterSpacing: '0.04em' }}>
+                {selectedObj.key}
+              </span>
+            )}
+          </div>
+          <ChevronDown size={13} style={{ color: 'var(--text-muted)', flexShrink: 0, transform: projectDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+        </button>
+
+        {projectDropdownOpen && (
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 200,
+            background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12,
+            boxShadow: '0 8px 28px rgba(0,0,0,0.2)', overflow: 'hidden',
+          }}>
+            <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-surface)', borderRadius: 8, padding: '5px 9px' }}>
+                <Search size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                <input
+                  autoFocus
+                  value={projectSearch}
+                  onChange={e => setProjectSearch(e.target.value)}
+                  placeholder="Search by name or key…"
+                  style={{ background: 'none', border: 'none', outline: 'none', fontSize: 12, color: 'var(--text-primary)', width: '100%' }}
+                />
+                {projectSearch && (
+                  <button onClick={() => setProjectSearch('')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
+                    <X size={11} />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+              <button
+                onClick={() => { setSelectedProject('ALL'); setProjectDropdownOpen(false); setProjectSearch(''); }}
+                style={{ width: '100%', padding: '8px 12px', background: selectedProject === 'ALL' ? 'var(--accent-cool)10' : 'none', border: 'none', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8 }}
+              >
+                <span style={{ fontSize: 13, color: selectedProject === 'ALL' ? 'var(--accent-cool)' : 'var(--text-primary)', fontWeight: selectedProject === 'ALL' ? 600 : 400 }}>All Projects</span>
+              </button>
+              {filtered.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => { setSelectedProject(p.key); setProjectDropdownOpen(false); setProjectSearch(''); }}
+                  style={{ width: '100%', padding: '8px 12px', background: selectedProject === p.key ? 'var(--accent-cool)10' : 'none', border: 'none', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8 }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: selectedProject === p.key ? 'var(--accent-cool)' : 'var(--text-primary)', fontWeight: selectedProject === p.key ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--accent-cool)18', color: 'var(--accent-cool)', borderRadius: 5, padding: '1px 6px', flexShrink: 0, letterSpacing: '0.04em' }}>{p.key}</span>
+                </button>
+              ))}
+              {filtered.length === 0 && (
+                <div style={{ padding: '12px', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>No projects match "{projectSearch}"</div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ─── KPI tooltip copy ─────────────────────────────────────────────────────
+  const KPI_TOOLTIPS: Record<string, string> = {
+    'Total Issues': 'Total number of Jira issues active within the selected date range and project — includes all types (bugs, stories, tasks, epics).',
+    'Open Issues': 'Issues currently open and not yet resolved. A rising open count may indicate backlog growth or delivery bottlenecks.',
+    'Resolved': 'Issues successfully closed within the date range — a direct measure of team throughput and delivery pace.',
+    'Bugs': 'Reported defects and errors in the system. A growing bug count relative to stories may signal quality risks needing attention.',
+    'Stories': 'User stories representing planned feature work. Tracks new development commitments and feature delivery.',
+    'Story Points': 'Team-assigned effort units used to size work items. Helps measure sprint velocity and forecast delivery capacity.',
+  };
+
   return (
     <DashboardLayout>
       <div
@@ -1273,29 +1519,11 @@ const avgIssuesPerMember = topAssignees.length > 0
 
           {/* ── FILTER BAR ───────────────────────────────────────────────── */}
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '18px 20px', marginBottom: 28 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px 180px auto', gap: 16, alignItems: 'end' }}>
-              {/* Project dropdown */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 168px 168px auto', gap: 16, alignItems: 'end' }}>
+              {/* Project dropdown — searchable with name + key */}
               <div>
                 <span style={labelStyle}>Project</span>
-                <Select value={selectedProject} onValueChange={setSelectedProject}>
-                  <SelectTrigger
-                    style={{
-                      background: 'var(--bg-surface)', border: '1px solid var(--border)',
-                      borderRadius: 10, color: 'var(--text-primary)', fontSize: 13,
-                      fontWeight: 500, height: 36, paddingLeft: 12,
-                    }}
-                  >
-                    <SelectValue placeholder="All Projects" />
-                  </SelectTrigger>
-                  <SelectContent style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12 }}>
-                    <SelectItem value="ALL" style={{ color: 'var(--text-primary)', fontSize: 13 }}>All Projects</SelectItem>
-                    {Array.isArray(projects) && projects.map(p => (
-                      <SelectItem key={p.id} value={p.key} style={{ color: 'var(--text-primary)', fontSize: 13 }}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableProjectSelect />
               </div>
 
               {/* Date from */}
@@ -1349,13 +1577,67 @@ const avgIssuesPerMember = topAssignees.length > 0
               </button>
             </div>
 
+            {/* Date preset quick-picks */}
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 2 }}>Period:</span>
+              {DATE_PRESETS.map(p => {
+                const active = activePresetKey === p.key;
+                return (
+                  <div key={p.key} style={{ position: 'relative' }}>
+                    <button
+                      onClick={() => applyDatePreset(p)}
+                      onMouseEnter={() => setActiveInfoTooltip(`preset-${p.key}`)}
+                      onMouseLeave={() => setActiveInfoTooltip(null)}
+                      style={{
+                        background: active ? 'var(--accent-cool)' : 'var(--bg-surface)',
+                        color: active ? '#000' : 'var(--text-secondary)',
+                        border: `1px solid ${active ? 'var(--accent-cool)' : 'var(--border)'}`,
+                        borderRadius: 7, padding: '4px 12px', fontSize: 11, fontWeight: 600,
+                        cursor: 'pointer', transition: 'all 0.12s', fontFamily: 'inherit',
+                      }}
+                    >
+                      {p.label}
+                    </button>
+                    {activeInfoTooltip === `preset-${p.key}` && (
+                      <div style={{
+                        position: 'absolute', bottom: 'calc(100% + 6px)', left: '50%', transform: 'translateX(-50%)',
+                        background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 7,
+                        padding: '5px 10px', whiteSpace: 'nowrap', zIndex: 999,
+                        fontSize: 11, color: 'var(--text-secondary)',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.16)', pointerEvents: 'none',
+                      }}>
+                        {p.tip}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
             {/* Active filter pills */}
             {jiraMetrics && (
-              <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Showing:</span>
-                <span style={{ fontSize: 11, background: 'var(--accent-cool)18', color: 'var(--accent-cool)', borderRadius: 6, padding: '2px 8px', fontWeight: 600 }}>
+              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Showing data for</span>
+                {(() => {
+                  const selObj = projects.find(p => p.key === selectedProject);
+                  return selObj ? (
+                    <span style={{ fontSize: 11, background: 'var(--accent-cool)18', color: 'var(--accent-cool)', borderRadius: 6, padding: '2px 8px', fontWeight: 600 }}>
+                      {selObj.name} · {selObj.key}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 11, background: 'var(--accent-cool)18', color: 'var(--accent-cool)', borderRadius: 6, padding: '2px 8px', fontWeight: 600 }}>
+                      All Projects
+                    </span>
+                  );
+                })()}
+                <span style={{ fontSize: 11, background: 'var(--bg-surface)', color: 'var(--text-secondary)', borderRadius: 6, padding: '2px 8px' }}>
                   {dateRangeLabel}
                 </span>
+                {daysDiff !== null && (
+                  <span style={{ fontSize: 11, background: 'var(--bg-surface)', color: 'var(--text-muted)', borderRadius: 6, padding: '2px 8px' }}>
+                    {daysDiff} days
+                  </span>
+                )}
                 {issuesInRange !== null && (
                   <span style={{ fontSize: 11, background: 'var(--bg-surface)', color: 'var(--text-secondary)', borderRadius: 6, padding: '2px 8px' }}>
                     {issuesInRange} issues
@@ -1456,8 +1738,13 @@ const avgIssuesPerMember = topAssignees.length > 0
                       borderRadius: 12, padding: '16px 14px',
                     }}
                   >
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontWeight: 600 }}>
-                      {kpi.label}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+                        {kpi.label}
+                      </div>
+                      {KPI_TOOLTIPS[kpi.label] && (
+                        <InfoTooltip id={`kpi-${kpi.label}`} text={KPI_TOOLTIPS[kpi.label]} width={220} />
+                      )}
                     </div>
                     <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.04em', lineHeight: 1 }}>
                       {kpi.value}
@@ -1476,8 +1763,11 @@ const avgIssuesPerMember = topAssignees.length > 0
                   <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--green)18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <CheckCircle size={20} style={{ color: 'var(--green)' }} />
                   </div>
-                  <div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 2 }}>Completion Rate</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Completion Rate</div>
+                      <InfoTooltip id="qs-completion" text="Percentage of total issues that have been resolved (Resolved ÷ Total Issues). A healthy, high-performing team typically sustains 85%+ completion within a sprint." width={260} />
+                    </div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--green)', letterSpacing: '-0.03em' }}>{getCompletionRate()}%</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{jiraMetrics.resolvedIssues} of {jiraMetrics.totalIssues} resolved</div>
                   </div>
@@ -1488,8 +1778,11 @@ const avgIssuesPerMember = topAssignees.length > 0
                   <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--accent-cool)18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <TrendingUp size={20} style={{ color: 'var(--accent-cool)' }} />
                   </div>
-                  <div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 2 }}>Sprint Velocity</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Sprint Velocity</div>
+                      <InfoTooltip id="qs-velocity" text="Average story points delivered per sprint. Rising velocity signals growing team capacity; a falling trend may indicate blockers, scope creep, or team overload." width={260} />
+                    </div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--accent-cool)', letterSpacing: '-0.03em' }}>{jiraMetrics.sprintVelocity || 0}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>pts · {jiraMetrics.storyPoints || 0} total story pts</div>
                   </div>
@@ -1500,10 +1793,13 @@ const avgIssuesPerMember = topAssignees.length > 0
                   <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--amber)18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Clock size={20} style={{ color: 'var(--amber)' }} />
                   </div>
-                  <div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 2 }}>Avg Resolution</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Avg Resolution</div>
+                      <InfoTooltip id="qs-resolution" text="Average time in days from when an issue is created to when it is resolved. Lower values indicate fewer process bottlenecks and faster delivery cycles." width={260} />
+                    </div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--amber)', letterSpacing: '-0.03em' }}>{jiraMetrics.avgResolutionTime || 0}d</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>days to close</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>days to close · lower is better</div>
                   </div>
                 </div>
               </div>
@@ -1522,32 +1818,48 @@ const avgIssuesPerMember = topAssignees.length > 0
                       </div>
                     </div>
                   )}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                    {sectionTitle(
-                      selectedChartView === 'velocity' ? 'Sprint Velocity Trends'
-                        : selectedChartView === 'burndown' ? 'Burndown Chart'
-                        : selectedChartView === 'capacity' ? 'Team Capacity'
-                        : 'Historical Trends',
-                      <TrendingUp size={15} style={{ color: 'var(--accent-cool)' }} />
-                    )}
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      {(['velocity', 'burndown', 'capacity', 'historical'] as const).map(v => (
-                        <button
-                          key={v}
-                          onClick={() => setSelectedChartView(v)}
-                          style={{
-                            background: selectedChartView === v ? 'var(--accent-cool)' : 'var(--bg-surface)',
-                            color: selectedChartView === v ? '#000' : 'var(--text-secondary)',
-                            border: `1px solid ${selectedChartView === v ? 'var(--accent-cool)' : 'var(--border)'}`,
-                            borderRadius: 8, padding: '4px 11px', fontSize: 11, fontWeight: 600,
-                            cursor: 'pointer', textTransform: 'capitalize', letterSpacing: '0.03em',
-                          }}
-                        >
-                          {v}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  {(() => {
+                    const CHART_TOOLTIPS: Record<string, string> = {
+                      velocity: 'Sprint-over-sprint view of committed vs. completed story points. The gap between the two lines shows over- or under-delivery trends.',
+                      burndown: 'Remaining work (story points) per sprint day. The ideal line shows target pace; the blue line shows actual progress — deviation signals risk.',
+                      capacity: 'Each team member\'s current workload as % of their capacity. 70–90% = optimal zone; >100% = overloaded; <70% = underutilized.',
+                      historical: 'Month-over-month issue volume and velocity — helps identify seasonal patterns, growth trends, or delivery slowdowns over time.',
+                    };
+                    const chartTitles: Record<string, string> = {
+                      velocity: 'Sprint Velocity Trends',
+                      burndown: 'Burndown Chart',
+                      capacity: 'Team Capacity',
+                      historical: 'Historical Trends',
+                    };
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--accent-cool)15', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <TrendingUp size={15} style={{ color: 'var(--accent-cool)' }} />
+                          </div>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{chartTitles[selectedChartView]}</span>
+                          <InfoTooltip id={`chart-${selectedChartView}`} text={CHART_TOOLTIPS[selectedChartView]} width={280} />
+                        </div>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          {(['velocity', 'burndown', 'capacity', 'historical'] as const).map(v => (
+                            <button
+                              key={v}
+                              onClick={() => setSelectedChartView(v)}
+                              style={{
+                                background: selectedChartView === v ? 'var(--accent-cool)' : 'var(--bg-surface)',
+                                color: selectedChartView === v ? '#000' : 'var(--text-secondary)',
+                                border: `1px solid ${selectedChartView === v ? 'var(--accent-cool)' : 'var(--border)'}`,
+                                borderRadius: 8, padding: '4px 11px', fontSize: 11, fontWeight: 600,
+                                cursor: 'pointer', textTransform: 'capitalize', letterSpacing: '0.03em',
+                              }}
+                            >
+                              {v}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <div style={{ height: 260 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       {selectedChartView === 'velocity' ? (
@@ -1595,7 +1907,13 @@ const avgIssuesPerMember = topAssignees.length > 0
 
                 {/* Issue type breakdown */}
                 <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 24px' }}>
-                  {sectionTitle('Issue Breakdown', <PieChart size={15} style={{ color: 'var(--accent-cool)' }} />)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--accent-cool)15', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <PieChart size={15} style={{ color: 'var(--accent-cool)' }} />
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Issue Breakdown</span>
+                    <InfoTooltip id="issue-breakdown" text="Distribution of issue types (Bugs, Stories, Tasks, Epics) created in the selected period. A high bug-to-story ratio may indicate quality debt accumulating faster than new development." width={270} />
+                  </div>
 
                   {/* Horizontal stacked bar */}
                   <div style={{ height: 8, borderRadius: 4, overflow: 'hidden', display: 'flex', marginBottom: 20 }}>
@@ -1620,7 +1938,13 @@ const avgIssuesPerMember = topAssignees.length > 0
                   <div style={{ height: 1, background: 'var(--border)', margin: '16px 0' }} />
 
                   {/* Status distribution */}
-                  {sectionTitle('Status', <Activity size={14} style={{ color: 'var(--accent-cool)' }} />)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <div style={{ width: 26, height: 26, borderRadius: 8, background: 'var(--accent-cool)15', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Activity size={13} style={{ color: 'var(--accent-cool)' }} />
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Status</span>
+                    <InfoTooltip id="status-dist" text="Current spread of issues across workflow stages. A large 'To Do' count signals backlog growth; many 'In Progress' items may cause context-switching and reduced focus." width={260} />
+                  </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {statusDistribution.length > 0 ? statusDistribution.map(([status, count]) => {
                       const pct = maxStatusCount > 0 ? Math.round((count / maxStatusCount) * 100) : 0;
@@ -1647,7 +1971,13 @@ const avgIssuesPerMember = topAssignees.length > 0
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 28 }}>
                 {/* Team capacity */}
                 <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 24px' }}>
-                  {sectionTitle('Team Capacity', <Users size={15} style={{ color: 'var(--accent-cool)' }} />)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--accent-cool)15', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Users size={15} style={{ color: 'var(--accent-cool)' }} />
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Team Capacity</span>
+                    <InfoTooltip id="team-capacity" text="Each team member's current workload as a % of their available capacity. Red = overloaded (>100%), Green = optimal (70–90%), Yellow = underutilized (<70%). Balancing workloads improves both output and team health." width={280} />
+                  </div>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                     {enhancedMetrics?.teamCapacity?.length > 0
                       ? enhancedMetrics.teamCapacity.slice(0, 5).map(member => (
@@ -1686,8 +2016,9 @@ const avgIssuesPerMember = topAssignees.length > 0
                   {topAssignees.length > 0 && (
                     <>
                       <div style={{ height: 1, background: 'var(--border)', margin: '20px 0 16px' }} />
-                      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>
-                        Issue Distribution
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 12 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Issue Distribution</span>
+                        <InfoTooltip id="issue-dist" text="Number of issues currently assigned to each team member in the selected project and date range. Uneven bars signal workload imbalance that may affect delivery pace." width={260} />
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {topAssignees.map(([assignee, count]) => (
@@ -1708,7 +2039,13 @@ const avgIssuesPerMember = topAssignees.length > 0
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   {/* Bottlenecks */}
                   <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 24px', flex: 1 }}>
-                    {sectionTitle('Process Bottlenecks', <AlertTriangle size={15} style={{ color: 'var(--amber)' }} />)}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--amber)15', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <AlertTriangle size={15} style={{ color: 'var(--amber)' }} />
+                      </div>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Process Bottlenecks</span>
+                      <InfoTooltip id="bottlenecks" text="Workflow stages where issues stall longer than average. A high 'stuck' count at a specific stage (e.g. 'In Review') signals friction that slows the entire delivery pipeline." width={270} />
+                    </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {enhancedMetrics?.bottleneckAnalysis?.length > 0
                         ? enhancedMetrics.bottleneckAnalysis.slice(0, 5).map((b, i) => {
@@ -1748,7 +2085,13 @@ const avgIssuesPerMember = topAssignees.length > 0
 
                   {/* Predictive analytics mini card */}
                   <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 24px' }}>
-                    {sectionTitle('Predictive Analytics', <Sparkles size={15} style={{ color: 'var(--accent-cool)' }} />)}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--accent-cool)15', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Sparkles size={15} style={{ color: 'var(--accent-cool)' }} />
+                      </div>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Predictive Analytics</span>
+                      <InfoTooltip id="predictive" text="AI-powered sprint forecast derived from historical velocity patterns. Completion confidence = probability the current sprint will deliver its committed story points on time." width={270} />
+                    </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
                       <div style={{ background: 'var(--bg-surface)', borderRadius: 10, padding: '12px 14px' }}>
                         <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 4 }}>Completion</div>
@@ -1788,7 +2131,13 @@ const avgIssuesPerMember = topAssignees.length > 0
               {/* ── HISTORICAL COMPARISON ─────────────────────────────────── */}
               {enhancedMetrics?.historicalComparison?.length > 0 && (
                 <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 24px', marginBottom: 28 }}>
-                  {sectionTitle('Month-over-Month Comparison', <Calendar size={15} style={{ color: 'var(--accent-cool)' }} />)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--accent-cool)15', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Calendar size={15} style={{ color: 'var(--accent-cool)' }} />
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Month-over-Month Comparison</span>
+                    <InfoTooltip id="historical" text="Side-by-side comparison across periods — Total Issues (scope), Completion Rate (delivery %), and Velocity (story points done). An upward velocity trend over consecutive months signals a maturing, high-performing team." width={300} />
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${enhancedMetrics.historicalComparison.length}, 1fr)`, gap: 16 }}>
                     {enhancedMetrics.historicalComparison.map((c, i) => (
                       <div key={i} style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: '16px 18px' }}>
@@ -1882,7 +2231,13 @@ const avgIssuesPerMember = topAssignees.length > 0
               {/* ── DUE DATE RISK ─────────────────────────────────────────── */}
               {enhancedMetrics?.dueDateRisk && enhancedMetrics.dueDateRisk.length > 0 && (
                 <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 24px', marginBottom: 28 }}>
-                  {sectionTitle('Due Date Risk', <Clock size={15} style={{ color: 'var(--amber)' }} />)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--amber)15', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Clock size={15} style={{ color: 'var(--amber)' }} />
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Due Date Risk</span>
+                    <InfoTooltip id="due-date-risk" text="Issues approaching their due date or already overdue. 'Overdue' items need immediate attention; 'Due Soon' items should be reviewed in the next standup to prevent slippage." width={270} />
+                  </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {enhancedMetrics.dueDateRisk.map(item => {
                       const isOverdue = item.isOverdue;
@@ -1917,7 +2272,13 @@ const avgIssuesPerMember = topAssignees.length > 0
               {/* ── ISSUE AGE DISTRIBUTION ────────────────────────────────── */}
               {enhancedMetrics?.issueAgeDistribution && enhancedMetrics.issueAgeDistribution.some(a => a.count > 0) && (
                 <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 24px', marginBottom: 28 }}>
-                  {sectionTitle('Open Issue Age Distribution', <Layers size={15} style={{ color: 'var(--accent-cool)' }} />)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--accent-cool)15', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Layers size={15} style={{ color: 'var(--accent-cool)' }} />
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Open Issue Age Distribution</span>
+                    <InfoTooltip id="issue-age" text="Breakdown of open issues by how long they've been open. Issues older than 30 days are considered stale — they often indicate forgotten work, unclear ownership, or dependency blockers." width={280} />
+                  </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {(() => {
                       const maxAge = Math.max(...(enhancedMetrics.issueAgeDistribution?.map(a => a.count) || [1]));
@@ -1942,7 +2303,13 @@ const avgIssuesPerMember = topAssignees.length > 0
               {/* ── BEST PERFORMERS ───────────────────────────────────────── */}
               {performers.length > 0 && (
                 <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 24px', marginBottom: 28 }}>
-                  {sectionTitle('Best Performers', <Trophy size={15} style={{ color: 'var(--amber)' }} />)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--amber)15', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Trophy size={15} style={{ color: 'var(--amber)' }} />
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Best Performers</span>
+                    <InfoTooltip id="performers" text="Team members ranked by performance score — a composite of issues resolved, story points delivered, and bugs fixed within the selected period. Recognition data helps leadership identify top contributors." width={290} />
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
                     {performers.slice(0, 6).map((p, i) => {
                       const rankColor = i === 0 ? '#FFD700' : i === 1 ? '#C0C0C0' : i === 2 ? '#CD7F32' : 'var(--text-muted)';
@@ -2001,7 +2368,13 @@ const avgIssuesPerMember = topAssignees.length > 0
               {/* ── AI RECOMMENDATIONS ────────────────────────────────────── */}
               {enhancedMetrics?.predictiveAnalytics?.recommendations?.length > 0 && (
                 <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 24px', marginBottom: 28 }}>
-                  {sectionTitle('AI Recommendations', <Brain size={15} style={{ color: 'var(--accent-cool)' }} />)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--accent-cool)15', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Brain size={15} style={{ color: 'var(--accent-cool)' }} />
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>AI Recommendations</span>
+                    <InfoTooltip id="ai-recs" text="Actionable recommendations generated from your team's velocity, bottleneck, and completion data. These are starting points for retrospective conversations — not prescriptions." width={280} />
+                  </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {enhancedMetrics.predictiveAnalytics.recommendations.map((rec, i) => (
                       <div
@@ -2019,7 +2392,13 @@ const avgIssuesPerMember = topAssignees.length > 0
               {/* ── RECENT ACTIVITY ───────────────────────────────────────── */}
               {recentActivities.length > 0 && (
                 <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 24px', marginBottom: 28 }}>
-                  {sectionTitle('Recent Activity', <Activity size={15} style={{ color: 'var(--accent-cool)' }} />)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--accent-cool)15', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Activity size={15} style={{ color: 'var(--accent-cool)' }} />
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Recent Activity</span>
+                    <InfoTooltip id="recent-activity" text="Latest Jira actions from your team — issue updates, status transitions, comments, and assignments. Reflects activity across the connected project(s) in near real-time." width={270} />
+                  </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                     {recentActivities.slice(0, 8).map((activity, i) => (
                       <div
