@@ -257,14 +257,19 @@ export function GitHubInsightsDashboard() {
     setConnectionError(null);
     setSsoNotice(null);
     setInitialLoading(true);
-    // Hard timeout so an unreachable backend can never leave the
-    // "Connecting to GitHub…" spinner up forever — abort and surface a retry.
-    // Created inside try so a throw here can't skip the finally that clears the spinner.
-    let timeout: ReturnType<typeof setTimeout> | undefined;
+    // Two independent hard timeouts so a slow-but-working backend is never misreported
+    // as unreachable. The status probe is quick, but the full org repo list can take far
+    // longer (hundreds of repos across many sequential GitHub pages), so it gets its own
+    // generous budget. A single shared 20s budget used to abort the repos fetch mid-flight
+    // — surfacing a false "backend unreachable" even though it was just slow. Timers live
+    // outside try so the finally can always clear them.
+    let statusTimer: ReturnType<typeof setTimeout> | undefined;
+    let reposTimer:  ReturnType<typeof setTimeout> | undefined;
     try {
-      const ctrl = new AbortController();
-      timeout    = setTimeout(() => ctrl.abort(), 20000);
-      const statusRes  = await fetch(getApiUrl(`/api/github/status`), { signal: ctrl.signal });
+      const statusCtrl = new AbortController();
+      statusTimer = setTimeout(() => statusCtrl.abort(), 20000);
+      const statusRes  = await fetch(getApiUrl(`/api/github/status`), { signal: statusCtrl.signal });
+      clearTimeout(statusTimer); statusTimer = undefined;
       const statusData = await statusRes.json();
       if (!statusData.connected) {
         setConnected(false);
@@ -274,7 +279,10 @@ export function GitHubInsightsDashboard() {
       setConnected(true);
       setGhUser({ login: statusData.user || '', org: statusData.config?.org || '' });
 
-      const reposRes  = await fetch(getApiUrl(`/api/github/repos`), { signal: ctrl.signal });
+      const reposCtrl = new AbortController();
+      reposTimer = setTimeout(() => reposCtrl.abort(), 90000);
+      const reposRes  = await fetch(getApiUrl(`/api/github/repos`), { signal: reposCtrl.signal });
+      clearTimeout(reposTimer); reposTimer = undefined;
       const reposData = await reposRes.json();
       if (reposData.success === false) {
         setConnected(false);
@@ -287,11 +295,12 @@ export function GitHubInsightsDashboard() {
       setConnected(false);
       setConnectionError(
         e?.name === 'AbortError'
-          ? `Couldn't reach the backend at ${getApiUrl('')} within 20s. Make sure it's running and reachable from this device.`
+          ? `Couldn't reach the backend at ${getApiUrl('')}. Make sure it's running and reachable from this device.`
           : (e?.message || 'Network error'),
       );
     } finally {
-      if (timeout) clearTimeout(timeout);
+      if (statusTimer) clearTimeout(statusTimer);
+      if (reposTimer)  clearTimeout(reposTimer);
       setInitialLoading(false);
     }
   }, []);
