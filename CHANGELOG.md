@@ -22,6 +22,20 @@ Dates in this CHANGELOG follow the [ISO 8601 date format](https://www.w3.org/QA/
 
 ## [Unreleased]
 ### Added
+- **Services Dashboard + QE dashboard enhancements** (features by Ramesh Ajith,
+  integrated additively so none of the existing UI/UX or API work was reverted):
+  - New **Services Dashboard** ("Project Mercury — Status Summary"): test-suite
+    breakdowns, bug distribution, Zephyr execution table, and a Confluence-fed
+    Findings panel, with a top-level sidebar entry and 5-minute auto-refresh.
+  - New backend endpoints: `GET /api/jira/period-context` (Sprint/PI date ranges),
+    `GET /api/mercury-dashboard`, `GET /api/mercury-dashboard/findings`, and
+    `GET /api/jira/fields`.
+  - **QCOE/TCOE** and **Defect Leakage** dashboards: searchable metric multi-select
+    and portfolio/project/metric dropdown search filters.
+  - **GitHub Insights**: per-metric explanatory tooltips across the CI cards,
+    tables, and section headers.
+  - **Connection Settings**: parallel status fetch that now also reports GitHub.
+  - **Work Buddy**: light-mode theming for the chat panel.
 - **Jira Insights — Engineering Leadership Command Center** (Phases 3–9): full
   overhaul of the Jira Insights page; breaking changes are backward-compatible
   and all existing API contracts are preserved.
