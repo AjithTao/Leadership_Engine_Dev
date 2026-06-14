@@ -139,15 +139,28 @@ export function FigmaConnectionSettings({
 
   const checkConnectionStatus = async () => {
     try {
-      const jiraRes = await fetch(getApiUrl('/api/jira/status'))
-      const jira = await jiraRes.json()
-      const confRes = await fetch(getApiUrl('/api/confluence/status'))
-      const conf = await confRes.json()
+      const [jiraRes, confRes, ghRes] = await Promise.all([
+        fetch(getApiUrl('/api/jira/status')),
+        fetch(getApiUrl('/api/confluence/status')),
+        fetch(getApiUrl('/api/github/status')),
+      ])
+      const jira = await jiraRes.json().catch(() => ({}))
+      const conf = await confRes.json().catch(() => ({}))
+      const gh   = await ghRes.json().catch(() => ({}))
       setConnectionStatus(prev => ({
         ...prev,
-        jira: jira.configured ? 'connected' : 'disconnected',
-        confluence: conf.configured ? 'connected' : 'disconnected'
+        jira:      jira.configured  ? 'connected' : 'disconnected',
+        confluence: conf.configured ? 'connected' : 'disconnected',
+        github:    gh.connected     ? 'connected' : 'disconnected',
       }))
+      // Reflect github status into parent connections
+      const newConns = connections.map(c => {
+        if (c.name === 'Jira')       return { ...c, status: (jira.configured ? 'connected' : 'disconnected') as 'connected' | 'disconnected' }
+        if (c.name === 'Confluence') return { ...c, status: (conf.configured ? 'connected' : 'disconnected') as 'connected' | 'disconnected' }
+        if (c.name === 'GitHub')     return { ...c, status: (gh.connected    ? 'connected' : 'disconnected') as 'connected' | 'disconnected' }
+        return c
+      })
+      setConnections(newConns)
     } catch (error) {
       console.error('Error checking connection status:', error)
       setConnectionStatus(prev => ({ ...prev, jira: 'disconnected', confluence: 'disconnected' }))
@@ -293,7 +306,7 @@ export function FigmaConnectionSettings({
                   >
                     <tab.icon className={`w-4 h-4 flex-shrink-0`} style={{ color: '#D4A847' }} />
                     <span className="font-medium flex-1 min-w-0 truncate text-left">{tab.label}</span>
-                    {connections.find(c => c.name.toLowerCase() === tab.id)?.status === 'connected' && (
+                    {(connections.find(c => c.name.toLowerCase() === tab.id)?.status === 'connected' || connectionStatus[tab.id] === 'connected') && (
                       <span
                         className="flex items-center gap-1 whitespace-nowrap"
                         style={{

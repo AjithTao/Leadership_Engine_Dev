@@ -34,6 +34,16 @@ interface NewLeadershipCopilotProps {
   setUploadedDocReady?: (v: boolean) => void
 }
 
+function colorAlpha(hex: string, opacity: number): string {
+  const normalized = hex.trim().replace('#', '')
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return hex
+
+  const r = parseInt(normalized.slice(0, 2), 16)
+  const g = parseInt(normalized.slice(2, 4), 16)
+  const b = parseInt(normalized.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`
+}
+
 // ── Time grouping ─────────────────────────────────────────────────────────────
 function groupSessions(sessions: ChatSession[]): { label: string; items: ChatSession[] }[] {
   const todayStart = new Date().setHours(0, 0, 0, 0)
@@ -183,17 +193,17 @@ function ResponseBadges({ isLeadershipMode, dataSource, accent, textSecondary }:
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
       {isLeadershipMode && (
-        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: `${accent}18`, color: accent, border: `1px solid ${accent}30` }}>
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: colorAlpha(accent, 0.12), color: accent, border: `1px solid ${colorAlpha(accent, 0.28)}` }}>
           <Crown className="w-2.5 h-2.5" /> Leadership
         </span>
       )}
       {dataSource === 'live_jira_data' && (
-        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: colorAlpha(accent, 0.12), color: accent, border: `1px solid ${colorAlpha(accent, 0.28)}` }}>
           <Shield className="w-2.5 h-2.5" /> Live
         </span>
       )}
       {dataSource && dataSource !== 'live_jira_data' && (
-        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: `${textSecondary}12`, color: textSecondary, border: `1px solid ${textSecondary}25` }}>
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: colorAlpha(textSecondary, 0.10), color: textSecondary, border: `1px solid ${colorAlpha(textSecondary, 0.22)}` }}>
           <Clock className="w-2.5 h-2.5" /> Cached
         </span>
       )}
@@ -268,12 +278,16 @@ function VisualizationCard({
   border,
   text,
   textSecondary,
+  surface,
+  surfaceVariant,
 }: {
   visualization: AssistantVisualization
   accent: string
   border: string
   text: string
   textSecondary: string
+  surface: string
+  surfaceVariant: string
 }) {
   if (visualization.kind !== 'defectLeakage') return null
 
@@ -281,9 +295,9 @@ function VisualizationCard({
     <div
       className="mt-4 rounded-[22px] border p-4"
       style={{
-        backgroundColor: 'rgba(255,255,255,0.03)',
-        borderColor: `${border}30`,
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.035)',
+        backgroundColor: surface,
+        borderColor: colorAlpha(border, 0.75),
+        boxShadow: 'var(--shadow-small)',
       }}
     >
       <div className="flex items-start justify-between gap-3 mb-4">
@@ -301,7 +315,7 @@ function VisualizationCard({
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_220px] gap-4 items-start">
-        <div className="h-52 rounded-2xl p-3" style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: `1px solid ${border}20` }}>
+        <div className="h-52 rounded-2xl p-3" style={{ backgroundColor: surfaceVariant, border: `1px solid ${colorAlpha(border, 0.75)}` }}>
           <ResponsiveContainer width="100%" height="100%">
             <RechartsBarChart data={visualization.chartData} layout="vertical" margin={{ top: 8, right: 18, left: 8, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={`${border}25`} />
@@ -322,12 +336,12 @@ function VisualizationCard({
                 width={78}
               />
               <Tooltip
-                cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                cursor={{ fill: colorAlpha(text, 0.05) }}
                 contentStyle={{
-                  backgroundColor: '#1F2330',
-                  border: `1px solid ${border}50`,
+                  backgroundColor: surface,
+                  border: `1px solid ${colorAlpha(border, 0.85)}`,
                   borderRadius: 14,
-                  color: '#E7EAF2',
+                  color: text,
                   fontSize: 12,
                 }}
                 formatter={(value: number) => [`${value}%`, 'Value']}
@@ -342,7 +356,7 @@ function VisualizationCard({
             <div
               key={metric.label}
               className="rounded-2xl px-3.5 py-3"
-              style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: `1px solid ${border}20` }}
+              style={{ backgroundColor: surfaceVariant, border: `1px solid ${colorAlpha(border, 0.75)}` }}
             >
               <p className="text-[10px] uppercase tracking-wide" style={{ color: textSecondary }}>{metric.label}</p>
               <p className="text-sm font-semibold mt-1" style={{ color: text }}>{metric.value}</p>
@@ -656,7 +670,32 @@ export function NewLeadershipCopilot({
 }: NewLeadershipCopilotProps) {
   const { currentTheme, isDarkMode } = useTheme()
   const { settings, isLoaded } = useSettings()
-  const { primary, accent, surface, surfaceVariant, text, textSecondary, border, background } = currentTheme.colors
+  const {
+    primary,
+    secondary,
+    accent,
+    surface,
+    surfaceVariant,
+    hover,
+    text,
+    textSecondary,
+    border,
+    borderStrong,
+    error,
+  } = currentTheme.colors
+  const strongBorder = borderStrong ?? border
+  const mutedText = isDarkMode ? textSecondary : secondary
+  const chatPanel = isDarkMode ? '#1A1D25' : '#FFFFFF'
+  const messageCanvas = isDarkMode ? '#161922' : '#F7F4EF'
+  const assistantBubble = isDarkMode ? surface : '#FFFFFF'
+  const userBubble = isDarkMode ? colorAlpha(accent, 0.13) : '#FFF7E3'
+  const inputSurface = isDarkMode ? surfaceVariant : '#FFFFFF'
+  const subtleSurface = isDarkMode ? colorAlpha(text, 0.04) : '#F2EFEA'
+  const buttonSurface = isDarkMode ? colorAlpha(text, 0.05) : '#FFFFFF'
+  const buttonHover = isDarkMode ? hover : '#F0EDE7'
+  const focusRing = colorAlpha(accent, isDarkMode ? 0.18 : 0.16)
+  const accentText = isDarkMode ? accent : '#7A4D08'
+  const accentButtonText = isDarkMode ? '#13151C' : '#FFFFFF'
 
   // ── ChatContext: the single source of truth ────────────────────────────────
   const {
@@ -1056,6 +1095,7 @@ export function NewLeadershipCopilot({
 
   const sessionGroups = groupSessions(sessions)
   const currentSession = sessions.find(s => s.id === currentSessionId)
+  const canSend = input.trim().length > 0 && !isTyping
 
   return (
     <>
@@ -1071,17 +1111,26 @@ export function NewLeadershipCopilot({
         .wb-msg { animation: wbFadeUp 0.18s ease forwards; }
         .wb-scroll::-webkit-scrollbar { width: 4px; }
         .wb-scroll::-webkit-scrollbar-track { background: transparent; }
-        .wb-scroll::-webkit-scrollbar-thumb { background: ${border}40; border-radius: 4px; }
-        .wb-scroll::-webkit-scrollbar-thumb:hover { background: ${border}70; }
+        .wb-scroll::-webkit-scrollbar-thumb { background: ${colorAlpha(strongBorder, 0.55)}; border-radius: 4px; }
+        .wb-scroll::-webkit-scrollbar-thumb:hover { background: ${colorAlpha(strongBorder, 0.82)}; }
         .wb-chat-toolbar > div:first-child { display: none; }
+        .wb-composer-input::placeholder { color: ${colorAlpha(mutedText, isDarkMode ? 0.64 : 0.72)}; }
+        .wb-composer-input:focus {
+          border-color: ${colorAlpha(accent, 0.58)} !important;
+          box-shadow: 0 0 0 3px ${focusRing}, var(--shadow-small) !important;
+        }
       `}</style>
 
-      <div className="h-full min-h-0 flex overflow-hidden" style={{ backgroundColor: 'var(--bg-page)', fontFamily: 'var(--font)' }}>
+      <div className="h-full min-h-0 flex gap-3 overflow-hidden p-4" style={{ backgroundColor: 'var(--bg-page)', fontFamily: 'var(--font)' }}>
 
         {/* ═══════════════════ LEFT: Session Sidebar ═══════════════════ */}
         <div
-          className={`flex-shrink-0 flex flex-col h-full min-h-0 overflow-hidden transition-all duration-200 ease-out ${isHistoryCollapsed ? 'w-0 opacity-0' : 'w-56 opacity-100'}`}
-          style={{ backgroundColor: surface, borderRight: isHistoryCollapsed ? 'none' : `1px solid ${border}40` }}
+          className={`flex-shrink-0 flex flex-col h-full min-h-0 overflow-hidden rounded-2xl transition-all duration-200 ease-out ${isHistoryCollapsed ? 'w-0 opacity-0 border-0' : 'w-72 opacity-100'}`}
+          style={{
+            backgroundColor: surface,
+            border: isHistoryCollapsed ? 'none' : `1px solid ${border}`,
+            boxShadow: isHistoryCollapsed ? 'none' : 'var(--shadow-small)',
+          }}
         >
           {/* Header */}
           {!isHistoryCollapsed && (
@@ -1175,36 +1224,44 @@ export function NewLeadershipCopilot({
         </div>
 
         {/* ═══════════════════ RIGHT: Chat Area ═══════════════════════ */}
-	        <div className="relative flex-1 flex flex-col min-w-0 h-full min-h-0 overflow-hidden" style={{ backgroundColor: 'var(--bg-page)' }}>
-          {isHistoryCollapsed && (
-            <button
-              onClick={() => setIsHistoryCollapsed(false)}
-              className="absolute top-3 left-4 z-20 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold tracking-wide uppercase transition-all duration-150"
-              style={{
-                color: textSecondary,
-                backgroundColor: 'rgba(255,255,255,0.04)',
-                border: `1px solid ${border}30`,
-                backdropFilter: 'blur(12px)',
-              }}
-              title="Show chat history"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-              Show Chat History
-            </button>
-          )}
-
+        <div
+          className="relative flex-1 flex flex-col min-w-0 h-full min-h-0 overflow-hidden rounded-2xl"
+          style={{
+            backgroundColor: chatPanel,
+            border: `1px solid ${border}`,
+            boxShadow: 'var(--shadow-small)',
+          }}
+        >
           {/* Chat header */}
           <div
-            className="wb-chat-toolbar absolute top-3 right-4 z-20 flex items-center justify-end"
-            style={{ borderBottom: 'none', backgroundColor: 'transparent' }}
+            className="wb-chat-toolbar flex-shrink-0 flex items-center justify-between gap-4 px-6 py-4"
+            style={{ borderBottom: `1px solid ${border}`, backgroundColor: chatPanel }}
           >
-            <div className="min-w-0">
+            <div className="flex items-center gap-3 min-w-0">
+              {isHistoryCollapsed && (
+                <button
+                  onClick={() => setIsHistoryCollapsed(false)}
+                  className="h-9 w-9 flex items-center justify-center rounded-lg transition-colors"
+                  style={{
+                    color: mutedText,
+                    backgroundColor: buttonSurface,
+                    border: `1px solid ${colorAlpha(strongBorder, 0.7)}`,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = buttonHover }}
+                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = buttonSurface }}
+                  title="Show chat history"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
+              <div className="min-w-0">
               <p className="text-sm font-semibold truncate" style={{ color: text }}>
                 {currentSession?.title ?? 'WorkBuddy'}
               </p>
-              <p className="text-[10px]" style={{ color: `${textSecondary}80` }}>
-                AI Assistant · FalconX
+              <p className="text-[11px]" style={{ color: mutedText }}>
+                  AI Assistant · FalconX
               </p>
+              </div>
             </div>
 
             {messages.length > 0 && (
@@ -1213,8 +1270,11 @@ export function NewLeadershipCopilot({
                 <div className="relative">
                   <button
                     onClick={() => setShowExport(v => !v)}
-                    className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg transition-opacity hover:opacity-80"
-                    style={{ color: textSecondary }}
+                    className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg transition-colors"
+                    style={{ color: mutedText, backgroundColor: 'transparent' }}
+                    onMouseEnter={e => { e.currentTarget.style.backgroundColor = buttonHover }}
+                    onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                    title="Export chat"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <ChevronDown className="w-3 h-3 transition-transform duration-150" style={{ transform: showExport ? 'rotate(180deg)' : 'none' }} />
@@ -1222,7 +1282,7 @@ export function NewLeadershipCopilot({
                   {showExport && (
                     <div
                       className="absolute right-0 top-full mt-1 rounded-xl border py-1 z-30 min-w-[110px]"
-                      style={{ backgroundColor: surface, borderColor: `${border}50`, boxShadow: currentTheme.shadows?.large || '0 8px 32px rgba(0,0,0,0.18)' }}
+                      style={{ backgroundColor: surface, borderColor: colorAlpha(strongBorder, 0.75), boxShadow: currentTheme.shadows?.large || '0 8px 32px rgba(0,0,0,0.18)' }}
                     >
                       {[
                         { label: 'PDF', icon: FileText, action: handleExportPDF },
@@ -1230,7 +1290,7 @@ export function NewLeadershipCopilot({
                       ].map(({ label, icon: Icon, action }) => (
                         <button key={label} onClick={() => { action(); setShowExport(false) }}
                           className="flex items-center gap-2 w-full text-left text-xs px-3.5 py-2 transition-opacity hover:opacity-80"
-                          style={{ color: textSecondary }}>
+                          style={{ color: mutedText }}>
                           <Icon className="w-3.5 h-3.5" /> {label}
                         </button>
                       ))}
@@ -1240,8 +1300,10 @@ export function NewLeadershipCopilot({
                 {/* Clear current chat */}
                 <button
                   onClick={clearMessages}
-                  className="p-1.5 rounded-lg transition-opacity hover:opacity-80"
-                  style={{ color: textSecondary }}
+                  className="p-1.5 rounded-lg transition-colors"
+                  style={{ color: mutedText, backgroundColor: 'transparent' }}
+                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = buttonHover }}
+                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
                   title="Clear this chat"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -1251,18 +1313,18 @@ export function NewLeadershipCopilot({
           </div>
 
           {/* Messages */}
-          <div className="flex-1 min-h-0 overflow-y-auto wb-scroll" style={{ backgroundColor: surface }}>
+          <div className="flex-1 min-h-0 overflow-y-auto wb-scroll" style={{ backgroundColor: messageCanvas }}>
             {messages.length === 0 ? (
               <EmptyState
                 accent={accent}
                 text={text}
-                textSecondary={textSecondary}
+                textSecondary={mutedText}
                 border={border}
                 userName={settings.userProfile.name || 'Tell me'}
                 onSuggestion={s => { setInput(s); setTimeout(() => sendMessage(s), 50) }}
               />
             ) : (
-              <div className="px-7 py-6 max-w-4xl mx-auto space-y-0 w-full">
+              <div className="px-7 py-6 max-w-5xl mx-auto space-y-0 w-full">
                 {messages.map((msg, i) => (
                   <div
                     key={i}
@@ -1275,28 +1337,27 @@ export function NewLeadershipCopilot({
                     {msg.role === 'user' ? (
                       /* ── User message ─────────────────────────────── */
                       <div className="flex justify-end mb-4">
-                        <div className="max-w-[64%]">
+                        <div className="max-w-[72%]">
                           <div className="flex justify-end items-center gap-2 mb-1.5">
-                            <span className="text-xs font-semibold" style={{ color: '#CDB98C' }}>
+                            <span className="text-xs font-semibold" style={{ color: accentText }}>
                               {settings.userProfile.name || 'You'}
                             </span>
                             <div
                               className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
                               style={{
-                                backgroundColor: 'rgba(255,255,255,0.04)',
-                                border: `1px solid ${border}35`,
-                                backdropFilter: 'blur(10px)',
+                                backgroundColor: colorAlpha(accent, 0.12),
+                                border: `1px solid ${colorAlpha(accent, 0.28)}`,
                               }}
                             >
-                              <Users className="w-3 h-3" style={{ color: `${accent}D0` }} />
+                              <Users className="w-3 h-3" style={{ color: accentText }} />
                             </div>
                           </div>
                           <div
-                            className="px-4 py-3 rounded-2xl rounded-br-sm text-sm leading-relaxed backdrop-blur-md"
+                            className="px-4 py-3 rounded-2xl rounded-br-sm text-sm leading-relaxed"
                             style={{
-                              backgroundColor: 'rgba(255,255,255,0.045)',
-                              border: `1px solid ${border}42`,
-                              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+                              backgroundColor: userBubble,
+                              border: `1px solid ${colorAlpha(accent, 0.32)}`,
+                              boxShadow: 'var(--shadow-small)',
                               color: text
                             }}
                           >
@@ -1310,8 +1371,8 @@ export function NewLeadershipCopilot({
                       /* ── Assistant response ───────────────────────── */
                       <div className="mb-6">
                         <div className="flex items-center gap-2.5 mb-2.5">
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${accent}18`, border: `1px solid ${accent}30` }}>
-                            <Sparkles className="w-3.5 h-3.5" style={{ color: accent }} />
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: colorAlpha(accent, 0.12), border: `1px solid ${colorAlpha(accent, 0.28)}` }}>
+                            <Sparkles className="w-3.5 h-3.5" style={{ color: accentText }} />
                           </div>
                           <span className="text-[13px] font-semibold" style={{ color: text }}>WorkBuddy</span>
                           {!msg.actionButtons && (
@@ -1319,7 +1380,7 @@ export function NewLeadershipCopilot({
                               isLeadershipMode={msg.isLeadershipMode}
                               dataSource={msg.dataSource}
                               accent={accent}
-                              textSecondary={textSecondary}
+                              textSecondary={mutedText}
                             />
                           )}
                         </div>
@@ -1327,7 +1388,7 @@ export function NewLeadershipCopilot({
                           {/* ── Source selection buttons ── */}
                           {msg.actionButtons && msg.originalQuery ? (
                             <div>
-                              <p className="text-sm mb-4" style={{ color: textSecondary }}>
+                              <p className="text-sm mb-4" style={{ color: mutedText }}>
                                 Where should I search for this?
                               </p>
                               <div className="flex items-center gap-3 flex-wrap">
@@ -1342,13 +1403,13 @@ export function NewLeadershipCopilot({
                                       disabled={disabled}
                                       className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                                       style={{
-                                        backgroundColor: disabled ? `${border}20` : `${accent}15`,
-                                        border: `1px solid ${disabled ? border : accent}40`,
-                                        color: disabled ? textSecondary : accent,
-                                        boxShadow: disabled ? 'none' : `0 2px 8px ${accent}18`,
+                                        backgroundColor: disabled ? subtleSurface : colorAlpha(accent, 0.12),
+                                        border: `1px solid ${disabled ? colorAlpha(strongBorder, 0.55) : colorAlpha(accent, 0.34)}`,
+                                        color: disabled ? mutedText : accentText,
+                                        boxShadow: disabled ? 'none' : `0 2px 8px ${colorAlpha(accent, 0.16)}`,
                                       }}
-                                      onMouseEnter={e => { if (!disabled) { e.currentTarget.style.backgroundColor = `${accent}28`; e.currentTarget.style.boxShadow = `0 4px 12px ${accent}28` } }}
-                                      onMouseLeave={e => { if (!disabled) { e.currentTarget.style.backgroundColor = `${accent}15`; e.currentTarget.style.boxShadow = `0 2px 8px ${accent}18` } }}
+                                      onMouseEnter={e => { if (!disabled) { e.currentTarget.style.backgroundColor = colorAlpha(accent, 0.18); e.currentTarget.style.boxShadow = `0 4px 12px ${colorAlpha(accent, 0.2)}` } }}
+                                      onMouseLeave={e => { if (!disabled) { e.currentTarget.style.backgroundColor = colorAlpha(accent, 0.12); e.currentTarget.style.boxShadow = `0 2px 8px ${colorAlpha(accent, 0.16)}` } }}
                                     >
                                       <Icon className="w-4 h-4" />
                                       {btn.label}
@@ -1357,7 +1418,7 @@ export function NewLeadershipCopilot({
                                 })}
                               </div>
                               {msg.buttonsUsed && (
-                                <p className="text-xs mt-3" style={{ color: `${textSecondary}60` }}>Searching…</p>
+                                <p className="text-xs mt-3" style={{ color: mutedText }}>Searching…</p>
                               )}
                             </div>
                           ) : (
@@ -1389,11 +1450,11 @@ export function NewLeadershipCopilot({
                                 />
                               ) : (
                                 <div
-                                  className="inline-block max-w-[88%] rounded-2xl px-5 py-3.5 backdrop-blur-md"
+                                  className="inline-block max-w-[88%] rounded-2xl px-5 py-3.5"
                                   style={{
-                                    backgroundColor: 'rgba(255,255,255,0.038)',
-                                    border: `1px solid ${border}32`,
-                                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.035)',
+                                    backgroundColor: assistantBubble,
+                                    border: `1px solid ${colorAlpha(strongBorder, isDarkMode ? 0.55 : 0.8)}`,
+                                    boxShadow: 'var(--shadow-small)',
                                   }}
                                 >
                                   <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={mdAssistant as any}>
@@ -1407,19 +1468,21 @@ export function NewLeadershipCopilot({
                                   accent={accent}
                                   border={border}
                                   text={text}
-                                  textSecondary={textSecondary}
+                                  textSecondary={mutedText}
+                                  surface={assistantBubble}
+                                  surfaceVariant={subtleSurface}
                                 />
                               )}
                               {msg.ragCitations && msg.ragCitations.length > 0 && (
-                                <CitationFooter citations={msg.ragCitations} accent={accent} border={border} textSecondary={textSecondary} />
+                                <CitationFooter citations={msg.ragCitations} accent={accent} border={border} textSecondary={mutedText} />
                               )}
                               {/* Copy button */}
                               <div className="flex items-center gap-1 mt-2.5">
                                 <button
                                   onClick={() => handleCopy(typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content), String(i))}
                                   className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg transition-all"
-                                  style={{ color: copiedId === String(i) ? accent : textSecondary }}
-                                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = `${border}20` }}
+                                  style={{ color: copiedId === String(i) ? accentText : mutedText }}
+                                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = subtleSurface }}
                                   onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
                                 >
                                   {copiedId === String(i) ? <CheckCircle className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
@@ -1440,7 +1503,7 @@ export function NewLeadershipCopilot({
           </div>
 
           {/* ── Composer ──────────────────────────────────────────────── */}
-          <div className="flex-shrink-0 px-7 pb-4 pt-2.5" style={{ borderTop: `1px solid ${border}14`, backgroundColor: surface }}>
+          <div className="flex-shrink-0 px-7 py-4" style={{ borderTop: `1px solid ${border}`, backgroundColor: chatPanel }}>
             <div
               className="transition-shadow duration-200 max-w-3xl mx-auto"
               style={{ border: 'none', backgroundColor: 'transparent' }}
@@ -1455,34 +1518,31 @@ export function NewLeadershipCopilot({
                 placeholder="Message Work Buddy…"
                 disabled={isTyping}
                 rows={2}
-                className="w-full text-sm resize-none outline-none leading-relaxed px-4 pt-3.5 pb-2.5 min-h-[76px] max-h-[170px] wb-scroll disabled:opacity-60 rounded-[22px] placeholder:text-[#C7CEDC]/70"
+                className="wb-composer-input w-full text-sm resize-none outline-none leading-relaxed px-4 pt-3.5 pb-2.5 min-h-[76px] max-h-[170px] wb-scroll disabled:opacity-60 rounded-2xl"
                 style={{
-                  backgroundColor: 'rgba(255,255,255,0.05)',
-                  border: `1px solid ${border}38`,
-                  color: '#E5E9F3',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.035)',
-                  backdropFilter: 'blur(14px)',
+                  backgroundColor: inputSurface,
+                  border: `1px solid ${colorAlpha(strongBorder, 0.75)}`,
+                  color: text,
+                  boxShadow: 'var(--shadow-small)',
                 }}
               />
               <div className="flex items-center justify-between px-1.5 pb-0 pt-2 gap-3">
                 <div className="flex items-center gap-1">
-                  <p className="text-[10px]" style={{ color: `${textSecondary}55` }}>↵ Send · ⇧↵ New line</p>
+                  <p className="text-[10px]" style={{ color: mutedText }}>↵ Send · ⇧↵ New line</p>
                 </div>
                 <div className="flex items-center gap-2">
                   {/* Voice */}
                   {isSupported && (
                     <button
                       onClick={() => { if (isListening) { stopListening() } else { resetTranscript(); startListening() } }}
-                      className="group relative h-11 px-3.5 flex items-center justify-center gap-2 rounded-2xl transition-all duration-150"
+                      className="group relative h-11 px-3.5 flex items-center justify-center gap-2 rounded-xl transition-all duration-150"
                       style={{
-                        background: isListening
-                          ? 'linear-gradient(135deg, #E35D5D 0%, #C94747 100%)'
-                          : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.04) 100%)',
-                        color: isListening ? '#fff' : '#E8D8A8',
-                        border: isListening ? '1px solid rgba(227,93,93,0.9)' : `1px solid ${border}38`,
+                        backgroundColor: isListening ? error : buttonSurface,
+                        color: isListening ? '#FFFFFF' : accentText,
+                        border: isListening ? `1px solid ${error}` : `1px solid ${colorAlpha(strongBorder, 0.75)}`,
                         boxShadow: isListening
-                          ? '0 10px 24px rgba(201,71,71,0.28)'
-                          : '0 10px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.045)',
+                          ? `0 10px 24px ${colorAlpha(error, 0.24)}`
+                          : 'var(--shadow-small)',
                       }}
                       title={isListening ? 'Stop recording' : 'Start voice input'}
                     >
@@ -1495,17 +1555,18 @@ export function NewLeadershipCopilot({
                   {/* Send */}
                   <button
                     onClick={() => sendMessage()}
-                    disabled={!input.trim() || isTyping}
-                    className="group relative h-11 px-4 flex items-center justify-center gap-2 rounded-2xl transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed active:scale-95"
+                    disabled={!canSend}
+                    className="group relative h-11 px-4 flex items-center justify-center gap-2 rounded-xl transition-all duration-150 disabled:cursor-not-allowed active:scale-95"
                     style={{
-                      background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.05) 100%)',
-                      border: '1px solid rgba(227,182,77,0.24)',
-                      boxShadow: '0 10px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.045)',
+                      backgroundColor: canSend ? accent : buttonSurface,
+                      border: `1px solid ${canSend ? accent : colorAlpha(strongBorder, 0.75)}`,
+                      boxShadow: canSend ? `0 10px 24px ${colorAlpha(accent, 0.22)}` : 'var(--shadow-small)',
+                      opacity: canSend ? 1 : 0.62,
                     }}
                     title="Send message"
                   >
-                    {isTyping ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: '#E3B64D' }} /> : <Send className="w-4 h-4" style={{ color: '#E3B64D' }} />}
-                    <span className="text-[11px] font-semibold tracking-wide" style={{ color: '#F4E7BE' }}>
+                    {isTyping ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: canSend ? accentButtonText : mutedText }} /> : <Send className="w-4 h-4" style={{ color: canSend ? accentButtonText : mutedText }} />}
+                    <span className="text-[11px] font-semibold tracking-wide" style={{ color: canSend ? accentButtonText : mutedText }}>
                       Send
                     </span>
                   </button>

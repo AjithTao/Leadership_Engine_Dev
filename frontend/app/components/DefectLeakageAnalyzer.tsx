@@ -1808,6 +1808,11 @@ export function DefectLeakageAnalyzer() {
   const [tempSelectedMetrics, setTempSelectedMetrics] = useState<string[]>([]);
   const [useMetricMultiSelect, setUseMetricMultiSelect] = useState(false);
 
+  // Search filters for each dropdown
+  const [portfolioSearch, setPortfolioSearch] = useState('');
+  const [projectSearch, setProjectSearch] = useState('');
+  const [metricSearch, setMetricSearch] = useState('');
+
   // Calculate current week dates (Monday to Sunday)
   const getCurrentWeekDates = () => {
     const today = new Date();
@@ -2277,6 +2282,7 @@ export function DefectLeakageAnalyzer() {
   };
 
   const applyMetricMultiSelect = () => {
+    setMetricSearch('');
     const visibleTempMetrics = onlyVisibleTcoeMetrics(tempSelectedMetrics);
     if (visibleTempMetrics.length > 0) {
       setSelectedMetrics(visibleTempMetrics);
@@ -2292,6 +2298,7 @@ export function DefectLeakageAnalyzer() {
   const cancelMetricMultiSelect = () => {
     setTempSelectedMetrics(onlyVisibleTcoeMetrics(selectedMetrics));
     setMetricMultiSelectOpen(false);
+    setMetricSearch('');
   };
 
   // Toggle project key in multi-select - work with temporary selections
@@ -2315,6 +2322,7 @@ export function DefectLeakageAnalyzer() {
 
   // Apply multi-select - apply temporary selections
   const applyMultiSelect = () => {
+    setProjectSearch('');
     if (tempSelectedProjectKeys.length > 0) {
       setSelectedProjectKeys([...tempSelectedProjectKeys]); // Apply temporary selections
       setUseMultiSelect(true);
@@ -2338,6 +2346,7 @@ export function DefectLeakageAnalyzer() {
   const cancelMultiSelect = () => {
     setTempSelectedProjectKeys([...selectedProjectKeys]); // Reset to current applied selections
     setMultiSelectOpen(false);
+    setProjectSearch('');
   };
 
   // Portfolio multi-select functions - work with temporary selections
@@ -2358,6 +2367,7 @@ export function DefectLeakageAnalyzer() {
   };
 
   const applyPortfolioMultiSelect = () => {
+    setPortfolioSearch('');
     if (tempSelectedPortfolios.length > 0) {
       setSelectedPortfolios([...tempSelectedPortfolios]); // Apply temporary selections
       setUsePortfolioMultiSelect(true);
@@ -2374,6 +2384,7 @@ export function DefectLeakageAnalyzer() {
   const cancelPortfolioMultiSelect = () => {
     setTempSelectedPortfolios([...selectedPortfolios]); // Reset to current applied selections
     setPortfolioMultiSelectOpen(false);
+    setPortfolioSearch('');
   };
 
   const analyzeLeakage = async () => {
@@ -5344,8 +5355,22 @@ export function DefectLeakageAnalyzer() {
                     </button>
                   </div>
                 </div>
+                <input
+                  type="text"
+                  placeholder="Type to search..."
+                  value={portfolioSearch}
+                  onChange={(e) => setPortfolioSearch(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full mb-3 px-3 py-2 rounded-lg text-sm outline-none border"
+                  style={{
+                    background: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                    borderColor: currentTheme.colors.border,
+                    color: currentTheme.colors.text,
+                  }}
+                  autoFocus
+                />
                 <div className="space-y-1">
-                  {options.portfolios.map((portfolio) => {
+                  {options.portfolios.filter(p => p === 'All' || p.toLowerCase().includes(portfolioSearch.toLowerCase())).map((portfolio) => {
                     const isAll = portfolio === 'All';
                     const isSelected = isAll
                       ? tempSelectedPortfolios.length === 0 && selectedPortfolio === 'All'
@@ -5506,8 +5531,26 @@ export function DefectLeakageAnalyzer() {
                     </button>
                   </div>
                 </div>
+                <input
+                  type="text"
+                  placeholder="Type to search..."
+                  value={projectSearch}
+                  onChange={(e) => setProjectSearch(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full mb-3 px-3 py-2 rounded-lg text-sm outline-none border"
+                  style={{
+                    background: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                    borderColor: currentTheme.colors.border,
+                    color: currentTheme.colors.text,
+                  }}
+                  autoFocus
+                />
                 <div className="space-y-1">
-                  {options.project_keys.map((key) => {
+                  {options.project_keys.filter(k => {
+                    if (k === 'All') return true;
+                    const name = findProjectNameForKey(k) || '';
+                    return k.toLowerCase().includes(projectSearch.toLowerCase()) || name.toLowerCase().includes(projectSearch.toLowerCase());
+                  }).map((key) => {
                     const isAll = key === 'All';
                     const isSelected = isAll
                       ? tempSelectedProjectKeys.length === 0 && selectedProjectKey === 'All'
@@ -5664,8 +5707,22 @@ export function DefectLeakageAnalyzer() {
                     </button>
                   </div>
                 </div>
+                <input
+                  type="text"
+                  placeholder="Type to search..."
+                  value={metricSearch}
+                  onChange={(e) => setMetricSearch(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full mb-3 px-3 py-2 rounded-lg text-sm outline-none border"
+                  style={{
+                    background: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                    borderColor: currentTheme.colors.border,
+                    color: currentTheme.colors.text,
+                  }}
+                  autoFocus
+                />
                 <div className="space-y-1">
-                  <div
+                  {!metricSearch && <div
                     className="flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-all duration-150"
                     style={{
                       backgroundColor: selectedMetric === 'all' && !useMetricMultiSelect ? `${currentTheme.colors.primary}15` : 'transparent',
@@ -5693,8 +5750,8 @@ export function DefectLeakageAnalyzer() {
                     <div className="flex-1">
                       <span className="text-sm font-semibold" style={{ color: headingColor }}>ALL</span>
                     </div>
-                  </div>
-                  {VISIBLE_METRIC_OPTIONS.map((option) => {
+                  </div>}
+                  {VISIBLE_METRIC_OPTIONS.filter(o => o.label.toLowerCase().includes(metricSearch.toLowerCase())).map((option) => {
                     // When dropdown is open, always check tempSelectedMetrics for display
                     const isSelected = metricMultiSelectOpen
                       ? tempSelectedMetrics.includes(option.value)

@@ -1,4 +1,5 @@
 import os
+import asyncio
 import httpx
 import logging
 from typing import Dict, List, Any, Optional, Tuple
@@ -264,9 +265,24 @@ class GitHubClient:
                         org_list.append(login)
             org_list = list(dict.fromkeys(org_list))  # de-dupe, preserve order
 
-            # 2. Fetch each org's repos, recording which ones are blocked by SAML SSO.
-            for org in org_list:
-                res = await self._list_org_repos(org)
+            # 2. Fetch every org's repos AND the user's own repos CONCURRENTLY.
+            #    Each stream keeps the exact same sequential offset-paging used for the
+            #    repo-cap fix — we only overlap the independent streams (3 orgs + user
+            #    repos were ~17 serial GitHub round-trips ≈ 28s) and then merge them
+            #    deterministically (configured-org-first, then user repos) so the de-duped
+            #    result is identical to the serial version, just roughly twice as fast.
+            #    Both paginators swallow their own errors (returning a dict/list), so no
+            #    task here can raise and abort the gather.
+            org_results, user_raw = await asyncio.gather(
+                asyncio.gather(*(self._list_org_repos(org) for org in org_list)),
+                self._get_all_pages(
+                    "/user/repos",
+                    params={"sort": "updated", "affiliation": "owner,collaborator,organization_member"},
+                ),
+            )
+
+            # Merge org repos first (in org_list order), recording SAML-blocked orgs.
+            for org, res in zip(org_list, org_results):
                 for r in _parse(res["repos"]):
                     if r["full_name"] not in seen:
                         seen.add(r["full_name"])
@@ -276,13 +292,8 @@ class GitHubClient:
             if repos:
                 logger.info(f"✅ Fetched {len(repos)} org repos across {len(org_list)} org(s)")
 
-            # 3. Paginate through the user's own repos.
-            #    NOTE: GitHub rejects `type` combined with `affiliation` (422), so
-            #    only affiliation is sent here.
-            user_raw = await self._get_all_pages(
-                "/user/repos",
-                params={"sort": "updated", "affiliation": "owner,collaborator,organization_member"}
-            )
+            # Then the user's own repos. NOTE: GitHub rejects `type` combined with
+            # `affiliation` (422), so only affiliation is sent (see params above).
             for r in _parse(user_raw):
                 if r["full_name"] not in seen:
                     seen.add(r["full_name"])

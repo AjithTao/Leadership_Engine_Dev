@@ -379,6 +379,19 @@ export function NewLeftSidebar({
                 </div>
               </NavButton>
 
+              {/* Services Dashboard — Separate top-level */}
+              <NavButton
+                active={activeView === 'services-dashboard'}
+                onClick={() => setActiveView('services-dashboard')}
+                primary={primary}
+              >
+                <Workflow className="w-4 h-4 flex-shrink-0" style={{ color: activeView === 'services-dashboard' ? MUSTARD : 'var(--text-secondary)' }} />
+                <div className="text-left min-w-0">
+                  <div className="text-sm font-medium leading-none">Services Dashboard</div>
+                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>T&L Execution</div>
+                </div>
+              </NavButton>
+
             </div>
 
             {/* Integrations */}

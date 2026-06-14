@@ -14,11 +14,12 @@ import { QAMetricsDashboard } from '../QAMetricsDashboard'
 import { KPIMetricsDashboard } from '../KPIMetricsDashboard'
 import { GitHubInsightsDashboard } from '../GitHubInsightsDashboard'
 import { SalesforceInsightsDashboard } from '../SalesforceInsightsDashboard'
+import { ServicesDashboard } from '../ServicesDashboard'
 import { useTheme } from '../../contexts/ThemeContext'
 import { SettingsProvider } from '../../contexts/SettingsContext'
 import { getApiUrl } from '../../../lib/api-config'
 
-export type ActiveView = 'copilot' | 'insights' | 'github-insights' | 'leadership' | 'tcoe-report' | 'tcoe-dashboard' | 'qa-metrics' | 'kpi-metrics' | 'salesforce-insights'
+export type ActiveView = 'copilot' | 'insights' | 'github-insights' | 'leadership' | 'tcoe-report' | 'tcoe-dashboard' | 'qa-metrics' | 'kpi-metrics' | 'salesforce-insights' | 'services-dashboard'
 export type Theme = 'light' | 'dark'
 
 export interface Connection {
@@ -202,6 +203,8 @@ function NewFigmaAppContent() {
         return <SalesforceInsightsDashboard />
       case 'leadership':
         return <FigmaDashboard hasActiveConnections={hasActiveConnections} theme={isDarkMode ? 'dark' : 'light'} />
+      case 'services-dashboard':
+        return <ServicesDashboard />
       default:
         return <NewLeadershipCopilot 
           hasActiveConnections={hasActiveConnections} 
