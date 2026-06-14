@@ -149,42 +149,35 @@ class GitHubClient:
             logger.error(f"❌ Unexpected error during GitHub status check: {e}", exc_info=True)
             return {"connected": False, "error": str(e)}
 
-    async def _get_all_pages(self, endpoint: str, params: Dict = None, max_pages: int = 20) -> List[Dict]:
-        """Paginate through all pages of a GitHub list endpoint (follows Link headers)."""
+    async def _get_all_pages(self, endpoint: str, params: Dict = None, max_pages: int = 50) -> List[Dict]:
+        """Paginate a GitHub list endpoint using explicit page=N (offset) paging.
+
+        We deliberately do NOT follow the Link `next` header: on this GitHub Enterprise the
+        cursor `next` link disappears prematurely on large org/user repo lists (capping the
+        result well below the true total). Offset paging returns full pages until the last,
+        so a short page reliably marks the end."""
         if not self._client:
             await self.initialize()
         all_items: List[Dict] = []
         url = endpoint if endpoint.startswith('http') else f"{self.config.base_url}{endpoint}"
-        page_params = {**(params or {}), "per_page": 100}
-        for _ in range(max_pages):
+        base_params = {**(params or {}), "per_page": 100}
+        for page in range(1, max_pages + 1):
             try:
-                response = await self._client.get(url, headers=self._headers, params=page_params)
+                response = await self._client.get(url, headers=self._headers, params={**base_params, "page": page})
                 if response.status_code != 200:
                     break
                 data = response.json()
-                if isinstance(data, list):
-                    all_items.extend(data)
-                    if len(data) < 100:
-                        break  # Last page
-                    # Follow Link: next header
-                    link_header = response.headers.get("Link", "")
-                    next_url = None
-                    for part in link_header.split(","):
-                        if 'rel="next"' in part:
-                            next_url = part.split(";")[0].strip().strip("<>")
-                            break
-                    if not next_url:
-                        break
-                    url = next_url
-                    page_params = {}  # URL already has params encoded
-                else:
+                if not isinstance(data, list):
                     break
+                all_items.extend(data)
+                if len(data) < 100:
+                    break  # last page
             except Exception as e:
                 logger.error(f"❌ Pagination error: {e}")
                 break
         return all_items
 
-    async def _list_org_repos(self, org: str, max_pages: int = 20) -> Dict[str, Any]:
+    async def _list_org_repos(self, org: str, max_pages: int = 50) -> Dict[str, Any]:
         """Fetch all repos for one org, distinguishing a SAML-SSO block from an empty org.
 
         Unlike _get_all_pages (which silently breaks on any non-200), this inspects the
@@ -195,14 +188,18 @@ class GitHubClient:
         """
         if not self._client:
             await self.initialize()
-        url = f"{self.config.base_url}/orgs/{org}/repos"
-        params: Dict = {"type": "all", "sort": "updated", "per_page": 100}
+        base = f"{self.config.base_url}/orgs/{org}/repos"
+        # Explicit page=N (offset) paging, NOT Link-`next` following: on this GitHub Enterprise
+        # the cursor `next` link disappears early on big org lists, capping results well below
+        # the true total (e.g. 147 then 197 of 674). Offset paging returns full pages to the end.
         items: List[Dict] = []
         saml_blocked = False
         last_status: Optional[int] = None
-        for _ in range(max_pages):
+        for page in range(1, max_pages + 1):
             try:
-                resp = await self._client.get(url, headers=self._headers, params=params)
+                resp = await self._client.get(
+                    base, headers=self._headers,
+                    params={"type": "all", "per_page": 100, "page": page})
             except Exception as e:
                 logger.error(f"❌ Org repos request failed for '{org}': {e}")
                 break
@@ -223,17 +220,7 @@ class GitHubClient:
                 break
             items.extend(data)
             if len(data) < 100:
-                break
-            link_header = resp.headers.get("Link", "")
-            next_url = None
-            for part in link_header.split(","):
-                if 'rel="next"' in part:
-                    next_url = part.split(";")[0].strip().strip("<>")
-                    break
-            if not next_url:
-                break
-            url = next_url
-            params = {}
+                break  # last page
         return {"repos": items, "saml_blocked": saml_blocked, "status": last_status}
 
     async def list_repositories(self, per_page: int = 100) -> Dict[str, Any]:
@@ -321,6 +308,7 @@ class GitHubClient:
                     ),
                 }
 
+            repos.sort(key=lambda r: (r.get("full_name") or "").lower())  # stable, scannable dropdown order
             logger.info(f"✅ Total repos available: {len(repos)}")
             return {"success": True, "repos": repos, "sso_required_orgs": sso_required_orgs, "notice": notice}
         except Exception as e:
@@ -363,6 +351,7 @@ class GitHubClient:
         page_params = {**params, "per_page": 100, "page": 1}
         out: List[Dict] = []
         truncated = False
+        total_count: Optional[int] = None
         for _ in range(50):  # hard cap: 50 pages * 100 = 5000 runs
             try:
                 resp = await self._client.get(url, headers=self._headers, params=page_params)
@@ -375,13 +364,21 @@ class GitHubClient:
                 body = resp.json()
             except Exception:
                 break
-            chunk = body.get("workflow_runs", []) if isinstance(body, dict) else []
+            if not isinstance(body, dict):
+                break
+            if total_count is None:
+                total_count = body.get("total_count")
+            chunk = body.get("workflow_runs", [])
             out.extend(chunk)
             if len(out) >= max_runs:
                 out = out[:max_runs]
                 truncated = True
                 break
-            if len(chunk) < 100:
+            # Stop on an empty page or once we've collected the reported total — not on a
+            # short page, which the runs API can return mid-sequence.
+            if not chunk:
+                break
+            if isinstance(total_count, int) and len(out) >= total_count:
                 break
             page_params = {**page_params, "page": page_params["page"] + 1}
         return out, truncated
