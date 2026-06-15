@@ -3811,94 +3811,94 @@ async def get_jira_metrics(request: Dict[str, Any]):
         
         story_point_field_ids = await get_story_point_field_ids(app_state.jira_client)
 
-        # Get ALL issues to show exact real values
+        # Request ONLY the fields the breakdowns below actually read. The previous list
+        # pulled 'description', 'summary', 'components', etc. — none used here, but for a
+        # 5,000-issue all-projects fetch that bloated each page massively (description is
+        # huge). Trimming to the used set shrinks the payload several-fold and is the
+        # biggest single speedup for broad windows. (Due-date/labels/age live in the
+        # separate enhanced-metrics endpoint, which has its own fetch.)
         fields = [
-            'key', 'summary', 'status', 'assignee', 'priority', 'issuetype',
-            'project', 'created', 'updated', 'description', 'reporter', 'labels',
-            'components', 'fixVersions', 'duedate', *story_point_field_ids
+            'key', 'status', 'assignee', 'priority', 'issuetype',
+            'created', 'updated', *story_point_field_ids
         ]
 
-        # Get ALL issues with proper pagination to show exact values
-        all_issues = []
-        start_at = 0
-        max_results = 100  # Jira API v3 max limit is 100 per request
-        batch_count = 0
-        seen_keys = set()  # Track unique issue keys to detect duplicates
+        # Get ALL issues for the metric breakdowns, capped at 5,000.
+        import asyncio
+        PAGE = 100          # Jira API max per request
+        MAX_ISSUES = 5000   # retrieval cap (breakdowns are sampled from this)
+        CONCURRENCY = 20    # parallel page fetches — bounded so we never hammer Jira
         metrics_truncated = False
-        
-        # Get total count first - Jira DC returns 'total' in every search response
+
+        # Get total count first — Jira DC returns 'total' in every search response.
+        # When we know the total we fetch all pages CONCURRENTLY (no sequential round
+        # trips, no inter-batch sleeps), which is what turned a broad all-projects
+        # window from ~30s into a few seconds.
         total_count_from_api = 0
         try:
             count_data = await app_state.jira_client.search(jql, max_results=1, fields=['key'])
             total_count_from_api = count_data.get('total', 0) if count_data else 0
-            logger.info(f"Jira API total count: {total_count_from_api} (response keys: {list(count_data.keys()) if count_data else 'None'})")
+            logger.info(f"Jira API total count: {total_count_from_api}")
         except Exception as e:
             logger.warning(f"Could not get count data: {e}")
-        
-        try:
-            while True:
-                batch_count += 1
-                logger.info(f"Fetching batch #{batch_count} starting at {start_at}")
-                issues_data = await app_state.jira_client.search(jql, max_results=max_results, fields=fields, start_at=start_at)
-                
-                if not issues_data:
-                    logger.error("Jira API returned None")
-                    break
-                    
-                issues_batch = issues_data.get('issues', [])
-                logger.info(f"Got {len(issues_batch)} issues in batch #{batch_count} (Total so far: {len(all_issues) + len(issues_batch)})")
-                
-                if not issues_batch:
-                    logger.info("No more issues found, stopping pagination")
-                    break
-                
-                # Check for duplicates
-                batch_keys = [issue.get('key') for issue in issues_batch if issue.get('key')]
-                duplicates = [key for key in batch_keys if key in seen_keys]
-                
-                if duplicates:
-                    logger.warning(f"DUPLICATES DETECTED: {duplicates[:5]}... (showing first 5)")
-                    logger.warning("Stopping pagination to prevent infinite loop")
-                    break
-                
-                # Add new unique issues
-                seen_keys.update(batch_keys)
-                all_issues.extend(issues_batch)
-                
-                # Check if this is the last page (Jira API v3 uses isLast)
-                is_last = issues_data.get('isLast', False)
-                next_page_token = issues_data.get('nextPageToken')
-                logger.info(f"isLast flag: {is_last}, nextPageToken: {next_page_token}")
-                
-                # Stop if we got fewer issues than requested (this is the reliable way to detect end)
-                if len(issues_batch) < max_results:
-                    logger.info(f"Got fewer issues ({len(issues_batch)}) than requested ({max_results}), stopping")
-                    break
-                    
-                # Stop if isLast is true (this means we've reached the end)
-                if is_last:
-                    logger.info("isLast=true, stopping pagination")
-                    break
-                    
-                start_at += max_results
-                
-                # Add small delay to prevent rate limiting
-                import asyncio
-                await asyncio.sleep(0.2)  # 200ms delay between batches
-                
-                # Safety limit to prevent infinite loops
-                if batch_count >= 50:  # Max 50 batches = 5,000 issues
-                    logger.warning(f"Reached safety limit of {batch_count} batches, stopping")
-                    metrics_truncated = True
-                    break
-                
-        except Exception as e:
-            logger.error(f"Error during pagination: {e}")
-            # Continue with whatever we got
-            
-        issues = all_issues
+
+        async def _fetch_page(offset: int):
+            try:
+                d = await app_state.jira_client.search(jql, max_results=PAGE, fields=fields, start_at=offset)
+                return d.get('issues', []) if d else []
+            except Exception as e:
+                logger.warning(f"Metrics page at offset {offset} failed: {e}")
+                return []
+
+        issues = []
+        if total_count_from_api and total_count_from_api > 0:
+            capped = min(total_count_from_api, MAX_ISSUES)
+            if total_count_from_api > MAX_ISSUES:
+                metrics_truncated = True
+            offsets = list(range(0, capped, PAGE))
+            logger.info(f"Parallel-fetching {len(offsets)} pages (concurrency={CONCURRENCY}) for {capped} of {total_count_from_api} issues")
+            for i in range(0, len(offsets), CONCURRENCY):
+                chunk = offsets[i:i + CONCURRENCY]
+                for batch in await asyncio.gather(*[_fetch_page(o) for o in chunk]):
+                    issues.extend(batch)
+            # Offset paging can overlap if the result set shifts mid-fetch — dedup by key.
+            seen_keys, deduped = set(), []
+            for it in issues:
+                k = it.get('key')
+                if k and k in seen_keys:
+                    continue
+                if k:
+                    seen_keys.add(k)
+                deduped.append(it)
+            issues = deduped
+        else:
+            # Fallback: total unknown — paginate sequentially (no sleeps), stop on a
+            # short page / isLast / duplicates, capped at 50 pages.
+            start_at, batch_count, seen_keys = 0, 0, set()
+            try:
+                while True:
+                    batch_count += 1
+                    issues_data = await app_state.jira_client.search(jql, max_results=PAGE, fields=fields, start_at=start_at)
+                    if not issues_data:
+                        break
+                    issues_batch = issues_data.get('issues', [])
+                    if not issues_batch:
+                        break
+                    batch_keys = [i.get('key') for i in issues_batch if i.get('key')]
+                    if any(k in seen_keys for k in batch_keys):
+                        break  # duplicates — stop to avoid a loop
+                    seen_keys.update(batch_keys)
+                    issues.extend(issues_batch)
+                    if len(issues_batch) < PAGE or issues_data.get('isLast', False):
+                        break
+                    start_at += PAGE
+                    if batch_count >= 50:
+                        metrics_truncated = True
+                        break
+            except Exception as e:
+                logger.error(f"Error during sequential pagination: {e}")
+
         total_issues_all = len(issues)
-        logger.info(f"Retrieved {total_issues_all} total issues (exact count)")
+        logger.info(f"Retrieved {total_issues_all} issues (truncated={metrics_truncated})")
 
         # Calculate metrics with error handling
         total_issues = len(issues)
@@ -4070,15 +4070,15 @@ async def get_jira_metrics(request: Dict[str, Any]):
         # when the project does not populate story points.
         sprint_velocity = completed_story_points if story_point_values_found else resolved_issues
 
-        # Quality-Engineering metrics — only for projects that actually contain Test
-        # issues (cheap guard: skip the extra Jira queries otherwise).
+        # Quality-Engineering metrics are intentionally NOT computed here. They fire
+        # ~40 exact Jira count-queries over the entire Test backlog (tens of thousands
+        # of issues) and used to add ~40s to this call — blocking the dashboard's first
+        # render AND starving every other request on the shared worker (so even the
+        # GitHub Insights "Connecting…" loader hung). The frontend now loads them
+        # separately and non-blocking via /api/jira/qe-metrics, so the headline metrics
+        # render immediately and the QE panel fills in afterwards. issuesByType still
+        # carries the Test count, so the UI knows whether to show a QE loading panel.
         qe_metrics = None
-        try:
-            if any((t or '').lower() == 'test' for t in issues_by_type.keys()):
-                qe_fields = await resolve_qe_field_ids(app_state.jira_client)
-                qe_metrics = await compute_qe_metrics(app_state.jira_client, ' AND '.join(filters), qe_fields)
-        except Exception as e:
-            logger.error(f"QE metrics computation skipped: {e}")
 
         metrics = {
             "totalIssues": display_total,
@@ -4112,10 +4112,56 @@ async def get_jira_metrics(request: Dict[str, Any]):
             "success": True,
             "metrics": metrics
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to get Jira metrics: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/jira/qe-metrics", tags=["JIRA"], summary="Get Quality-Engineering Metrics")
+async def get_jira_qe_metrics(request: Dict[str, Any]):
+    """Quality-Engineering (test-case) metrics, split off /api/jira/metrics so the main
+    dashboard can render fast. This is the heavy path — it fires ~40 exact Jira count
+    queries over the Test backlog — so the frontend loads it separately and non-blocking.
+
+    Filter construction MUST mirror /api/jira/metrics so the QE panel is scoped to the
+    exact same project + date + advanced filters as the headline numbers."""
+    if not app_state.jira_configured or not app_state.jira_client:
+        raise HTTPException(status_code=400, detail="Jira not configured")
+
+    try:
+        project_key = request.get('projectKey')
+        date_from = (request.get('dateFrom') or '').strip()
+        date_to = (request.get('dateTo') or '').strip()
+        advanced_filters = request.get('advancedFilters') or {}
+
+        filters = []
+        if project_key and project_key != 'null':
+            filters.append(f'project = "{project_key}"')
+        else:
+            filters.append('project IS NOT EMPTY')
+        if date_from:
+            filters.append(f'updated >= "{date_from}"')
+        if date_to:
+            date_to_expr = f'{date_to} 23:59' if len(date_to) == 10 else date_to
+            filters.append(f'updated <= "{date_to_expr}"')
+
+        advanced_clause = build_advanced_filter_clause(advanced_filters)
+        if advanced_clause:
+            filters.append(advanced_clause)
+
+        base_jql = ' AND '.join(filters)
+
+        qe_fields = await resolve_qe_field_ids(app_state.jira_client)
+        # compute_qe_metrics returns None when there are no Test issues in scope.
+        qe_metrics = await compute_qe_metrics(app_state.jira_client, base_jql, qe_fields)
+
+        return {"success": True, "qeMetrics": qe_metrics}
+
+    except Exception as e:
+        logger.error(f"Failed to get Jira QE metrics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/confluence/metrics", tags=["CONFLUENCE"], summary="Get Confluence Metrics")
 async def get_confluence_metrics():

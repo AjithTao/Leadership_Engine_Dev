@@ -109,6 +109,26 @@ Dates in this CHANGELOG follow the [ISO 8601 date format](https://www.w3.org/QA/
   automation/type custom fields.
 
 ### Fixed
+- **Jira & GitHub Insights stuck on "Connecting…"** — the dashboards could spin
+  indefinitely and never render. Root cause: `/api/jira/metrics` computed the heavy
+  Quality-Engineering metrics inline (~40 Jira count-queries over the whole Test
+  backlog, ~40s), and the page awaited `metrics` and `enhanced-metrics` together, so
+  the loader was gated on the slowest call — which also starved every other request on
+  the shared async worker, so GitHub Insights' `status`/`repos` calls hung too. Fixes:
+  - QE metrics moved to a dedicated `POST /api/jira/qe-metrics` endpoint, loaded
+    non-blocking; the headline renders without waiting on it.
+  - Enhanced analytics (velocity/burndown/predictive, ~30s) moved **off** the awaited
+    path — `jiraMetrics` is set as soon as the headline metrics resolve and the advanced
+    charts fill in afterward behind a "Loading advanced analytics…" banner.
+  - `/api/jira/metrics` pagination parallelised (bounded concurrency, using the known
+    total) with the 200 ms-per-batch sleeps removed, and the per-issue field list
+    trimmed to only what the breakdowns read (dropped `description`, etc.). For the
+    broadest all-projects window this cut the metrics call from ~31 s to ~11 s.
+  - Added 90 s client-side timeouts to the Jira metrics / enhanced-metrics / qe-metrics
+    fetches so a stalled backend can never leave the loader spinning forever.
+  Net: first render for the heaviest All-Projects view dropped from ~50 s (or never) to
+  ~12 s, single-project views render in a few seconds, and GitHub Insights is no longer
+  starved.
 - Jira Insights "Issue Breakdown" didn't reconcile with the total (e.g. total
   5,544 but the breakdown showed only Bugs 2 + Stories 55). It only counted four
   hardcoded types (Bug/Story/Task/Epic), so projects dominated by other types —

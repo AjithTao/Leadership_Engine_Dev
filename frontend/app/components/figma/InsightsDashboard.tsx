@@ -6,7 +6,7 @@ import { RefreshCw, TrendingUp, Users, Clock, AlertTriangle, CheckCircle, BarCha
 import { Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, ComposedChart } from 'recharts';
 import { exportInsightsAsPDF } from '../../utils/exportUtils';
 import { useTheme } from '../../contexts/ThemeContext';
-import { getApiUrl } from '../../../lib/api-config';
+import { getApiUrl, fetchWithTimeout } from '../../../lib/api-config';
 import { DashboardLayout } from '../DashboardLayout';
 import { JiraLoader } from './InsightsDashboard/components/JiraLoader';
 
@@ -350,6 +350,10 @@ export default function InsightsDashboard() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [usingMockEnhancedMetrics, setUsingMockEnhancedMetrics] = useState(false);
+  // Enhanced analytics (velocity/burndown/predictive) is a heavy ~30s call, so like QE
+  // it loads OFF the critical path — the headline paints from /api/jira/metrics first
+  // and the advanced charts fill in after. This flags that secondary load.
+  const [enhancedLoading, setEnhancedLoading] = useState(false);
   const [firstActionDate, setFirstActionDate] = useState<string | null>(null);
   const [firstActionLoading, setFirstActionLoading] = useState(false);
   const [activePreset, setActivePreset] = useState<string | null>(null);
@@ -362,6 +366,11 @@ export default function InsightsDashboard() {
   const [performers, setPerformers] = useState<Performer[]>([]);
   const [blockersLoading, setBlockersLoading] = useState(false);
   const [performersLoading, setPerformersLoading] = useState(false);
+
+  // Quality-Engineering metrics load separately (and non-blocking) from the headline
+  // metrics: the QE computation fires ~40 Jira count-queries and used to stall the
+  // whole dashboard's first render. Now the page paints immediately and this fills in.
+  const [qeMetrics, setQeMetrics] = useState<QeMetrics | null>(null);
 
   const [selectedChartView, setSelectedChartView] = useState<'velocity' | 'burndown' | 'capacity' | 'historical'>('velocity');
 
@@ -643,11 +652,13 @@ export default function InsightsDashboard() {
     try {
       console.log('📊 Fetching metrics for project:', projectKey);
       console.log('📊 Metrics URL:', getApiUrl('/api/jira/metrics'));
-      const response = await fetch(getApiUrl('/api/jira/metrics'), {
+      // Hard timeout so a stalled backend can never leave "Connecting to Jira…" spinning
+      // forever — on expiry this rejects and the caller surfaces an error + retry.
+      const response = await fetchWithTimeout(getApiUrl('/api/jira/metrics'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectKey, dateFrom: fromDate, dateTo: toDate, advancedFilters: af })
-      });
+      }, 90000);
       console.log('📊 Metrics response status:', response.status);
       if (!response.ok) throw new Error('Failed to fetch metrics');
       const data = await response.json();
@@ -715,13 +726,33 @@ export default function InsightsDashboard() {
     }
   };
 
+  // Quality-Engineering metrics — heavy (~40 Jira count-queries), so fetched on its own
+  // and never awaited by the main load. A 90s timeout means a slow/stalled QE query can
+  // never leave the QE panel spinning forever; on failure we simply leave it empty.
+  const fetchQeMetrics = async (projectKey: string | null, fromDate: string, toDate: string, af: AdvancedFilters = advancedFilters) => {
+    try {
+      const res = await fetchWithTimeout(getApiUrl('/api/jira/qe-metrics'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectKey, dateFrom: fromDate, dateTo: toDate, advancedFilters: af }),
+      }, 90000);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success) setQeMetrics(data.qeMetrics ?? null);
+    } catch (e) {
+      console.error('QE metrics fetch error:', e);
+    }
+  };
+
   const fetchEnhancedMetrics = async (projectKey: string | null, fromDate: string, toDate: string, af: AdvancedFilters = advancedFilters): Promise<{ data: EnhancedJiraMetrics; isMock: boolean }> => {
     try {
-      const response = await fetch(getApiUrl('/api/jira/enhanced-metrics'), {
+      // Timeout so a slow enhanced-metrics call falls back to mock data instead of
+      // hanging the whole Promise.all (and the loader) indefinitely.
+      const response = await fetchWithTimeout(getApiUrl('/api/jira/enhanced-metrics'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectKey, dateFrom: fromDate, dateTo: toDate, advancedFilters: af })
-      });
+      }, 90000);
 
       if (!response.ok) {
         return { data: createMockEnhancedMetrics(jiraMetrics), isMock: true };
@@ -812,6 +843,7 @@ export default function InsightsDashboard() {
     setError(null);
     setBlockers(null);
     setPerformers([]);
+    setQeMetrics(null);
 
     console.log('🔄 Starting data fetch...');
     console.log('📡 API URL:', getApiUrl('/api/jira/projects'));
@@ -837,11 +869,13 @@ export default function InsightsDashboard() {
     const seq = ++fetchSeqRef.current;
 
     try {
-      const [projectsData, metricsData, activitiesData, enhancedResult] = await Promise.all([
+      // ONLY the fast headline path is awaited — projects + metrics + activities.
+      // The heavy enhanced analytics (~30s) is fired non-blocking below so the loader
+      // clears the moment the headline metrics land instead of waiting on the charts.
+      const [projectsData, metricsData, activitiesData] = await Promise.all([
         fetchProjects(),
         fetchMetrics(projectFilter, dateFrom, dateTo),
         fetchActivities(),
-        fetchEnhancedMetrics(projectFilter, dateFrom, dateTo)
       ]);
 
       // A newer fetch started while this one was in flight — drop these results
@@ -853,14 +887,17 @@ export default function InsightsDashboard() {
 
       setJiraMetrics(metricsData);
 
-      // Fire blockers + performers in parallel (non-blocking — don't await)
+      // Fire blockers + performers + QE + enhanced analytics in parallel (non-blocking —
+      // don't await). Each has its own loading state + timeout. Keeping these off the
+      // awaited path is what lets the dashboard paint immediately instead of waiting
+      // ~30-40s on the Test-backlog counts and the velocity/burndown/predictive build.
       fetchBlockers(projectFilter);
       fetchPerformers(projectFilter, dateFrom, dateTo);
+      fetchQeMetrics(projectFilter, dateFrom, dateTo);
+      loadEnhanced(projectFilter, dateFrom, dateTo, metricsData, seq);
 
-      const normalizedEnhanced = enhancedResult.data ?? createMockEnhancedMetrics(metricsData);
-      setEnhancedMetrics(normalizedEnhanced);
-      setUsingMockEnhancedMetrics(enhancedResult.isMock ?? false);
-      cacheData(projectsData, metricsData, activitiesData, normalizedEnhanced);
+      // Cache the headline immediately; loadEnhanced re-caches enhanced-metrics when it lands.
+      cacheData(projectsData, metricsData, activitiesData, enhancedMetrics);
       setLastRefresh(new Date());
     } catch (error) {
       if (seq !== fetchSeqRef.current) return; // superseded — ignore its error too
@@ -868,6 +905,27 @@ export default function InsightsDashboard() {
       setError(error instanceof Error ? error.message : 'Failed to fetch data');
     } finally {
       if (seq === fetchSeqRef.current) setLoading(false);
+    }
+  };
+
+  // Enhanced analytics loader — runs OFF the critical path. Sequence-guarded so a
+  // superseded scope can't overwrite newer charts; persists to cache when it lands.
+  const loadEnhanced = async (projectFilter: string | null, fromDate: string, toDate: string, metricsData: JiraMetrics, seq: number) => {
+    setEnhancedLoading(true);
+    try {
+      const enhancedResult = await fetchEnhancedMetrics(projectFilter, fromDate, toDate);
+      if (seq !== fetchSeqRef.current) return; // superseded
+      const normalizedEnhanced = enhancedResult.data ?? createMockEnhancedMetrics(metricsData);
+      setEnhancedMetrics(normalizedEnhanced);
+      setUsingMockEnhancedMetrics(enhancedResult.isMock ?? false);
+      try { localStorage.setItem('enhanced-metrics', JSON.stringify(normalizedEnhanced)); } catch { /* quota — ignore */ }
+    } catch (e) {
+      if (seq === fetchSeqRef.current) {
+        setEnhancedMetrics(createMockEnhancedMetrics(metricsData));
+        setUsingMockEnhancedMetrics(true);
+      }
+    } finally {
+      if (seq === fetchSeqRef.current) setEnhancedLoading(false);
     }
   };
 
@@ -1174,7 +1232,10 @@ const avgIssuesPerMember = topAssignees.length > 0
       }));
 
   // ─── Quality Engineering metrics (test-case projects) ──────────────────────
-  const qe = jiraMetrics?.qeMetrics ?? null;
+  // Prefer the separately-fetched QE state; fall back to any value carried on the
+  // metrics blob (e.g. older cached data). QE is fetched on its own, non-blocking
+  // path so the headline metrics paint immediately; the QE panel appears when ready.
+  const qe = qeMetrics ?? jiraMetrics?.qeMetrics ?? null;
   const qeCards = qe ? [
     { label: 'Test Cases', value: qe.testTotal.toLocaleString(), color: 'var(--accent-cool)', bar: 100,
       sub: 'in selected range', extraJql: 'issuetype = Test',
@@ -1451,9 +1512,32 @@ const avgIssuesPerMember = topAssignees.length > 0
             )}
           </AnimatePresence>
 
-          {/* ── MOCK DATA WARNING ────────────────────────────────────────── */}
+          {/* ── ENHANCED ANALYTICS LOADING (off-critical-path) ───────────── */}
           <AnimatePresence>
-            {usingMockEnhancedMetrics && (
+            {enhancedLoading && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  background: 'var(--accent-cool)10', border: '1px solid var(--accent-cool)40',
+                  borderRadius: 12, padding: '12px 18px', marginBottom: 16,
+                }}
+              >
+                <Loader2 size={15} style={{ color: 'var(--accent-cool)', flexShrink: 0, animation: 'spin 1s linear infinite' }} />
+                <div style={{ flex: 1, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  <strong style={{ color: 'var(--accent-cool)' }}>Loading advanced analytics…</strong> Headline metrics are ready — velocity, burndown, capacity, and predictive charts below are still loading.
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ── MOCK DATA WARNING ────────────────────────────────────────── */}
+          {/* Suppressed while enhancedLoading so a normal in-progress load never
+              flashes the "API could not be reached" message. */}
+          <AnimatePresence>
+            {usingMockEnhancedMetrics && !enhancedLoading && (
               <motion.div
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
