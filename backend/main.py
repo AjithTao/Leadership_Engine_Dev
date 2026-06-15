@@ -7476,8 +7476,8 @@ if __name__ == "__main__":
 
 # ─── Mercury Dashboard ─────────────────────────────────────────────────────────
 
-@app.get("/api/mercury-dashboard", tags=["Mercury Dashboard"], summary="PROJECT MERCURY - STATUS SUMMARY")
-async def get_mercury_dashboard():
+@app.get("/api/mercury-dashboard/legacy", tags=["Mercury Dashboard"], summary="PROJECT MERCURY - STATUS SUMMARY (legacy)")
+async def get_mercury_dashboard_legacy():
     """
     Fetches all data for the PROJECT MERCURY - STATUS SUMMARY JIRA dashboard (ID 39900).
     Replicates all 7 gadgets: Focused Test Suite, Comprehensive Test Suite,
@@ -7500,14 +7500,23 @@ async def get_mercury_dashboard():
         {"id": "19129", "name": "Mike Burch Ford",     "color": "#FF7A00"},
         {"id": "18938", "name": "TOYOTA OF GLENDORA",  "color": "#6554C0"},
     ]
-    # Bug distribution grouped by JIRA project (functional module)
-    MODDWTC_BUG_PROJECTS = [
+    # Bug distribution grouped by DEALER (one segment per T&L dealer)
+    BUG_DEALER_SEGMENTS = [
+        {"key": "M-Bug-MH",            "label": "Merced Honda",       "color": "#0052CC"},
+        {"key": "M-Bug-Nissan",        "label": "Team Nissan Group",   "color": "#00875A"},
+        {"key": "M-Bug-Highlandford",  "label": "Highland Park Ford",  "color": "#FF5630"},
+        {"key": "M-Bug-Mikeburchford", "label": "Mike Burch Ford",     "color": "#FF7A00"},
+        {"key": "M-Bug-Toyota",        "label": "Toyota of Glendora",  "color": "#6554C0"},
+    ]
+    # Bug priority breakdown grouped by MODULE (JIRA project)
+    BUG_MODULE_PROJECTS = [
         {"project": "APMODACC", "label": "Accounts Payable",    "color": "#0052CC"},
         {"project": "GLMODACC", "label": "General Ledger",       "color": "#00875A"},
         {"project": "ARMODACC", "label": "Accounts Receivable",  "color": "#FF5630"},
         {"project": "POMODACC", "label": "Purchase Orders",      "color": "#FF8B00"},
         {"project": "MODSRCH",  "label": "Search & Navigation",  "color": "#6554C0"},
     ]
+    PRIORITY_LABELS = ["Blocker", "High", "Medium", "Low", "Minor"]
     FOCUSED_BASE  = ('project = MODDWTC AND ((component IN (JournalEntry,GL_Inquiry,'
                      'AdjustReverse,RecurringEntries) AND labels = GL-MH) OR '
                      '(component IN (Name-Records,AccountsReceivable,AP-Payments,ODC,'
@@ -7568,15 +7577,14 @@ async def get_mercury_dashboard():
 
     async with httpx.AsyncClient() as client:
         # ── Parallel JIRA JQL counts ────────────────────────────────────────
+        # Manual = total - automated (more reliable than labels != query)
         counts = await asyncio.gather(
-            # Focused test suite
+            # Focused test suite (total + automated only; manual derived as total-auto)
             jql_count(client, f"{FOCUSED_BASE} AND issuetype = Test"),
-            jql_count(client, f"{FOCUSED_BASE} AND issuetype = Test AND labels != MSWT-Refactored"),
-            jql_count(client, f"{FOCUSED_BASE} AND issuetype = Test AND labels = MSWT-Refactored"),
+            jql_count(client, f"{FOCUSED_BASE} AND issuetype = Test AND labels in (\"MSWT-Refactored\")"),
             # Comprehensive test suite
             jql_count(client, "project = MODDWTC AND issuetype = Test"),
-            jql_count(client, "project = MODDWTC AND issuetype = Test AND labels != MSWT-Refactored"),
-            jql_count(client, "project = MODDWTC AND issuetype = Test AND labels = MSWT-Refactored"),
+            jql_count(client, "project = MODDWTC AND issuetype = Test AND labels in (\"MSWT-Refactored\")"),
             # Bug totals and priority breakdown
             jql_count(client, BUG_BASE_JQL),
             jql_count(client, f"{BUG_BASE_JQL} AND priority = High"),
@@ -7585,25 +7593,49 @@ async def get_mercury_dashboard():
             jql_count(client, f"{BUG_BASE_JQL} AND priority = Minor"),
             jql_count(client, f"{BUG_BASE_JQL} AND priority = Blocker"),
         )
-        (focused_total, focused_manual, focused_auto,
-         comp_total,    comp_manual,    comp_auto,
-         bugs_total,    bugs_high,      bugs_medium, bugs_low, bugs_minor, bugs_blocker) = counts
+        (focused_total, focused_auto,
+         comp_total,    comp_auto,
+         bugs_total,    bugs_high, bugs_medium, bugs_low, bugs_minor, bugs_blocker) = counts
+        focused_manual = focused_total - focused_auto
+        comp_manual    = comp_total    - comp_auto
 
-        # ── Bug counts per JIRA project (parallel) ───────────────────────────
-        bug_proj_counts, focused_area_counts, comp_area_counts, exec_summaries = await asyncio.gather(
+        # ── Bug counts per DEALER + priority per MODULE (parallel) ───────────
+        bug_dealer_counts, bug_priority_flat, focused_area_counts, comp_area_counts, exec_summaries = await asyncio.gather(
             asyncio.gather(*[
-                jql_count(client, f'{BUG_BASE_JQL} AND project = {seg["project"]}')
-                for seg in MODDWTC_BUG_PROJECTS
+                jql_count(client, f'labels = "{seg["key"]}" AND type = bug')
+                for seg in BUG_DEALER_SEGMENTS
+            ]),
+            asyncio.gather(*[
+                jql_count(client, f'{BUG_BASE_JQL} AND project = {p["project"]} AND priority = {pr}')
+                for p in BUG_MODULE_PROJECTS
+                for pr in PRIORITY_LABELS
             ]),
             asyncio.gather(*[jql_count(client, a["jql"]) for a in COMP_AREAS_FOCUSED]),
             asyncio.gather(*[jql_count(client, a["jql"]) for a in COMP_AREAS_ALL]),
             asyncio.gather(*[cycle_exec_summary(client, c["id"]) for c in CYCLES]),
         )
 
+    # Bug distribution by dealer
     bugs_distribution = [
-        {**seg, "count": bug_proj_counts[i]}
-        for i, seg in enumerate(MODDWTC_BUG_PROJECTS)
+        {"key": seg["key"], "label": seg["label"], "color": seg["color"], "count": bug_dealer_counts[i]}
+        for i, seg in enumerate(BUG_DEALER_SEGMENTS)
     ]
+
+    # Bug priority breakdown per module
+    n_prio = len(PRIORITY_LABELS)
+    bug_priority_by_project = []
+    for i, proj in enumerate(BUG_MODULE_PROJECTS):
+        proj_priorities = {
+            pr: bug_priority_flat[i * n_prio + j]
+            for j, pr in enumerate(PRIORITY_LABELS)
+        }
+        bug_priority_by_project.append({
+            "project":    proj["project"],
+            "label":      proj["label"],
+            "color":      proj["color"],
+            "total":      sum(proj_priorities.values()),
+            "priorities": proj_priorities,
+        })
 
     execution_summary = []
     for i, c in enumerate(CYCLES):
@@ -7641,7 +7673,8 @@ async def get_mercury_dashboard():
                 for i, a in enumerate(COMP_AREAS_ALL)
             ],
         },
-        "bugs_distribution": bugs_distribution,
+        "bugs_distribution":      bugs_distribution,
+        "bug_priority_by_project": bug_priority_by_project,
         "bug_priorities": {
             "Blocker": bugs_blocker,
             "High":    bugs_high,
@@ -7658,6 +7691,476 @@ async def get_mercury_dashboard():
             "observations_url": "https://confluence.cdk.com/pages/viewpage.action?pageId=502140070",
             "blockers_url":     "https://confluence.cdk.com/pages/viewpage.action?pageId=502140072",
         },
+        "last_updated": datetime.utcnow().isoformat() + "Z",
+    }
+
+
+@app.get("/api/mercury-dashboard", tags=["Mercury Dashboard"], summary="PROJECT MERCURY - STATUS SUMMARY")
+async def get_mercury_dashboard():
+    """
+    Build the Services Dashboard from Jira dashboard 39900 itself:
+    Custom Charts prefs, saved filters, Rich Text links, and Zephyr project/version
+    configuration are fetched live instead of mirrored as static constants.
+    """
+    import asyncio
+    import html as html_lib
+    import json
+    import re
+    import httpx
+
+    try:
+        from services.encryption import get_encrypted_env
+    except Exception:
+        get_encrypted_env = None
+
+    jira_base = os.getenv("JIRA_BASE_URL", "https://projects.cdk.com").rstrip("/")
+    jira_token = get_encrypted_env("JIRA_SERVICE_API_TOKEN") if get_encrypted_env else ""
+    jira_token = jira_token or os.getenv("JIRA_SERVICE_API_TOKEN", "")
+    if not jira_token:
+        raise HTTPException(status_code=500, detail="Jira service token is not configured")
+
+    headers = {
+        "Authorization": f"Bearer {jira_token}",
+        "Accept": "application/json,text/html,*/*",
+    }
+    palette = ["#0052CC", "#00875A", "#FF8B00", "#6554C0", "#FF5630", "#00A3BF", "#8B929A", "#BF2600"]
+    zephyr_statuses = ("PASS", "FAIL", "WIP", "BLOCKED", "UNEXECUTED")
+    lz_key = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$"
+
+    def decode_lz_uri(value: str) -> str:
+        """Decode LZString URI-safe values used by Custom Charts preferences."""
+        if not value:
+            return ""
+        value = value.replace(" ", "+")
+        length = len(value)
+        dictionary = {0: 0, 1: 1, 2: 2}
+        enlarge_in = 4
+        dict_size = 4
+        num_bits = 3
+        data_value = lz_key.index(value[0])
+        data_position = 32
+        data_index = 1
+
+        def read_bits(bit_count: int) -> int:
+            nonlocal data_value, data_position, data_index
+            bits = 0
+            max_power = 1 << bit_count
+            power = 1
+            while power != max_power:
+                resb = data_value & data_position
+                data_position >>= 1
+                if data_position == 0:
+                    data_position = 32
+                    data_value = lz_key.index(value[data_index]) if data_index < length else 0
+                    data_index += 1
+                if resb > 0:
+                    bits |= power
+                power <<= 1
+            return bits
+
+        next_value = read_bits(2)
+        if next_value == 0:
+            char = chr(read_bits(8))
+        elif next_value == 1:
+            char = chr(read_bits(16))
+        else:
+            return ""
+
+        dictionary[3] = char
+        word = char
+        result = [char]
+        while True:
+            if data_index > length:
+                return ""
+            code = read_bits(num_bits)
+            if code == 0:
+                dictionary[dict_size] = chr(read_bits(8))
+                dict_size += 1
+                code = dict_size - 1
+                enlarge_in -= 1
+            elif code == 1:
+                dictionary[dict_size] = chr(read_bits(16))
+                dict_size += 1
+                code = dict_size - 1
+                enlarge_in -= 1
+            elif code == 2:
+                return "".join(result)
+
+            if enlarge_in == 0:
+                enlarge_in = 1 << num_bits
+                num_bits += 1
+
+            if code in dictionary:
+                entry = dictionary[code]
+            elif code == dict_size:
+                entry = word + word[0]
+            else:
+                return ""
+
+            result.append(entry)
+            dictionary[dict_size] = word + entry[0]
+            dict_size += 1
+            enlarge_in -= 1
+            word = entry
+
+            if enlarge_in == 0:
+                enlarge_in = 1 << num_bits
+                num_bits += 1
+
+    def gadget_title(gadget: Dict[str, Any]) -> str:
+        return html_lib.unescape(gadget.get("title", "") or "")
+
+    def prefs_to_dict(gadget: Dict[str, Any], decode_custom: bool = False) -> Dict[str, Any]:
+        prefs: Dict[str, Any] = {}
+        for field in gadget.get("userPrefs", {}).get("fields", []):
+            name = field.get("name")
+            value: Any = html_lib.unescape(field.get("value", "") or "")
+            if decode_custom and value and name not in {"isConfigured", "version"}:
+                decoded = decode_lz_uri(value)
+                if decoded:
+                    try:
+                        value = json.loads(decoded)
+                    except Exception:
+                        value = decoded
+            prefs[name] = value
+        return prefs
+
+    def visible_segments(series: Dict[str, Any]) -> List[Dict[str, Any]]:
+        segments = (series or {}).get("segmentsConfiguration") or {}
+        return [
+            segment
+            for _, segment in sorted(segments.items(), key=lambda item: item[1].get("index", 999))
+            if segment.get("visible", True)
+        ]
+
+    def segment_label(segment: Dict[str, Any]) -> str:
+        if segment.get("name"):
+            return str(segment["name"])
+        names = [item.get("name") or item.get("value") for item in segment.get("segments", [])]
+        return ", ".join([name for name in names if name]) or "Segment"
+
+    def quote_jql_value(value: str) -> str:
+        return '"' + str(value).replace('"', '\\"') + '"'
+
+    def segment_jql(base_jql: str, series: Dict[str, Any], segment: Dict[str, Any]) -> str:
+        if segment.get("query"):
+            return segment["query"]
+        if series.get("chartById") == "components":
+            values = [item.get("value") for item in segment.get("segments", []) if item.get("value")]
+            quoted = ",".join(quote_jql_value(value) for value in values)
+            return f"({base_jql}) AND component in ({quoted})"
+        return base_jql
+
+    async def fetch_json(client: httpx.AsyncClient, path: str, **params):
+        response = await client.get(f"{jira_base}{path}", params=params or None, headers=headers)
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Jira request failed: {path} ({response.status_code}) {response.text[:300]}",
+            )
+        return response.json()
+
+    async def jql_count(client: httpx.AsyncClient, jql: str) -> int:
+        data = await fetch_json(client, "/rest/api/2/search", jql=jql, maxResults="0")
+        return int(data.get("total", 0))
+
+    async def jql_issues(client: httpx.AsyncClient, jql: str, fields: str) -> List[Dict[str, Any]]:
+        issues: List[Dict[str, Any]] = []
+        start_at = 0
+        while True:
+            data = await fetch_json(
+                client,
+                "/rest/api/2/search",
+                jql=jql,
+                fields=fields,
+                maxResults="100",
+                startAt=str(start_at),
+            )
+            batch = data.get("issues", [])
+            issues.extend(batch)
+            start_at += len(batch)
+            if start_at >= data.get("total", 0) or not batch:
+                return issues
+
+    async def dashboard_gadgets(client: httpx.AsyncClient) -> List[Dict[str, Any]]:
+        response = await client.get(
+            f"{jira_base}/secure/Dashboard.jspa",
+            params={"selectPageId": "39900"},
+            headers=headers,
+            follow_redirects=True,
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=502, detail=f"Could not load Jira dashboard 39900: {response.status_code}")
+        match = re.search(r'layouts="(\{.*?\})"', response.text, re.S)
+        if not match:
+            raise HTTPException(status_code=502, detail="Could not find Jira dashboard gadget layout")
+        layout = json.loads(html_lib.unescape(match.group(1)))
+        return layout["layouts"][0]["gadgets"]
+
+    async def build_custom_test_suite(client: httpx.AsyncClient, gadget: Dict[str, Any]) -> Dict[str, Any]:
+        prefs = prefs_to_dict(gadget, decode_custom=True)
+        base_jql = prefs["query"]
+        total = await jql_count(client, base_jql)
+        row_series = prefs.get("series1") or {}
+        column_series = prefs.get("series2") or {}
+
+        columns = []
+        for segment in visible_segments(column_series):
+            query = segment_jql(base_jql, column_series, segment)
+            columns.append({
+                "label": segment_label(segment),
+                "color": segment.get("color") or palette[len(columns) % len(palette)],
+                "jql": query,
+                "count": await jql_count(client, query),
+            })
+
+        rows = []
+        for segment in visible_segments(row_series):
+            row_jql = segment_jql(base_jql, row_series, segment)
+            row = {
+                "label": segment_label(segment),
+                "color": segment.get("color") or palette[len(rows) % len(palette)],
+                "count": await jql_count(client, row_jql),
+                "jql": row_jql,
+                "columns": [],
+            }
+            for column in columns:
+                cell_jql = f"({row_jql}) AND ({column['jql']})"
+                row["columns"].append({
+                    "label": column["label"],
+                    "count": await jql_count(client, cell_jql),
+                    "jql": cell_jql,
+                })
+            rows.append(row)
+
+        return {
+            "total": total,
+            "manual": next((col["count"] for col in columns if col["label"].lower() == "manual"), 0),
+            "automated": next((col["count"] for col in columns if col["label"].lower() == "automated"), 0),
+            "by_area": rows,
+            "columns": columns,
+            "source_jql": base_jql,
+            "gadget_id": gadget.get("id"),
+            "gadget_type": "Custom Charts",
+            "chart_title": prefs.get("title"),
+            "calculation": "Base count is the Custom Charts query total. Row counts are the base query plus the row segment. Matrix cells are row segment JQL AND column segment JQL.",
+        }
+
+    async def build_bug_distribution(client: httpx.AsyncClient, gadget: Dict[str, Any]) -> Dict[str, Any]:
+        prefs = prefs_to_dict(gadget, decode_custom=True)
+        base_jql = prefs["query"]
+        series = prefs.get("series1") or {}
+        segments = []
+        for segment in visible_segments(series):
+            query = segment_jql(base_jql, series, segment)
+            label = segment_label(segment)
+            segments.append({
+                "key": label,
+                "label": label,
+                "color": segment.get("color") or palette[len(segments) % len(palette)],
+                "count": await jql_count(client, query),
+                "jql": query,
+            })
+        return {
+            "total": await jql_count(client, base_jql),
+            "segments": segments,
+            "source_jql": base_jql,
+            "gadget_id": gadget.get("id"),
+            "gadget_type": "Custom Charts",
+            "chart_title": prefs.get("title"),
+            "calculation": "Each row is the count of its Custom JQL segment. Segment counts can overlap when an issue has multiple dealer labels; the total is the unique base query count.",
+        }
+
+    async def build_two_dimensional_stats(client: httpx.AsyncClient, gadget: Dict[str, Any]) -> Dict[str, Any]:
+        prefs = prefs_to_dict(gadget)
+        filter_id = str(prefs.get("filterId", "")).replace("filter-", "")
+        saved_filter = await fetch_json(client, f"/rest/api/2/filter/{filter_id}")
+        filter_jql = saved_filter.get("jql", "")
+        priority_meta = await fetch_json(client, "/rest/api/2/priority")
+        priority_order = [item.get("name") for item in priority_meta if item.get("name")]
+        issues = await jql_issues(client, filter_jql, "project,priority")
+
+        projects: Dict[str, Dict[str, Any]] = {}
+        totals_by_priority = {priority: 0 for priority in priority_order}
+        for issue in issues:
+            fields = issue.get("fields", {})
+            project = fields.get("project") or {}
+            priority = fields.get("priority") or {}
+            project_key = project.get("key") or "UNKNOWN"
+            priority_name = priority.get("name") or "None"
+            if priority_name not in totals_by_priority:
+                totals_by_priority[priority_name] = 0
+                priority_order.append(priority_name)
+            row = projects.setdefault(project_key, {
+                "project": project_key,
+                "label": project.get("name") or project_key,
+                "color": palette[len(projects) % len(palette)],
+                "total": 0,
+                "priorities": {priority: 0 for priority in priority_order},
+            })
+            for priority_key in priority_order:
+                row["priorities"].setdefault(priority_key, 0)
+            row["priorities"][priority_name] += 1
+            row["total"] += 1
+            totals_by_priority[priority_name] += 1
+
+        rows = sorted(projects.values(), key=lambda item: item["label"].lower())
+        for row in rows:
+            for priority in priority_order:
+                row["priorities"].setdefault(priority, 0)
+
+        return {
+            "filter_id": filter_id,
+            "filter_name": saved_filter.get("name"),
+            "source_jql": filter_jql,
+            "xstattype": prefs.get("xstattype"),
+            "ystattype": prefs.get("ystattype"),
+            "priority_order": priority_order,
+            "rows": rows,
+            "totals": totals_by_priority,
+            "total": len(issues),
+            "gadget_id": gadget.get("id"),
+            "gadget_type": "Two Dimensional Filter Statistics",
+            "calculation": "Fetch every issue from the saved filter, group by project for rows and priority for columns, then count issues in each intersection.",
+        }
+
+    async def build_execution_rows(client: httpx.AsyncClient, summary_gadget: Dict[str, Any], chart_gadget: Dict[str, Any]):
+        summary_prefs = prefs_to_dict(summary_gadget)
+        chart_prefs = prefs_to_dict(chart_gadget)
+        project_id = summary_prefs.get("projectId")
+        version_id = summary_prefs.get("version")
+        cycles = await fetch_json(
+            client,
+            "/rest/zapi/latest/cycle",
+            projectId=project_id,
+            versionId=version_id,
+            expand="executionSummaries",
+        )
+        rows = []
+        for cycle_id, cycle in sorted(
+            [(cid, data) for cid, data in cycles.items() if cid not in {"-1", "recordsCount"}],
+            key=lambda item: item[1].get("cycleOrderId") or 999,
+        ):
+            summary = {status: 0 for status in zephyr_statuses}
+            for item in cycle.get("executionSummaries", {}).get("executionSummary", []):
+                summary[item.get("statusName", "UNEXECUTED")] = int(item.get("count", 0))
+            total = sum(summary.values())
+            if total <= 0:
+                continue
+            rows.append({
+                "id": cycle_id,
+                "cycle": cycle.get("name") or cycle_id,
+                "color": palette[len(rows) % len(palette)],
+                "pass": summary["PASS"],
+                "fail": summary["FAIL"],
+                "wip": summary["WIP"],
+                "blocked": summary["BLOCKED"],
+                "unexecuted": summary["UNEXECUTED"],
+                "total": total,
+                "pass_rate": round(summary["PASS"] / total * 100, 1) if total else 0,
+                "source": {
+                    "endpoint": "/rest/zapi/latest/cycle",
+                    "projectId": project_id,
+                    "versionId": version_id,
+                    "cycleId": cycle_id,
+                },
+            })
+
+        chart_rows = rows
+        if chart_prefs.get("sortSprintBy") == "count":
+            chart_rows = sorted(rows, key=lambda row: row["total"], reverse=True)
+        if chart_prefs.get("showOthers") == "false":
+            chart_rows = chart_rows[: int(chart_prefs.get("itemsPerGroup") or len(chart_rows))]
+
+        version_name = next((cycle.get("versionName") for cycle in cycles.values() if isinstance(cycle, dict) and cycle.get("versionName")), version_id)
+        project_key = next((cycle.get("projectKey") for cycle in cycles.values() if isinstance(cycle, dict) and cycle.get("projectKey")), project_id)
+        doc = {
+            "summary_gadget_id": summary_gadget.get("id"),
+            "chart_gadget_id": chart_gadget.get("id"),
+            "summary_preferences": summary_prefs,
+            "chart_preferences": chart_prefs,
+            "calculation": "Zephyr cycle summaries are fetched for the dashboard project/version. Status counts are copied from executionSummaries; total is the sum of PASS, FAIL, WIP, BLOCKED, and UNEXECUTED.",
+        }
+        return rows, chart_rows, version_name, project_key, doc
+
+    async with httpx.AsyncClient(verify=False, timeout=60) as client:
+        gadgets = await dashboard_gadgets(client)
+        custom_by_title = {}
+        for gadget in gadgets:
+            if gadget_title(gadget) == "Custom Charts":
+                prefs = prefs_to_dict(gadget, decode_custom=True)
+                custom_by_title[prefs.get("title")] = gadget
+
+        summary_gadget = next(gadget for gadget in gadgets if "execution-status" in (gadget.get("gadgetSpecUrl") or ""))
+        chart_gadget = next(gadget for gadget in gadgets if "testcase-execution" in (gadget.get("gadgetSpecUrl") or ""))
+        two_dim_gadget = next(gadget for gadget in gadgets if gadget_title(gadget) == "Two Dimensional Filter Statistics")
+        rich_text_gadget = next(gadget for gadget in gadgets if gadget_title(gadget) == "Rich Text")
+
+        focused, comprehensive, bug_distribution, two_dim_stats = await asyncio.gather(
+            build_custom_test_suite(client, custom_by_title["Focused Test Suite"]),
+            build_custom_test_suite(client, custom_by_title["Comprehensive Test Suite"]),
+            build_bug_distribution(client, custom_by_title["Bugs distribution across T&L boxes"]),
+            build_two_dimensional_stats(client, two_dim_gadget),
+        )
+        execution_summary, execution_chart_summary, version_name, project_key, execution_doc = await build_execution_rows(
+            client, summary_gadget, chart_gadget
+        )
+
+    rich_text_prefs = prefs_to_dict(rich_text_gadget)
+    finding_urls = re.findall(r"https?://[^\]|\s]+", rich_text_prefs.get("html", ""))
+    observations_url = finding_urls[0] if finding_urls else "https://confluence.cdk.com/pages/viewpage.action?pageId=502140070"
+    blockers_url = finding_urls[1] if len(finding_urls) > 1 else "https://confluence.cdk.com/pages/viewpage.action?pageId=502140072"
+
+    return {
+        "focused_test_suite": focused,
+        "comprehensive_test_suite": comprehensive,
+        "bugs_distribution": bug_distribution["segments"],
+        "bugs_distribution_total": bug_distribution["total"],
+        "bugs_source_jql": bug_distribution.get("source_jql", ""),
+        "bug_priority_by_project": two_dim_stats["rows"],
+        "bug_priorities": two_dim_stats["totals"],
+        "priority_order": two_dim_stats["priority_order"],
+        "bugs_total": two_dim_stats["total"],
+        "execution_summary": execution_summary,
+        "execution_chart_summary": execution_chart_summary,
+        "version": version_name,
+        "project": project_key,
+        "dashboard_id": "39900",
+        "dashboard_url": f"{jira_base}/secure/Dashboard.jspa?selectPageId=39900",
+        "two_dimensional_stats": two_dim_stats,
+        "jira_base_url": jira_base,
+        "findings": {
+            "observations_url": observations_url,
+            "blockers_url": blockers_url,
+            "source_html": rich_text_prefs.get("html", ""),
+            "gadget_id": rich_text_gadget.get("id"),
+            "gadget_type": "Rich Text",
+        },
+        "gadgets": [
+            focused,
+            comprehensive,
+            bug_distribution,
+            two_dim_stats,
+            {
+                "gadget_id": summary_gadget.get("id"),
+                "gadget_type": "Zephyr Test Execution Status",
+                "title": gadget_title(summary_gadget),
+                **execution_doc,
+            },
+            {
+                "gadget_id": chart_gadget.get("id"),
+                "gadget_type": "Zephyr Test Execution Chart",
+                "title": gadget_title(chart_gadget),
+                **execution_doc,
+            },
+            {
+                "gadget_id": rich_text_gadget.get("id"),
+                "gadget_type": "Rich Text",
+                "title": rich_text_prefs.get("title") or "Findings",
+                "fields": rich_text_prefs,
+                "calculation": "Static rich-text dashboard links identify the Confluence pages; the companion findings endpoint fetches and parses those pages live.",
+            },
+        ],
         "last_updated": datetime.utcnow().isoformat() + "Z",
     }
 
@@ -7680,33 +8183,34 @@ async def get_findings_analysis():
 
     # ── HTML table parser ────────────────────────────────────────────────────────
     def parse_rows(html_content: str) -> list:
-        try:
-            from lxml import html as lx
-            tree = lx.fromstring(html_content)
-            out = []
-            for tr in tree.xpath("//tr")[2:]:          # skip title + header rows
-                cells = tr.xpath(".//td")
-                if len(cells) < 8:
-                    continue
-                def t(c): return re.sub(r"\s+", " ", c.text_content()).strip()
-                tx = [t(c) for c in cells]
-                desc = tx[1]
-                if not desc:
-                    continue
-                out.append({
-                    "num":    tx[0],
-                    "desc":   desc,
-                    "wf":     tx[2] if len(tx) > 2 else "",
-                    "mh":     tx[3].upper() if len(tx) > 3 else "",
-                    "ty":     tx[4].upper() if len(tx) > 4 else "",
-                    "ns":     tx[5].upper() if len(tx) > 5 else "",
-                    "hp":     tx[6].upper() if len(tx) > 6 else "",
-                    "mb":     tx[7].upper() if len(tx) > 7 else "",
-                    "status": tx[8] if len(tx) > 8 else "",
-                })
-            return out
-        except Exception:
+        if not html_content:
             return []
+        from lxml import html as lx
+        # Wrap in <div> so fragment_fromstring always has a single root,
+        # even when Confluence storage returns multiple sibling elements.
+        tree = lx.fragment_fromstring(f"<div>{html_content}</div>")
+        out = []
+        for tr in tree.xpath("//tr")[2:]:          # skip title + header rows
+            cells = tr.xpath(".//td")
+            if len(cells) < 8:
+                continue
+            def t(c): return re.sub(r"\s+", " ", c.text_content()).strip()
+            tx = [t(c) for c in cells]
+            desc = tx[1]
+            if not desc:
+                continue
+            out.append({
+                "num":    tx[0],
+                "desc":   desc,
+                "wf":     tx[2] if len(tx) > 2 else "",
+                "mh":     tx[3].upper() if len(tx) > 3 else "",
+                "ty":     tx[4].upper() if len(tx) > 4 else "",
+                "ns":     tx[5].upper() if len(tx) > 5 else "",
+                "hp":     tx[6].upper() if len(tx) > 6 else "",
+                "mb":     tx[7].upper() if len(tx) > 7 else "",
+                "status": tx[8] if len(tx) > 8 else "",
+            })
+        return out
 
     # ── Helpers ──────────────────────────────────────────────────────────────────
     WF_LABELS = {
@@ -7821,8 +8325,16 @@ async def get_findings_analysis():
                 client.get(f"{CONF_BASE}/rest/api/content/{OBS_PAGE}", params={"expand": "body.storage"}, headers=ch),
                 client.get(f"{CONF_BASE}/rest/api/content/{BLK_PAGE}",  params={"expand": "body.storage"}, headers=ch),
             )
+        if obs_r.status_code != 200:
+            raise HTTPException(status_code=502, detail=f"Confluence Observations page error: HTTP {obs_r.status_code} — {obs_r.text[:300]}")
+        if blk_r.status_code != 200:
+            raise HTTPException(status_code=502, detail=f"Confluence Blockers page error: HTTP {blk_r.status_code} — {blk_r.text[:300]}")
         obs_html = obs_r.json().get("body", {}).get("storage", {}).get("value", "")
         blk_html = blk_r.json().get("body", {}).get("storage", {}).get("value", "")
+        if not obs_html:
+            raise HTTPException(status_code=502, detail=f"Confluence Observations page (ID {OBS_PAGE}) returned empty content")
+        if not blk_html:
+            raise HTTPException(status_code=502, detail=f"Confluence Blockers page (ID {BLK_PAGE}) returned empty content")
         return {
             "observations": analyze_obs(parse_rows(obs_html)),
             "blockers":     analyze_blk(parse_rows(blk_html)),
@@ -7830,8 +8342,230 @@ async def get_findings_analysis():
             "blk_url": f"{CONF_BASE}/pages/viewpage.action?pageId={BLK_PAGE}",
             "last_fetched": datetime.utcnow().isoformat() + "Z",
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── AI Insights — Accounting / Mercury Dashboard ─────────────────────────────
+@app.post("/api/mercury-dashboard/ai-insights", tags=["Mercury Dashboard"])
+async def get_mercury_ai_insights(payload: Dict[str, Any]):
+    """Generate Databricks AI insights for each gadget on the accounting dashboard."""
+    from services.ai_engine import create_databricks_async_openai_client
+
+    api_key      = os.getenv("OPENAI_API_KEY", "")
+    api_base     = os.getenv("OPENAI_API_ENDPOINT", "")
+    model_name   = os.getenv("OPENAI_MODEL", "databricks-meta-llama-3-3-70b-instruct")
+
+    if not api_key or not api_base:
+        raise HTTPException(status_code=500, detail="Databricks AI service not configured")
+
+    import json
+    summary_fields = {
+        "bugs_total":           payload.get("bugs_total"),
+        "bugs_distribution":    payload.get("bugs_distribution", []),
+        "bug_priority_by_project": payload.get("bug_priority_by_project", []),
+        "execution_summary":    payload.get("execution_summary", []),
+        "focused_test_suite":   {k: v for k, v in (payload.get("focused_test_suite") or {}).items() if k != "by_area"},
+        "comprehensive_test_suite": {k: v for k, v in (payload.get("comprehensive_test_suite") or {}).items() if k != "by_area"},
+    }
+    context = json.dumps(summary_fields, default=str)[:5000]
+
+    system_prompt = (
+        "You are a QA intelligence analyst for CDK's Project Mercury — an accounting software modernisation UAT. "
+        "Analyse the dashboard snapshot and produce exactly 5 insights covering: "
+        "bug_distribution, bug_priority, test_coverage, execution, overview. "
+        "Return a JSON array only — no markdown, no extra text — using this schema per item:\n"
+        '{"gadget":"<slug>","headline":"<≤8 words>","insight":"<2-3 sentences with specific numbers>","priority":"high|medium|low","action":"<one clear next step>"}'
+    )
+
+    try:
+        client = create_databricks_async_openai_client(api_key, api_base)
+        resp   = await client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user",   "content": f"Dashboard data:\n{context}"},
+            ],
+            max_tokens=1400,
+            temperature=0.25,
+        )
+        raw = resp.choices[0].message.content.strip()
+        # Strip markdown fences if present
+        if raw.startswith("```"):
+            raw = "\n".join(raw.split("\n")[1:])
+        if raw.endswith("```"):
+            raw = raw.rsplit("```", 1)[0]
+        insights = json.loads(raw.strip())
+        return {"insights": insights, "generated_at": datetime.utcnow().isoformat() + "Z"}
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"AI returned invalid JSON: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI error: {e}")
+
+
+# ── AI Insights — Services MOD Dashboard ─────────────────────────────────────
+@app.post("/api/services-mod-dashboard/ai-insights", tags=["Services MOD Dashboard"])
+async def get_services_mod_ai_insights(payload: Dict[str, Any]):
+    """Generate Databricks AI insights for each module on the services dashboard."""
+    from services.ai_engine import create_databricks_async_openai_client
+
+    api_key    = os.getenv("OPENAI_API_KEY", "")
+    api_base   = os.getenv("OPENAI_API_ENDPOINT", "")
+    model_name = os.getenv("OPENAI_MODEL", "databricks-meta-llama-3-3-70b-instruct")
+
+    if not api_key or not api_base:
+        raise HTTPException(status_code=500, detail="Databricks AI service not configured")
+
+    import json
+    modules = payload.get("modules", [])
+    slim = [{"name": m["name"], "overall": m["overall"], "automated": m["automated"],
+             "requires_automation": m["requires_automation"],
+             "automation_not_required": m["automation_not_required"]} for m in modules]
+    context = json.dumps(slim, default=str)[:4000]
+
+    system_prompt = (
+        "You are a QA automation analyst for CDK's Fixed-Ops / Services modernisation. "
+        "Analyse the module test-automation breakdown and produce exactly 4 insights covering: "
+        "automation_gap, top_risk, quick_win, overview. "
+        "Return a JSON array only — no markdown — using this schema:\n"
+        '{"gadget":"<slug>","headline":"<≤8 words>","insight":"<2-3 sentences with specific numbers>","priority":"high|medium|low","action":"<one clear next step>"}'
+    )
+
+    try:
+        client = create_databricks_async_openai_client(api_key, api_base)
+        resp   = await client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user",   "content": f"Module data:\n{context}"},
+            ],
+            max_tokens=1000,
+            temperature=0.25,
+        )
+        raw = resp.choices[0].message.content.strip()
+        if raw.startswith("```"):
+            raw = "\n".join(raw.split("\n")[1:])
+        if raw.endswith("```"):
+            raw = raw.rsplit("```", 1)[0]
+        insights = json.loads(raw.strip())
+        return {"insights": insights, "generated_at": datetime.utcnow().isoformat() + "Z"}
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"AI returned invalid JSON: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI error: {e}")
+
+
+# ── Services MOD Dashboard ────────────────────────────────────────────────────
+@app.get("/api/services-mod-dashboard", tags=["Services MOD Dashboard"], summary="MODULE TEST STATUS — 7 modules × 4 categories from Jira JQL")
+async def get_services_mod_dashboard():
+    import asyncio
+    import httpx
+
+    try:
+        from services.encryption import get_encrypted_env
+    except Exception:
+        get_encrypted_env = None
+
+    jira_base = os.getenv("JIRA_BASE_URL", "https://projects.cdk.com").rstrip("/")
+    jira_token = get_encrypted_env("JIRA_SERVICE_API_TOKEN") if get_encrypted_env else ""
+    jira_token = jira_token or os.getenv("JIRA_SERVICE_API_TOKEN", "")
+    if not jira_token:
+        raise HTTPException(status_code=500, detail="Jira service token is not configured")
+
+    headers = {"Authorization": f"Bearer {jira_token}", "Accept": "application/json"}
+
+    MODULES = [
+        {
+            "name": "Appointments Mod",
+            "overall":                "project = FixedOpsAppointment AND issuetype = Test AND status NOT IN (Abandoned)",
+            "automated":              'project = FixedOpsAppointment AND issuetype = Test AND status NOT IN (Abandoned) AND "Test Status" = Automated',
+            "requires_automation":    'project = FixedOpsAppointment AND issuetype = Test AND status NOT IN (Abandoned) AND "Test Status" = "Requires Automation"',
+            "automation_not_required":'project = FixedOpsAppointment AND issuetype = Test AND status NOT IN (Abandoned) AND "Test Status" = "Automation Not Required"',
+        },
+        {
+            "name": "RO",
+            "overall":                'project in ("FXDOPSINSP") AND issuetype = Test AND component = "RO service (ROS)" AND status NOT IN (Abandoned)',
+            "automated":              'project in ("FXDOPSINSP") AND issuetype = Test AND component = "RO service (ROS)" AND status NOT IN (Abandoned) AND "Test Status" = Automated',
+            "requires_automation":    'project in ("FXDOPSINSP") AND issuetype = Test AND component = "RO service (ROS)" AND status NOT IN (Abandoned) AND "Test Status" = "Requires Automation"',
+            "automation_not_required":'project in ("FXDOPSINSP") AND issuetype = Test AND component = "RO service (ROS)" AND status NOT IN (Abandoned) AND "Test Status" = "Automation Not Required"',
+        },
+        {
+            "name": "TK",
+            "overall":                'project = FXDOPSINSP AND issuetype = Test AND component = "Inspect modernization" AND labels in (TK, tk_testCase) AND status NOT IN (Abandoned)',
+            "automated":              'project = FXDOPSINSP AND issuetype = Test AND component = "Inspect modernization" AND labels in (TK, tk_testCase) AND status NOT IN (Abandoned) AND "Test Status" = Automated',
+            "requires_automation":    'project = FXDOPSINSP AND issuetype = Test AND component = "Inspect modernization" AND labels in (TK, tk_testCase) AND status NOT IN (Abandoned) AND "Test Status" = "Requires Automation"',
+            "automation_not_required":'project = FXDOPSINSP AND issuetype = Test AND component = "Inspect modernization" AND labels in (TK, tk_testCase) AND status NOT IN (Abandoned) AND "Test Status" = "Automation Not Required"',
+        },
+        {
+            "name": "Booking",
+            "overall":                'project = FixedOpsInspect and type = test and status !=Abandoned  AND text ~ booking AND status NOT IN (Abandoned)',
+            "automated":              'project = FixedOpsInspect and type = test and status !=Abandoned  AND text ~ booking AND status NOT IN (Abandoned) AND "Test Status" = Automated',
+            "requires_automation":    'project = FixedOpsInspect and type = test and status !=Abandoned  AND text ~ booking AND status NOT IN (Abandoned) AND "Test Status" = "Requires Automation"',
+            "automation_not_required":'project = FixedOpsInspect and type = test and status !=Abandoned  AND text ~ booking AND status NOT IN (Abandoned) AND "Test Status" = "Automation Not Required"',
+        },
+        {
+            "name": "Cashiering",
+            "overall":                'project = FixedOpsInspect AND issuetype = Test AND text ~ "pay" AND status NOT IN (Abandoned)',
+            "automated":              'project = FixedOpsInspect AND issuetype = Test AND text ~ "pay" AND status NOT IN (Abandoned) AND "Test Status" = Automated',
+            "requires_automation":    'project = FixedOpsInspect AND issuetype = Test AND text ~ "pay" AND status NOT IN (Abandoned) AND "Test Status" = "Requires Automation"',
+            "automation_not_required":'project = FixedOpsInspect AND issuetype = Test AND text ~ "pay" AND status NOT IN (Abandoned) AND "Test Status" = "Automation Not Required"',
+        },
+        {
+            "name": "Inspect",
+            "overall":                'project = FXDOPSINSP AND issuetype = Test AND component = "Inspect modernization" AND status NOT IN (Abandoned)',
+            "automated":              'project = FXDOPSINSP AND issuetype = Test AND component = "Inspect modernization" AND status NOT IN (Abandoned) AND "Test Status" = Automated',
+            "requires_automation":    'project = FXDOPSINSP AND issuetype = Test AND component = "Inspect modernization" AND status NOT IN (Abandoned) AND "Test Status" = "Requires Automation"',
+            "automation_not_required":'project = FXDOPSINSP AND issuetype = Test AND component = "Inspect modernization" AND status NOT IN (Abandoned) AND "Test Status" = "Automation Not Required"',
+        },
+        {
+            "name": "Reporting",
+            "overall":                'project = "SER" AND issuetype = 10002 AND fixVersion is EMPTY AND status NOT IN (Abandoned)',
+            "automated":              'project = "SER" AND issuetype = 10002 AND fixVersion is EMPTY AND status NOT IN (Abandoned) AND "Test Status" = Automated',
+            "requires_automation":    'project = "SER" AND issuetype = 10002 AND fixVersion is EMPTY AND status NOT IN (Abandoned) AND "Test Status" = "Requires Automation"',
+            "automation_not_required":'project = "SER" AND issuetype = 10002 AND fixVersion is EMPTY AND status NOT IN (Abandoned) AND "Test Status" = "Automation Not Required"',
+        },
+    ]
+
+    async def jql_count(client: httpx.AsyncClient, jql: str) -> int:
+        try:
+            r = await client.get(
+                f"{jira_base}/rest/api/2/search",
+                params={"jql": jql, "maxResults": "0"},
+                headers=headers,
+            )
+            return r.json().get("total", 0) if r.status_code == 200 else 0
+        except Exception:
+            return 0
+
+    async with httpx.AsyncClient(verify=False, timeout=30) as client:
+        tasks = []
+        for m in MODULES:
+            tasks.append(jql_count(client, m["overall"]))
+            tasks.append(jql_count(client, m["automated"]))
+            tasks.append(jql_count(client, m["requires_automation"]))
+            tasks.append(jql_count(client, m["automation_not_required"]))
+        counts = await asyncio.gather(*tasks)
+
+    modules_out = []
+    for i, m in enumerate(MODULES):
+        b = i * 4
+        modules_out.append({
+            "name":                   m["name"],
+            "overall":                counts[b],
+            "automated":              counts[b + 1],
+            "requires_automation":    counts[b + 2],
+            "automation_not_required":counts[b + 3],
+            "jql": {
+                "overall":                m["overall"],
+                "automated":              m["automated"],
+                "requires_automation":    m["requires_automation"],
+                "automation_not_required":m["automation_not_required"],
+            },
+        })
+
+    return {"modules": modules_out, "jira_base_url": jira_base, "last_fetched": datetime.utcnow().isoformat() + "Z"}
 
 
 # Services Dashboard - Jira Fields Discovery Endpoint

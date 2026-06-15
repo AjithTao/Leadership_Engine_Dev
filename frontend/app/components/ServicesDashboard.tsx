@@ -11,36 +11,38 @@ import {
 } from 'lucide-react'
 import { getApiUrl } from '../../lib/api-config'
 
-// ── Design tokens ─────────────────────────────────────────────────────────────
+// ── Design tokens — mirrors the globals.css variable structure ─────────────────
 const DS = {
-  page:          'var(--bg-page)',
-  card:          'var(--bg-card)',
-  surface:       'var(--bg-surface)',
-  hover:         'var(--bg-hover)',
-  border:        'var(--border)',
-  borderStrong:  'var(--border-strong)',
-  text:          'var(--text-primary)',
-  textSec:       'var(--text-secondary)',
-  textMuted:     'var(--text-muted)',
-  textHint:      'var(--text-hint)',
-  green:         'var(--green)',
-  greenBg:       'var(--green-bg)',
-  amber:         'var(--amber)',
-  amberBg:       'var(--amber-bg)',
-  red:           'var(--red)',
-  redBg:         'var(--red-bg)',
-  blue:          'var(--blue)',
-  blueBg:        'var(--blue-bg)',
-  font:          "'Plus Jakarta Sans', system-ui, sans-serif",
+  page:         'var(--bg-page)',
+  card:         'var(--bg-card)',
+  surface:      'var(--bg-surface)',
+  hover:        'var(--bg-hover)',
+  border:       'var(--border)',
+  borderStrong: 'var(--border-strong)',
+  text:         'var(--text-primary)',
+  textSec:      'var(--text-secondary)',
+  textMuted:    'var(--text-muted)',
+  textHint:     'var(--text-hint)',
+  // Primary brand accent (mustard gold — same as insights page)
+  accent:       'var(--accent-cool)',
+  accentBg:     'var(--accent-cool-bg)',
+  // Semantic colours (direct hex in CSS, so +hex-alpha suffix pattern works)
+  amber:        'var(--amber)',
+  amberBg:      'var(--amber-bg)',
+  red:          'var(--red)',
+  redBg:        'var(--red-bg)',
+  blue:         'var(--blue)',
+  blueBg:       'var(--blue-bg)',
+  font:         "'Plus Jakarta Sans', system-ui, sans-serif",
 } as const
 
-// ── Zephyr status colours ──────────────────────────────────────────────────────
+// ── Zephyr execution status colours — aligned to theme semantic palette ────────
 const STATUS = {
-  PASS:        { color: '#75B000', bg: '#75B00018', label: 'Pass',       icon: CheckCircle2  },
-  FAIL:        { color: '#CC3300', bg: '#CC330018', label: 'Fail',       icon: XCircle       },
-  WIP:         { color: '#F2B000', bg: '#F2B00018', label: 'WIP',        icon: Clock         },
-  BLOCKED:     { color: '#6693B0', bg: '#6693B018', label: 'Blocked',    icon: MinusCircle   },
-  UNEXECUTED:  { color: '#8B929A', bg: '#8B929A18', label: 'Not Run',    icon: MinusCircle   },
+  PASS:        { color: 'var(--accent-cool)', bg: 'var(--accent-cool-bg)', label: 'Pass',    icon: CheckCircle2 },
+  FAIL:        { color: 'var(--red)',          bg: 'var(--red-bg)',         label: 'Fail',    icon: XCircle      },
+  WIP:         { color: 'var(--amber)',        bg: 'var(--amber-bg)',       label: 'WIP',     icon: Clock        },
+  BLOCKED:     { color: 'var(--blue)',         bg: 'var(--blue-bg)',        label: 'Blocked', icon: MinusCircle  },
+  UNEXECUTED:  { color: 'var(--text-muted)',   bg: 'var(--bg-surface)',     label: 'Not Run', icon: MinusCircle  },
 } as const
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -48,6 +50,15 @@ interface TestAreaData {
   label: string
   color: string
   count: number
+  jql?: string
+  columns?: MetricCell[]
+}
+
+interface MetricCell {
+  label: string
+  color?: string
+  count: number
+  jql?: string
 }
 
 interface TestSuiteData {
@@ -55,13 +66,26 @@ interface TestSuiteData {
   manual: number
   automated: number
   by_area?: TestAreaData[]
+  columns?: MetricCell[]
+  source_jql?: string
+  gadget_id?: string
+  chart_title?: string
 }
 
 interface BugDistItem {
-  project: string
+  key: string
   label: string
   color: string
   count: number
+  jql?: string
+}
+
+interface BugPriorityByProject {
+  project: string
+  label: string
+  color: string
+  total: number
+  priorities: Record<string, number>
 }
 
 interface ExecRow {
@@ -126,19 +150,33 @@ interface FindingsAnalysis {
 }
 
 interface DashboardData {
-  focused_test_suite:       TestSuiteData
-  comprehensive_test_suite: TestSuiteData
-  bugs_distribution:        BugDistItem[]
-  bug_priorities:           Record<string, number>
-  bugs_total:               number
-  execution_summary:        ExecRow[]
-  version:                  string
-  project:                  string
+  focused_test_suite:        TestSuiteData
+  comprehensive_test_suite:  TestSuiteData
+  bugs_distribution:         BugDistItem[]
+  bugs_distribution_total?:  number
+  bugs_source_jql?:          string
+  bug_priority_by_project:   BugPriorityByProject[]
+  bug_priorities:            Record<string, number>
+  priority_order?:           string[]
+  bugs_total:                number
+  execution_summary:         ExecRow[]
+  execution_chart_summary?:  ExecRow[]
+  version:                   string
+  project:                   string
+  jira_base_url?:            string
   findings: {
     observations_url: string
     blockers_url:     string
   }
   last_updated: string
+}
+
+interface AIInsight {
+  gadget:   string
+  headline: string
+  insight:  string
+  priority: 'high' | 'medium' | 'low'
+  action:   string
 }
 
 // ── Seed data — shown while backend loads ──────────────────────────────────────
@@ -164,11 +202,23 @@ const SEED: DashboardData = {
     ],
   },
   bugs_distribution: [
-    { project: 'APMODACC', label: 'Accounts Payable',    color: '#0052CC', count: 35 },
-    { project: 'GLMODACC', label: 'General Ledger',       color: '#00875A', count: 27 },
-    { project: 'ARMODACC', label: 'Accounts Receivable',  color: '#FF5630', count: 13 },
-    { project: 'POMODACC', label: 'Purchase Orders',      color: '#FF8B00', count: 9  },
-    { project: 'MODSRCH',  label: 'Search & Navigation',  color: '#6554C0', count: 5  },
+    { key: 'M-Bug-MH',            label: 'Merced Honda',       color: '#0052CC', count: 35 },
+    { key: 'M-Bug-Nissan',        label: 'Team Nissan Group',   color: '#00875A', count: 22 },
+    { key: 'M-Bug-Highlandford',  label: 'Highland Park Ford',  color: '#FF5630', count: 18 },
+    { key: 'M-Bug-Mikeburchford', label: 'Mike Burch Ford',     color: '#FF7A00', count: 15 },
+    { key: 'M-Bug-Toyota',        label: 'Toyota of Glendora',  color: '#6554C0', count: 12 },
+  ],
+  bug_priority_by_project: [
+    { project: 'APMODACC', label: 'Accounts Payable',    color: '#0052CC', total: 35,
+      priorities: { Blocker: 0, High: 8, Medium: 20, Low: 6, Minor: 1 } },
+    { project: 'GLMODACC', label: 'General Ledger',       color: '#00875A', total: 27,
+      priorities: { Blocker: 0, High: 5, Medium: 17, Low: 4, Minor: 1 } },
+    { project: 'ARMODACC', label: 'Accounts Receivable',  color: '#FF5630', total: 13,
+      priorities: { Blocker: 0, High: 3, Medium: 7,  Low: 3, Minor: 0 } },
+    { project: 'POMODACC', label: 'Purchase Orders',      color: '#FF8B00', total: 9,
+      priorities: { Blocker: 0, High: 2, Medium: 5,  Low: 2, Minor: 0 } },
+    { project: 'MODSRCH',  label: 'Search & Navigation',  color: '#6554C0', total: 5,
+      priorities: { Blocker: 0, High: 0, Medium: 3,  Low: 2, Minor: 0 } },
   ],
   bug_priorities: { Blocker: 0, High: 8, Medium: 62, Low: 7, Minor: 1 },
   bugs_total: 89,
@@ -179,8 +229,9 @@ const SEED: DashboardData = {
     { cycle: 'Mike Burch Ford',    color: '#FF7A00', pass:  499, fail:  31, wip: 0, blocked:   4, unexecuted: 153, total:  687, pass_rate: 72.6 },
     { cycle: 'TOYOTA OF GLENDORA', color: '#6554C0', pass:  510, fail:  12, wip: 0, blocked:   1, unexecuted: 177, total:  700, pass_rate: 72.9 },
   ],
-  version:      'MOD ACCOUNTING UAT',
-  project:      'MODDWTC',
+  version:        'MOD ACCOUNTING UAT',
+  project:        'MODDWTC',
+  jira_base_url:  'https://projects.cdk.com',
   findings: {
     observations_url: 'https://confluence.cdk.com/pages/viewpage.action?pageId=502140070',
     blockers_url:     'https://confluence.cdk.com/pages/viewpage.action?pageId=502140072',
@@ -381,7 +432,7 @@ function AnimatedCounter({ target, duration = 900 }: { target: number; duration?
 }
 
 // ── Live pulse dot ────────────────────────────────────────────────────────────
-function LivePulse({ color = '#75B000' }: { color?: string }) {
+function LivePulse({ color = 'var(--accent-cool)' }: { color?: string }) {
   return (
     <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 12, height: 12, flexShrink: 0 }}>
       <motion.span
@@ -410,119 +461,217 @@ function Card({ children, style = {}, className = '', hover = true }: { children
   )
 }
 
-function CardHeader({ icon: Icon, title, subtitle, accent = DS.blue }: {
+function CardHeader({ icon: Icon, title, subtitle, accent = 'var(--accent-cool)' }: {
   icon: React.ElementType; title: string; subtitle?: string; accent?: string
 }) {
   return (
-    <div style={{ padding: '12px 16px', borderBottom: `1px solid ${DS.border}`, display: 'flex', alignItems: 'flex-start', gap: 10, borderTop: `3px solid ${accent}`, borderRadius: '12px 12px 0 0' }}>
-      <div style={{ width: 30, height: 30, borderRadius: 8, background: accent + '18', border: `1px solid ${accent}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <Icon size={14} style={{ color: accent }} />
+    <div style={{
+      padding: '11px 16px',
+      borderBottom: `1px solid ${DS.border}`,
+      display: 'flex', alignItems: 'flex-start', gap: 10,
+      borderTop: `3px solid ${accent}`,
+      borderRadius: '12px 12px 0 0',
+    }}>
+      {/* Icon badge — uses hex-alpha suffix trick; works because all theme semantic vars are direct hex */}
+      <div style={{
+        width: 28, height: 28, borderRadius: 8,
+        background: accent + '18',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      }}>
+        <Icon size={13} style={{ color: accent }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ color: DS.text, fontSize: 13, fontWeight: 600, lineHeight: 1.2 }}>{title}</p>
-        {subtitle && <p style={{ color: DS.textMuted, fontSize: 11, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitle}</p>}
-      </div>
-    </div>
-  )
-}
-
-// ── Test Suite Component Area Breakdown ───────────────────────────────────────
-function TestSuiteBreakdown({ manual, automated, total, by_area }: TestSuiteData) {
-  const areas = by_area?.filter(a => a.count > 0) ?? []
-  return (
-    <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {/* Total */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ color: DS.text, fontSize: 24, fontWeight: 700, lineHeight: 1 }}>
-          <AnimatedCounter target={total} />
-        </span>
-        <span style={{ color: DS.textMuted, fontSize: 11 }}>total test cases</span>
-      </div>
-
-      {/* Component area breakdown */}
-      {areas.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          {areas.map(area => {
-            const pct = total > 0 ? (area.count / total) * 100 : 0
-            return (
-              <div key={area.label}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <div style={{ width: 7, height: 7, borderRadius: 2, background: area.color, flexShrink: 0 }} />
-                    <span style={{ color: DS.textSec, fontSize: 11 }}>{area.label}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
-                    <span style={{ color: DS.text, fontSize: 12, fontWeight: 600 }}>{area.count.toLocaleString()}</span>
-                    <span style={{ color: DS.textMuted, fontSize: 10 }}>{pct.toFixed(1)}%</span>
-                  </div>
-                </div>
-                <div style={{ height: 4, background: DS.border, borderRadius: 2, overflow: 'hidden' }}>
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${pct}%` }}
-                    transition={{ duration: 0.7, ease: 'easeOut' }}
-                    style={{ height: '100%', background: area.color, borderRadius: 2 }}
-                  />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Manual / Automated summary strip */}
-      <div style={{ display: 'flex', gap: 14, paddingTop: 6, borderTop: `1px solid ${DS.border}` }}>
-        {[
-          { label: 'Manual',    count: manual,    color: '#BF2600' },
-          { label: 'Automated', count: automated, color: '#0052CC' },
-        ].map(s => (
-          <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <div style={{ width: 7, height: 7, borderRadius: 2, background: s.color, flexShrink: 0 }} />
-            <span style={{ color: DS.textMuted, fontSize: 10 }}>
-              {s.label}: <strong style={{ color: DS.textSec, fontWeight: 600 }}>{s.count.toLocaleString()}</strong>
-            </span>
-          </div>
-        ))}
-        {total > (manual + automated) && (
-          <span style={{ color: DS.textMuted, fontSize: 10 }}>
-            Other: <strong style={{ color: DS.textSec, fontWeight: 600 }}>{(total - manual - automated).toLocaleString()}</strong>
-          </span>
+        <p style={{ color: DS.text, fontSize: 12, fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.01em' }}>{title}</p>
+        {subtitle && (
+          <p style={{ color: DS.textMuted, fontSize: 10, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {subtitle}
+          </p>
         )}
       </div>
     </div>
   )
 }
 
+// ── Test Suite Component Area Breakdown ───────────────────────────────────────
+// Column accent colours: Automated=blue, Manual=amber, everything else gets area colour
+// Used only for column header labels and legend dots — not cell values
+const COL_COLORS: Record<string, string> = {
+  Automated: 'var(--accent-cool)',
+  Manual:    'var(--text-secondary)',
+}
+
+function TestSuiteBreakdown({ manual, automated, total, by_area, columns: sourceColumns, source_jql }: TestSuiteData) {
+  const areas = by_area?.filter(a => a.count > 0) ?? []
+  const allColumns = sourceColumns?.length ? sourceColumns : by_area?.flatMap(a => a.columns ?? [])
+    .reduce<MetricCell[]>((acc, cell) => {
+      if (!acc.some(existing => existing.label === cell.label)) acc.push(cell)
+      return acc
+    }, []) ?? []
+  const columns = allColumns.filter(c => c.label.toLowerCase() !== 'total')
+  const totalTooltip = source_jql ? `Base JQL:\n${source_jql}` : undefined
+
+  return (
+    <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+      {/* ── 1. Detail table — TOP ─────────────────────────────────────────── */}
+      {columns.length > 0 && areas.length > 0 && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+            <thead>
+              <tr>
+                <th style={{ padding: '5px 8px', textAlign: 'left', color: DS.textMuted, fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${DS.border}`, whiteSpace: 'nowrap' }}>
+                  Area
+                </th>
+                {columns.map(col => (
+                  <th key={col.label} style={{ padding: '5px 8px', textAlign: 'right', color: COL_COLORS[col.label] ?? DS.textMuted, fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${DS.border}`, whiteSpace: 'nowrap' }}>
+                    {col.label}
+                  </th>
+                ))}
+                <th style={{ padding: '5px 8px', textAlign: 'right', color: DS.textMuted, fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${DS.border}` }}>
+                  Total
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {areas.map((area, idx) => (
+                <tr key={area.label} style={{ background: idx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent', borderBottom: `1px solid ${DS.border}` }}>
+                  {/* Area name with colour dot */}
+                  <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: 2, background: area.color, flexShrink: 0 }} />
+                      <span style={{ color: DS.textSec, fontWeight: 500 }}>{area.label}</span>
+                    </div>
+                  </td>
+                  {columns.map(col => {
+                    const cell = area.columns?.find(c => c.label === col.label)
+                    return (
+                      <td key={col.label} title={cell?.jql} style={{ padding: '6px 8px', textAlign: 'right', color: DS.textSec, fontWeight: 500 }}>
+                        {(cell?.count ?? 0).toLocaleString()}
+                      </td>
+                    )
+                  })}
+                  <td style={{ padding: '6px 8px', textAlign: 'right', color: DS.text, fontWeight: 600 }}>
+                    {columns.reduce((s, col) => s + (area.columns?.find(c => c.label === col.label)?.count ?? 0), 0).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── 2. Automated / Manual totals — BOTTOM ───────────────────────── */}
+      {(() => {
+        // Sum each column directly from the table rows so footer always matches table
+        const summaryItems = columns.length > 0
+          ? columns.map(col => ({
+              ...col,
+              count: areas.reduce((s, a) => s + (a.columns?.find(c => c.label === col.label)?.count ?? 0), 0),
+            }))
+          : [
+              { label: 'Automated', count: areas.reduce((s, a) => s + (a.columns?.find(c => c.label === 'Automated')?.count ?? 0), automated), color: 'var(--blue)'  },
+              { label: 'Manual',    count: areas.reduce((s, a) => s + (a.columns?.find(c => c.label === 'Manual')?.count ?? 0), manual),    color: 'var(--amber)' },
+            ]
+        const derivedTotal = summaryItems.reduce((s, i) => s + i.count, 0)
+        return (
+          <div style={{ borderTop: `1px solid ${DS.border}`, paddingTop: 8, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            {summaryItems.map(s => (
+              <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ width: 7, height: 7, borderRadius: 2, background: COL_COLORS[s.label] ?? s.color ?? DS.blue, flexShrink: 0 }} />
+                <span style={{ color: DS.textMuted, fontSize: 10 }}>
+                  {s.label}: <strong style={{ color: DS.textSec, fontWeight: 600 }}>{s.count.toLocaleString()}</strong>
+                </span>
+              </div>
+            ))}
+            <span style={{ marginLeft: 'auto', color: DS.textMuted, fontSize: 10 }} title={totalTooltip}>
+              Total: <strong style={{ color: DS.text, fontWeight: 700 }}>{derivedTotal.toLocaleString()}</strong>
+              {source_jql ? ' ⓘ' : ''}
+            </span>
+          </div>
+        )
+      })()}
+    </div>
+  )
+}
+
 // ── Bug Distribution horizontal bars ──────────────────────────────────────────
-function BugDistributionChart({ bugs }: { bugs: BugDistItem[] }) {
+function BugDistributionChart({ bugs, total, sourceJql, jiraBase }: {
+  bugs: BugDistItem[]
+  total?: number
+  sourceJql?: string
+  jiraBase?: string
+}) {
   const max = Math.max(...bugs.map(b => b.count), 1)
+  const base = jiraBase ?? 'https://projects.cdk.com'
+
+  const openJql = (jql?: string) => {
+    if (!jql) return
+    window.open(`${base}/issues/?jql=${encodeURIComponent(jql)}`, '_blank', 'noopener,noreferrer')
+  }
+
+  const totalTooltip = sourceJql ? `Click to open in Jira\nJQL: ${sourceJql}` : 'Total unique bugs'
+
   return (
     <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {bugs.map(bug => (
-        <div key={bug.project}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 8, height: 8, borderRadius: 2, background: bug.color, flexShrink: 0 }} />
-              <span style={{ color: DS.textSec, fontSize: 11, whiteSpace: 'nowrap' }}>{bug.label}</span>
-            </div>
-            <span style={{ color: DS.text, fontSize: 12, fontWeight: 600, marginLeft: 8 }}>{bug.count}</span>
-          </div>
-          <div style={{ height: 6, background: DS.border, borderRadius: 3, overflow: 'hidden' }}>
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${(bug.count / max) * 100}%` }}
-              transition={{ duration: 0.7, ease: 'easeOut' }}
-              style={{ height: '100%', background: bug.color, borderRadius: 3 }}
-            />
-          </div>
+      {/* Total row */}
+      {total !== undefined && (
+        <div
+          onClick={() => openJql(sourceJql)}
+          title={totalTooltip}
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            paddingBottom: 8, marginBottom: 2, borderBottom: `1px solid ${DS.border}`,
+            cursor: sourceJql ? 'pointer' : 'default',
+          }}
+        >
+          <span style={{ color: DS.textMuted, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Total unique bugs {sourceJql ? '↗' : 'ⓘ'}
+          </span>
+          <span style={{ color: DS.text, fontSize: 15, fontWeight: 700 }}>{total}</span>
         </div>
-      ))}
+      )}
+
+      {bugs.map(bug => {
+        const pct = total && total > 0 ? Math.round((bug.count / total) * 100) : null
+        const hasLink = !!bug.jql
+        return (
+          <motion.div
+            key={bug.key}
+            onClick={() => openJql(bug.jql)}
+            title={hasLink ? `Open in Jira: ${bug.label}` : bug.label}
+            whileHover={hasLink ? { x: 2 } : {}}
+            style={{ cursor: hasLink ? 'pointer' : 'default' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 8, height: 8, borderRadius: 2, background: bug.color, flexShrink: 0 }} />
+                <span style={{ color: DS.textSec, fontSize: 11, whiteSpace: 'nowrap' }}>{bug.label}</span>
+                {hasLink && <ExternalLink size={9} style={{ color: DS.textHint, flexShrink: 0 }} />}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 8 }}>
+                {pct !== null && (
+                  <span style={{ color: DS.textMuted, fontSize: 10 }}>{pct}%</span>
+                )}
+                <span style={{ color: DS.text, fontSize: 12, fontWeight: 600 }}>{bug.count}</span>
+              </div>
+            </div>
+            <div style={{ height: 5, background: DS.border, borderRadius: 3, overflow: 'hidden' }}>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${(bug.count / max) * 100}%` }}
+                transition={{ duration: 0.7, ease: 'easeOut' }}
+                style={{ height: '100%', background: bug.color, borderRadius: 3, opacity: 0.6 }}
+              />
+            </div>
+          </motion.div>
+        )
+      })}
     </div>
   )
 }
 
 // ── Execution Status Table ────────────────────────────────────────────────────
-function ExecutionTable({ rows }: { rows: ExecRow[] }) {
+function ExecutionTable({ rows, jiraBase }: { rows: ExecRow[]; jiraBase?: string }) {
   const cols: Array<{ key: keyof ExecRow; label: string; status: keyof typeof STATUS }> = [
     { key: 'pass',       label: 'Pass',     status: 'PASS'       },
     { key: 'fail',       label: 'Fail',     status: 'FAIL'       },
@@ -555,6 +704,17 @@ function ExecutionTable({ rows }: { rows: ExecRow[] }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: row.color, flexShrink: 0 }} />
                   <span style={{ color: DS.text, fontWeight: 500 }}>{row.cycle}</span>
+                  {jiraBase && (
+                    <a
+                      href={`${jiraBase}/issues/?jql=${encodeURIComponent(`project in (MODDWTC) AND issuetype = Test AND "Test Cycle" ~ "${row.cycle}"`)}`}
+                      target="_blank" rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      title="Open in Jira"
+                      style={{ color: DS.textHint, lineHeight: 0, flexShrink: 0 }}
+                    >
+                      <ExternalLink size={10} />
+                    </a>
+                  )}
                 </div>
               </td>
               {cols.map(c => (
@@ -570,8 +730,8 @@ function ExecutionTable({ rows }: { rows: ExecRow[] }) {
               <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                 <span style={{
                   display: 'inline-block', padding: '2px 8px', borderRadius: 10,
-                  background: row.pass_rate >= 85 ? DS.greenBg : row.pass_rate >= 70 ? DS.amberBg : DS.redBg,
-                  color:      row.pass_rate >= 85 ? DS.green   : row.pass_rate >= 70 ? DS.amber   : DS.red,
+                  background: row.pass_rate >= 85 ? DS.accentBg : row.pass_rate >= 70 ? DS.amberBg : DS.redBg,
+                  color:      row.pass_rate >= 85 ? DS.accent   : row.pass_rate >= 70 ? DS.amber   : DS.red,
                   fontSize: 11, fontWeight: 700,
                 }}>
                   {row.pass_rate.toFixed(1)}%
@@ -603,7 +763,7 @@ function ExecutionTable({ rows }: { rows: ExecRow[] }) {
                   {tot.total.toLocaleString()}
                 </td>
                 <td style={{ padding: '8px 14px', textAlign: 'right' }}>
-                  <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 10, background: DS.blueBg, color: DS.blue, fontSize: 11, fontWeight: 700 }}>
+                  <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 10, background: DS.accentBg, color: DS.accent, fontSize: 11, fontWeight: 700 }}>
                     {overallPass}%
                   </span>
                 </td>
@@ -668,52 +828,111 @@ function ExecutionBarsChart({ rows }: { rows: ExecRow[] }) {
   )
 }
 
-// ── Bug priority chart ────────────────────────────────────────────────────────
-function BugPriorityChart({ priorities, total }: { priorities: Record<string, number>; total: number }) {
-  const PRIORITY_COLORS: Record<string, string> = {
-    Blocker: '#CC3300', High: '#FF5630', Medium: '#FF8B00', Low: '#00875A', Minor: '#6554C0',
+// ── Bug Priority by Project (stacked horizontal bars) ────────────────────────
+const PRIORITY_COLORS: Record<string, string> = {
+  Blocker:  '#9B1C1C',
+  Highest:  '#92400E',
+  High:     '#78350F',
+  Medium:   '#854D0E',
+  Normal:   '#1E40AF',
+  Low:      '#166534',
+  Lowest:   '#5B21B6',
+  Minor:    '#4B5563',
+}
+const PRIORITY_ORDER = ['Blocker', 'Highest', 'High', 'Medium', 'Normal', 'Low', 'Lowest', 'Minor']
+const FALLBACK_SERIES_COLORS = ['#1E3A5F', '#14532D', '#78350F', '#3B0764', '#7F1D1D', '#164E63', '#374151', '#5C0A00']
+const paletteColor = (index: number) => FALLBACK_SERIES_COLORS[Math.abs(index) % FALLBACK_SERIES_COLORS.length]
+
+function BugPriorityByProjectChart({ items = [], total, priorityOrder }: { items?: BugPriorityByProject[]; total: number; priorityOrder?: string[] }) {
+  const activeItems = items.filter(item => item.total > 0)
+  const liveOrder = priorityOrder?.length
+    ? priorityOrder
+    : Array.from(new Set(items.flatMap(item => Object.keys(item.priorities ?? {}))))
+  const order = liveOrder.length ? liveOrder : PRIORITY_ORDER
+  const usedPriorities = order.filter(p => activeItems.some(item => (item.priorities[p] ?? 0) > 0))
+
+  const cellStyle = (count: number, p: string, idx: number): React.CSSProperties => {
+    if (count === 0) return { color: DS.textMuted, opacity: 0.35 }
+    const color = PRIORITY_COLORS[p] ?? paletteColor(idx)
+    return {
+      color,
+      fontWeight: 700,
+      background: color + '18',
+      borderRadius: 4,
+    }
   }
-  const entries = Object.entries(priorities).filter(([, v]) => v > 0)
-  const max = Math.max(...entries.map(([, v]) => v), 1)
 
   return (
-    <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {entries.map(([priority, count]) => {
-        const color = PRIORITY_COLORS[priority] || DS.blue
-        const pct = (count / max) * 100
-        return (
-          <div key={priority}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
-                <span style={{ color: DS.textSec, fontSize: 11 }}>{priority}</span>
-              </div>
-              <span style={{ color: DS.text, fontSize: 12, fontWeight: 600 }}>{count}</span>
-            </div>
-            <div style={{ height: 5, background: DS.border, borderRadius: 2, overflow: 'hidden' }}>
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${pct}%` }}
-                transition={{ duration: 0.7, ease: 'easeOut' }}
-                style={{ height: '100%', background: color, borderRadius: 2 }}
-              />
-            </div>
-          </div>
-        )
-      })}
-      <p style={{ color: DS.textMuted, fontSize: 10, marginTop: 4 }}>
-        Total open bugs: <strong style={{ color: DS.textSec }}>{total}</strong>
-      </p>
+    <div style={{ padding: '4px 0 8px', overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+        <thead>
+          <tr style={{ borderBottom: `1px solid ${DS.border}` }}>
+            <th style={{ padding: '6px 14px 6px 16px', textAlign: 'left', color: DS.textMuted, fontWeight: 600, fontSize: 10, whiteSpace: 'nowrap', minWidth: 160 }}>
+              Module
+            </th>
+            {usedPriorities.map((p, i) => (
+              <th key={p} style={{ padding: '6px 10px', textAlign: 'center', fontWeight: 600, fontSize: 10, whiteSpace: 'nowrap', color: PRIORITY_COLORS[p] ?? paletteColor(i) }}>
+                {p}
+              </th>
+            ))}
+            <th style={{ padding: '6px 16px 6px 10px', textAlign: 'right', color: DS.textMuted, fontWeight: 600, fontSize: 10, whiteSpace: 'nowrap' }}>
+              Total
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {activeItems.map((item, rowIdx) => (
+            <tr
+              key={item.project}
+              style={{ borderBottom: `1px solid ${DS.border}`, background: rowIdx % 2 === 0 ? 'transparent' : DS.bg + '55' }}
+            >
+              <td style={{ padding: '7px 14px 7px 16px', whiteSpace: 'nowrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: 2, background: item.color, flexShrink: 0 }} />
+                  <span style={{ color: DS.textSec, fontSize: 11, fontWeight: 500 }}>{item.label}</span>
+                </div>
+              </td>
+              {usedPriorities.map((p, i) => {
+                const count = item.priorities[p] ?? 0
+                return (
+                  <td key={p} style={{ padding: '7px 10px', textAlign: 'center' }}>
+                    <span style={{ display: 'inline-block', minWidth: 22, padding: '1px 5px', fontSize: 11, ...cellStyle(count, p, i) }}>
+                      {count === 0 ? '–' : count}
+                    </span>
+                  </td>
+                )
+              })}
+              <td style={{ padding: '7px 16px 7px 10px', textAlign: 'right' }}>
+                <span style={{ color: DS.text, fontSize: 12, fontWeight: 700 }}>{item.total}</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr style={{ borderTop: `1px solid ${DS.border}` }}>
+            <td style={{ padding: '6px 14px 4px 16px', color: DS.textMuted, fontSize: 10, fontWeight: 600 }}>Total open bugs</td>
+            {usedPriorities.map(p => {
+              const colTotal = activeItems.reduce((s, item) => s + (item.priorities[p] ?? 0), 0)
+              return (
+                <td key={p} style={{ padding: '6px 10px 4px', textAlign: 'center', color: DS.textMuted, fontSize: 10, fontWeight: 600 }}>
+                  {colTotal || '–'}
+                </td>
+              )
+            })}
+            <td style={{ padding: '6px 16px 4px 10px', textAlign: 'right', color: DS.text, fontSize: 12, fontWeight: 700 }}>{total}</td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
   )
 }
 
 // ── Status pill helper ────────────────────────────────────────────────────────
 const STATUS_STYLE: Record<string, { color: string; bg: string; label: string }> = {
-  bug_logged:  { color: '#CC3300', bg: '#CC330018', label: 'Bug'         },
-  resolved:    { color: '#00875A', bg: '#00875A18', label: 'Resolved'    },
-  in_progress: { color: '#F2B000', bg: '#F2B00018', label: 'In Progress' },
-  pending:     { color: '#8B929A', bg: '#8B929A18', label: 'Pending'     },
+  bug_logged:  { color: 'var(--red)',          bg: 'var(--red-bg)',         label: 'Bug'         },
+  resolved:    { color: 'var(--accent-cool)',  bg: 'var(--accent-cool-bg)', label: 'Resolved'    },
+  in_progress: { color: 'var(--amber)',        bg: 'var(--amber-bg)',       label: 'In Progress' },
+  pending:     { color: 'var(--text-muted)',   bg: 'var(--bg-surface)',     label: 'Pending'     },
 }
 
 function StatusPill({ type, small }: { type: string; small?: boolean }) {
@@ -743,11 +962,11 @@ function DealerChip({ name, confirmed }: { name: string; confirmed: boolean }) {
       display: 'inline-block',
       padding: '1px 5px',
       borderRadius: 4,
-      background: confirmed ? '#00875A18' : '#F2B00018',
-      color: confirmed ? '#00875A' : '#F2B000',
+      background: confirmed ? 'var(--accent-cool-bg)' : 'var(--amber-bg)',
+      color:      confirmed ? 'var(--accent-cool)'    : 'var(--amber)',
       fontSize: 9,
       fontWeight: 700,
-      border: `1px solid ${confirmed ? '#00875A30' : '#F2B00030'}`,
+      border: `1px solid var(--border)`,
     }}>
       {abbr[name] ?? name.slice(0, 2).toUpperCase()}
     </span>
@@ -755,7 +974,28 @@ function DealerChip({ name, confirmed }: { name: string; confirmed: boolean }) {
 }
 
 // ── FindingsPanel ─────────────────────────────────────────────────────────────
-function FindingsPanel({ data }: { data: FindingsAnalysis }) {
+function JiraLink({ id, jiraBase }: { id: string; jiraBase: string }) {
+  return (
+    <a
+      href={`${jiraBase}/browse/${id}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        color: 'var(--blue)', fontSize: 9, fontWeight: 700,
+        textDecoration: 'none', borderRadius: 3, padding: '1px 4px',
+        background: 'var(--blue-bg)', border: '1px solid var(--blue)30',
+        display: 'inline-flex', alignItems: 'center', gap: 2,
+      }}
+      onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
+      onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+    >
+      {id} <ExternalLink size={7} />
+    </a>
+  )
+}
+
+function FindingsPanel({ data, jiraBase }: { data: FindingsAnalysis; jiraBase?: string }) {
+  const base = jiraBase ?? 'https://projects.cdk.com'
   const [tab, setTab] = useState<'obs' | 'blk'>('obs')
   const [expanded, setExpanded] = useState<string | null>(null)
 
@@ -773,10 +1013,10 @@ function FindingsPanel({ data }: { data: FindingsAnalysis }) {
       {/* ── Summary stat pills ─────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, padding: '10px 14px', borderBottom: `1px solid ${DS.border}` }}>
         {[
-          { label: 'Observations', value: obs.total,         color: '#6554C0', bg: '#6554C018' },
-          { label: 'Bugs Logged',  value: obs.stats.bug_logged,  color: '#CC3300', bg: '#CC330018' },
-          { label: 'In Progress',  value: obs.stats.in_progress, color: '#F2B000', bg: '#F2B00018' },
-          { label: 'Blockers',     value: blk.active_count,  color: '#FF5630', bg: '#FF563018' },
+          { label: 'Observations', value: obs.total,               color: DS.blue,   bg: DS.blueBg   },
+          { label: 'Bugs Logged',  value: obs.stats.bug_logged,    color: DS.red,    bg: DS.redBg    },
+          { label: 'In Progress',  value: obs.stats.in_progress,   color: DS.amber,  bg: DS.amberBg  },
+          { label: 'Blockers',     value: blk.active_count,        color: DS.red,    bg: DS.redBg    },
         ].map(s => (
           <div key={s.label} style={{ textAlign: 'center', padding: '6px 4px', borderRadius: 8, background: s.bg }}>
             <div style={{ color: s.color, fontSize: 16, fontWeight: 700, lineHeight: 1 }}>{s.value}</div>
@@ -797,9 +1037,9 @@ function FindingsPanel({ data }: { data: FindingsAnalysis }) {
             style={{
               padding: '4px 10px',
               borderRadius: 6,
-              border: `1px solid ${tab === t.id ? '#6554C0' : DS.border}`,
-              background: tab === t.id ? '#6554C018' : 'transparent',
-              color: tab === t.id ? '#6554C0' : DS.textMuted,
+              border: `1px solid ${tab === t.id ? 'var(--accent-cool)' : DS.border}`,
+              background: tab === t.id ? 'var(--accent-cool-bg)' : 'transparent',
+              color: tab === t.id ? 'var(--accent-cool)' : DS.textMuted,
               fontSize: 10,
               fontWeight: 600,
               cursor: 'pointer',
@@ -855,9 +1095,9 @@ function FindingsPanel({ data }: { data: FindingsAnalysis }) {
                         <div style={{ flex: 1 }}>
                           <span style={{ color: DS.textSec, fontSize: 10, lineHeight: 1.4 }}>{item.description}</span>
                           {item.jira_ids.length > 0 && (
-                            <div style={{ marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                            <div style={{ marginTop: 3, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                               {item.jira_ids.map(id => (
-                                <span key={id} style={{ color: '#0052CC', fontSize: 9, fontWeight: 600 }}>{id}</span>
+                                <JiraLink key={id} id={id} jiraBase={base} />
                               ))}
                             </div>
                           )}
@@ -883,7 +1123,7 @@ function FindingsPanel({ data }: { data: FindingsAnalysis }) {
           {blk.active.map(item => (
             <div key={item.id} style={{ padding: '8px 14px', borderBottom: `1px solid ${DS.border}` }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 4 }}>
-                <AlertTriangle size={11} style={{ color: '#FF5630', flexShrink: 0, marginTop: 1 }} />
+                <AlertTriangle size={11} style={{ color: 'var(--red)', flexShrink: 0, marginTop: 1 }} />
                 <span style={{ color: DS.text, fontSize: 11, fontWeight: 500, lineHeight: 1.3, flex: 1 }}>{item.description}</span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', paddingLeft: 17 }}>
@@ -891,7 +1131,7 @@ function FindingsPanel({ data }: { data: FindingsAnalysis }) {
                 <span style={{ color: DS.textHint, fontSize: 9 }}>{item.workflow}</span>
                 {item.confirmed_dealers.map(d => <DealerChip key={d} name={d} confirmed />)}
                 {item.jira_ids.map(id => (
-                  <span key={id} style={{ color: '#0052CC', fontSize: 9, fontWeight: 600 }}>{id}</span>
+                  <JiraLink key={id} id={id} jiraBase={base} />
                 ))}
               </div>
             </div>
@@ -904,7 +1144,7 @@ function FindingsPanel({ data }: { data: FindingsAnalysis }) {
               </p>
               {blk.resolved.map(item => (
                 <div key={item.id} style={{ display: 'flex', gap: 6, marginBottom: 4, alignItems: 'flex-start' }}>
-                  <CheckCircle2 size={10} style={{ color: '#00875A', flexShrink: 0, marginTop: 1 }} />
+                  <CheckCircle2 size={10} style={{ color: 'var(--accent-cool)', flexShrink: 0, marginTop: 1 }} />
                   <span style={{ color: DS.textMuted, fontSize: 10, lineHeight: 1.3 }}>{item.description}</span>
                 </div>
               ))}
@@ -916,8 +1156,8 @@ function FindingsPanel({ data }: { data: FindingsAnalysis }) {
       {/* ── Footer links ────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 8, padding: '8px 14px', borderTop: `1px solid ${DS.border}` }}>
         {[
-          { label: 'Observations ↗', url: data.obs_url, color: '#00875A' },
-          { label: 'Blockers ↗',     url: data.blk_url, color: '#FF5630' },
+          { label: 'Observations ↗', url: data.obs_url, color: 'var(--accent-cool)' },
+          { label: 'Blockers ↗',     url: data.blk_url, color: 'var(--red)'         },
         ].map(l => (
           <a key={l.label} href={l.url} target="_blank" rel="noopener noreferrer"
             style={{ color: l.color, fontSize: 10, fontWeight: 600, textDecoration: 'none', opacity: 0.8 }}
@@ -935,12 +1175,244 @@ function FindingsPanel({ data }: { data: FindingsAnalysis }) {
   )
 }
 
+// ── AI Insights Panel ─────────────────────────────────────────────────────────
+const GADGET_ICONS: Record<string, React.ElementType> = {
+  bug_distribution: Bug,
+  bug_priority:     ShieldAlert,
+  test_coverage:    TestTube2,
+  execution:        BarChart3,
+  findings:         FileText,
+  overview:         TrendingUp,
+  automation_gap:   Zap,
+  top_risk:         AlertTriangle,
+  quick_win:        Target,
+}
+
+const PRIORITY_BADGE: Record<string, { color: string; bg: string }> = {
+  high:   { color: 'var(--red)',         bg: 'var(--red-bg)'         },
+  medium: { color: 'var(--amber)',       bg: 'var(--amber-bg)'       },
+  low:    { color: 'var(--accent-cool)', bg: 'var(--accent-cool-bg)' },
+}
+
+function AIInsightsPanel({
+  apiPath,
+  payload,
+  label = 'AI Insights',
+}: {
+  apiPath: string
+  payload: Record<string, unknown>
+  label?: string
+}) {
+  const [insights,  setInsights]  = useState<AIInsight[]>([])
+  const [loading,   setLoading]   = useState(false)
+  const [open,      setOpen]      = useState(false)
+  const [error,     setError]     = useState<string | null>(null)
+  const [fetchedAt, setFetchedAt] = useState<string | null>(null)
+  const fetched = useRef(false)
+
+  const fetchInsights = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(getApiUrl(apiPath), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      const json = await res.json()
+      setInsights(json.insights ?? [])
+      setFetchedAt(json.generated_at ?? null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setLoading(false)
+    }
+  }, [apiPath, payload])
+
+  const handleOpen = () => {
+    setOpen(o => !o)
+    if (!fetched.current) {
+      fetched.current = true
+      fetchInsights()
+    }
+  }
+
+  return (
+    <div style={{ borderTop: `1px solid ${DS.border}` }}>
+      {/* Toggle strip */}
+      <button
+        onClick={handleOpen}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+          padding: '8px 16px', background: 'transparent', border: 'none',
+          cursor: 'pointer', fontFamily: DS.font, textAlign: 'left',
+        }}
+      >
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: 20, height: 20, borderRadius: 6,
+          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+          flexShrink: 0,
+        }}>
+          <Zap size={11} style={{ color: '#fff' }} />
+        </div>
+        <span style={{ color: DS.textSec, fontSize: 11, fontWeight: 600, flex: 1 }}>
+          {label}
+        </span>
+        <span style={{
+          fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
+          background: 'rgba(99,102,241,0.12)', color: '#818cf8',
+        }}>
+          Falcon Insights
+        </span>
+        {open
+          ? <ChevronDown  size={12} style={{ color: DS.textMuted }} />
+          : <ChevronRight size={12} style={{ color: DS.textMuted }} />
+        }
+      </button>
+
+      {/* Insights content */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '0 12px 12px' }}>
+              {loading && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 4px' }}>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                    style={{ width: 14, height: 14, border: `2px solid ${DS.border}`, borderTopColor: '#6366f1', borderRadius: '50%' }}
+                  />
+                  <span style={{ color: DS.textMuted, fontSize: 11 }}>Analysing with Falcon Insights…</span>
+                </div>
+              )}
+
+              {error && !loading && (
+                <div style={{ padding: '8px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertCircle size={12} style={{ color: DS.amber, flexShrink: 0 }} />
+                  <span style={{ color: DS.amber, fontSize: 10 }}>{error}</span>
+                  <button onClick={fetchInsights} style={{ marginLeft: 'auto', color: DS.textMuted, fontSize: 10, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {!loading && insights.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {insights.map((ins, i) => {
+                    const Icon   = GADGET_ICONS[ins.gadget] ?? Activity
+                    const badge  = PRIORITY_BADGE[ins.priority] ?? PRIORITY_BADGE.low
+                    return (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        style={{
+                          background: DS.surface,
+                          border: `1px solid ${DS.border}`,
+                          borderRadius: 8,
+                          padding: '10px 12px',
+                          borderLeft: `3px solid ${badge.color}`,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                          <Icon size={11} style={{ color: badge.color, flexShrink: 0 }} />
+                          <span style={{ color: DS.text, fontSize: 11, fontWeight: 700, flex: 1 }}>{ins.headline}</span>
+                          <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: badge.bg, color: badge.color, flexShrink: 0, textTransform: 'capitalize' }}>
+                            {ins.priority}
+                          </span>
+                        </div>
+                        <p style={{ color: DS.textSec, fontSize: 10, lineHeight: 1.5, margin: 0, marginBottom: 4 }}>{ins.insight}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ color: DS.textHint, fontSize: 9 }}>→</span>
+                          <span style={{ color: DS.textMuted, fontSize: 9, fontWeight: 600, fontStyle: 'italic' }}>{ins.action}</span>
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                  {fetchedAt && (
+                    <p style={{ color: DS.textHint, fontSize: 9, textAlign: 'right', margin: 0 }}>
+                      Generated {new Date(fetchedAt).toLocaleTimeString()}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// ── Section divider label ────────────────────────────────────────────────────
+function SectionLabel({ label, icon: Icon }: { label: string; icon?: React.ElementType }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 -4px' }}>
+      {Icon && <Icon size={12} style={{ color: DS.textMuted }} />}
+      <span style={{
+        color: DS.textMuted, fontSize: 10, fontWeight: 700,
+        textTransform: 'uppercase', letterSpacing: '0.12em', whiteSpace: 'nowrap',
+      }}>
+        {label}
+      </span>
+      <div style={{ flex: 1, height: 1, background: DS.border }} />
+    </div>
+  )
+}
+
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
 const AUTO_REFRESH_SECS = 300 // 5 minutes
 
+const EMPTY_DASHBOARD: DashboardData = {
+  focused_test_suite: { total: 0, manual: 0, automated: 0, by_area: [], columns: [] },
+  comprehensive_test_suite: { total: 0, manual: 0, automated: 0, by_area: [], columns: [] },
+  bugs_distribution: [],
+  bug_priority_by_project: [],
+  bug_priorities: {},
+  priority_order: [],
+  bugs_total: 0,
+  execution_summary: [],
+  execution_chart_summary: [],
+  version: '',
+  project: '',
+  jira_base_url: 'https://projects.cdk.com',
+  findings: {
+    observations_url: 'https://confluence.cdk.com/pages/viewpage.action?pageId=502140070',
+    blockers_url: 'https://confluence.cdk.com/pages/viewpage.action?pageId=502140072',
+  },
+  last_updated: '',
+}
+
+const EMPTY_FINDINGS: FindingsAnalysis = {
+  obs_url: 'https://confluence.cdk.com/pages/viewpage.action?pageId=502140070',
+  blk_url: 'https://confluence.cdk.com/pages/viewpage.action?pageId=502140072',
+  last_fetched: '',
+  observations: {
+    total: 0,
+    stats: { bug_logged: 0, resolved: 0, in_progress: 0, pending: 0 },
+    by_workflow: [],
+  },
+  blockers: {
+    total: 0,
+    active_count: 0,
+    resolved_count: 0,
+    active: [],
+    resolved: [],
+  },
+}
+
 export function ServicesDashboard() {
-  const [data, setData]         = useState<DashboardData>(SEED)
-  const [findings, setFindings] = useState<FindingsAnalysis>(SEED_FINDINGS)
+  const [data, setData]         = useState<DashboardData>(EMPTY_DASHBOARD)
+  const [findings, setFindings] = useState<FindingsAnalysis>(EMPTY_FINDINGS)
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState<string | null>(null)
   const [lastFetched, setLastFetched] = useState<Date | null>(null)
@@ -968,7 +1440,7 @@ export function ServicesDashboard() {
       countdownRef.current = AUTO_REFRESH_SECS
       setCountdown(AUTO_REFRESH_SECS)
     } catch {
-      setError('Could not reach the backend — showing last known snapshot.')
+      setError('Could not reach the live dashboard data source.')
     } finally {
       setLoading(false)
     }
@@ -1004,11 +1476,11 @@ export function ServicesDashboard() {
   const activeBlockers = findings.blockers.active_count
 
   const KPI_CARDS = [
-    { label: 'Total Tests',      value: totalTests,        color: '#0052CC', Icon: TestTube2,    suffix: '' },
-    { label: 'Open Bugs',        value: data.bugs_total,   color: '#FF5630', Icon: Bug,          suffix: '' },
-    { label: 'Total Executions', value: totalExecs,        color: '#00875A', Icon: BarChart3,    suffix: '' },
-    { label: 'Overall Pass Rate',value: overallPassRate,   color: '#75B000', Icon: TrendingUp,   suffix: '%' },
-    { label: 'Active Blockers',  value: activeBlockers,    color: '#F2B000', Icon: AlertTriangle, suffix: '' },
+    { label: 'Total Tests',       value: totalTests,       color: DS.blue,    Icon: TestTube2,     suffix: '' },
+    { label: 'Open Bugs',         value: data.bugs_total,  color: DS.red,     Icon: Bug,           suffix: '' },
+    { label: 'Total Executions',  value: totalExecs,       color: DS.accent,  Icon: BarChart3,     suffix: '' },
+    { label: 'Overall Pass Rate', value: overallPassRate,  color: DS.accent,  Icon: TrendingUp,    suffix: '%' },
+    { label: 'Active Blockers',   value: activeBlockers,   color: DS.amber,   Icon: AlertTriangle, suffix: '' },
   ]
 
   return (
@@ -1020,17 +1492,17 @@ export function ServicesDashboard() {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <LivePulse color="#75B000" />
-                <span style={{ color: '#75B000', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Live</span>
+                <LivePulse color="var(--accent-cool)" />
+                <span style={{ color: DS.accent, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Live</span>
                 <span style={{ color: DS.textHint, fontSize: 10 }}>·</span>
                 <span style={{ color: DS.textMuted, fontSize: 10 }}>Next refresh in {fmtCountdown(Math.max(0, countdown))}</span>
               </div>
-              <h1 style={{ color: DS.text, fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.2, margin: 0 }}>
+              <h1 style={{ color: DS.text, fontSize: 20, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.2, margin: 0 }}>
                 Project Mercury — Status Summary
               </h1>
-              <p style={{ color: DS.textSec, fontSize: 12, marginTop: 4 }}>
+              <p style={{ color: DS.textMuted, fontSize: 12, marginTop: 4 }}>
                 Version: <strong style={{ color: DS.text }}>{data.version}</strong>&ensp;·&ensp;Project: <strong style={{ color: DS.text }}>{data.project}</strong>
-                {lastFetched && <>&ensp;·&ensp;<span style={{ color: DS.textMuted }}>Updated {fmtDate(lastFetched)}</span></>}
+                {lastFetched && <>&ensp;·&ensp;<span style={{ color: DS.textHint }}>Updated {fmtDate(lastFetched)}</span></>}
               </p>
             </div>
             <button
@@ -1038,14 +1510,15 @@ export function ServicesDashboard() {
               disabled={loading}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
-                padding: '8px 14px', borderRadius: 8, flexShrink: 0,
-                background: DS.blue, border: 'none', color: '#fff',
-                fontSize: 12, fontWeight: 600, cursor: loading ? 'wait' : 'pointer',
-                fontFamily: DS.font, opacity: loading ? 0.7 : 1, transition: 'opacity 0.15s',
+                padding: '7px 14px', borderRadius: 8, flexShrink: 0,
+                background: DS.surface, border: `1px solid ${DS.border}`,
+                color: DS.text, fontSize: 12, fontWeight: 600,
+                cursor: loading ? 'wait' : 'pointer',
+                fontFamily: DS.font, opacity: loading ? 0.6 : 1, transition: 'opacity 0.15s',
               }}
             >
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-              {loading ? 'Refreshing…' : 'Refresh Now'}
+              {loading ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
 
@@ -1054,7 +1527,7 @@ export function ServicesDashboard() {
             <motion.div
               animate={{ width: `${(countdown / AUTO_REFRESH_SECS) * 100}%` }}
               transition={{ duration: 1, ease: 'linear' }}
-              style={{ height: '100%', background: `linear-gradient(90deg, ${DS.blue}, #75B000)`, borderRadius: 1 }}
+              style={{ height: '100%', background: `linear-gradient(90deg, var(--blue), var(--accent-cool))`, borderRadius: 1 }}
             />
           </div>
 
@@ -1079,18 +1552,24 @@ export function ServicesDashboard() {
               key={kpi.label}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.1 + i * 0.06 }}
-              whileHover={{ y: -3, boxShadow: `0 8px 28px ${kpi.color}28` }}
+              whileHover={{ y: -2, boxShadow: 'var(--shadow-medium)' }}
               style={{
-                background: DS.card, border: `1px solid ${DS.border}`,
-                borderRadius: 12, padding: '14px 16px',
+                background: DS.card,
+                border: `1px solid ${DS.border}`,
+                borderRadius: 12,
+                padding: '14px 16px',
                 borderTop: `3px solid ${kpi.color}`,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ color: DS.textMuted, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{kpi.label}</span>
-                <kpi.Icon size={13} style={{ color: kpi.color, opacity: 0.8 }} />
+                <span style={{ color: DS.textMuted, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {kpi.label}
+                </span>
+                <div style={{ width: 24, height: 24, borderRadius: 6, background: kpi.color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <kpi.Icon size={12} style={{ color: kpi.color }} />
+                </div>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: DS.text, letterSpacing: '-0.04em', lineHeight: 1 }}>
+              <div style={{ fontSize: 26, fontWeight: 800, color: DS.text, letterSpacing: '-0.04em', lineHeight: 1 }}>
                 <AnimatedCounter target={kpi.value} />{kpi.suffix}
               </div>
               <div style={{ height: 2, background: DS.border, borderRadius: 1, marginTop: 10, overflow: 'hidden' }}>
@@ -1098,70 +1577,158 @@ export function ServicesDashboard() {
                   initial={{ width: 0 }}
                   animate={{ width: kpi.suffix === '%' ? `${kpi.value}%` : '100%' }}
                   transition={{ duration: 1, delay: 0.4 + i * 0.08, ease: 'easeOut' }}
-                  style={{ height: '100%', background: kpi.color, borderRadius: 1, opacity: 0.7 }}
+                  style={{ height: '100%', background: kpi.color, borderRadius: 1, opacity: 0.6 }}
                 />
               </div>
             </motion.div>
           ))}
         </motion.div>
 
-        {/* ── Row 1: Test Suites + Bug Distribution ────────────────────────── */}
+        {/* ── Section: Test Coverage ───────────────────────────────────────── */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.16 }}>
+          <SectionLabel label="Test Coverage" icon={TestTube2} />
+        </motion.div>
+
         <motion.div
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.18 }}
-          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}
+          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.18 }}
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'stretch' }}
         >
           <Card>
-            <CardHeader icon={TestTube2} title="Focused Test Suite" subtitle="High-priority GL, AP, AR, and 1099 regression coverage" accent="#BF2600" />
+            <CardHeader
+              icon={Zap}
+              title={data.focused_test_suite.chart_title || 'Focused Test Suite'}
+              subtitle="High-priority regression — GL, AP, AR, 1099 (version-scoped)"
+              accent="var(--accent-cool)"
+            />
             <TestSuiteBreakdown {...data.focused_test_suite} />
           </Card>
 
           <Card>
-            <CardHeader icon={Layers} title="Comprehensive Test Suite" subtitle="Full test coverage across all MODDWTC components" accent="#0052CC" />
+            <CardHeader
+              icon={Layers}
+              title={data.comprehensive_test_suite.chart_title || 'Comprehensive Test Suite'}
+              subtitle="Full coverage across all MODDWTC components (all versions)"
+              accent="var(--blue)"
+            />
             <TestSuiteBreakdown {...data.comprehensive_test_suite} />
-          </Card>
-
-          <Card>
-            <CardHeader icon={Bug} title="Bug Distribution by Module" subtitle={`${data.bugs_total} total open bugs across T&L scope`} accent="#FF5630" />
-            <BugDistributionChart bugs={data.bugs_distribution} />
           </Card>
         </motion.div>
 
-        {/* ── Row 2: Execution Summary Table + Findings + Priority ──────────── */}
+        {/* ── Section: Bug Intelligence ────────────────────────────────────── */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.24 }}>
+          <SectionLabel label="Bug Intelligence" icon={Bug} />
+        </motion.div>
+
         <motion.div
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.28 }}
-          style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14 }}
+          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.26 }}
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'start' }}
         >
-          <Card>
-            <CardHeader icon={BarChart3} title="Execution Summary — All T&L Dealers" subtitle={`Version: ${data.version} · ${data.project}`} accent="#00875A" />
-            <ExecutionTable rows={data.execution_summary} />
-          </Card>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <Card>
-              <CardHeader icon={FileText} title="Findings" subtitle="Live analysis · Confluence T&L pages" accent="#6554C0" />
-              <FindingsPanel data={findings} />
+              <CardHeader
+                icon={Bug}
+                title="Bugs distribution across T&L boxes"
+                subtitle="Click any row to open in Jira"
+                accent="var(--red)"
+              />
+              <BugDistributionChart
+                bugs={data.bugs_distribution ?? []}
+                total={data.bugs_distribution_total ?? data.bugs_total}
+                sourceJql={data.bugs_source_jql}
+                jiraBase={data.jira_base_url}
+              />
             </Card>
+            <AIInsightsPanel
+              apiPath="/api/mercury-dashboard/ai-insights"
+              payload={{
+                bugs_distribution: data.bugs_distribution,
+                bugs_total: data.bugs_distribution_total ?? data.bugs_total,
+                bugs_source_jql: data.bugs_source_jql,
+              }}
+              label="AI: Bug Distribution Insight"
+            />
+          </div>
 
-            <Card style={{ flex: 1 }}>
-              <CardHeader icon={ShieldAlert} title="Bug Priority Breakdown" subtitle="Open bugs by severity across all T&L modules" accent="#FF8B00" />
-              <BugPriorityChart priorities={data.bug_priorities} total={data.bugs_total} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <Card>
+              <CardHeader
+                icon={ShieldAlert}
+                title="Bug Priority — by Module"
+                subtitle="Open bugs per module with severity breakdown"
+                accent="var(--amber)"
+              />
+              <BugPriorityByProjectChart items={data.bug_priority_by_project} total={data.bugs_total} priorityOrder={data.priority_order} />
             </Card>
+            <AIInsightsPanel
+              apiPath="/api/mercury-dashboard/ai-insights"
+              payload={{
+                bug_priority_by_project: data.bug_priority_by_project,
+                bug_priorities: data.bug_priorities,
+                priority_order: data.priority_order,
+                bugs_total: data.bugs_total,
+              }}
+              label="AI: Priority Risk Analysis"
+            />
           </div>
         </motion.div>
 
-        {/* ── Row 3: Zephyr Execution Chart per cycle ──────────────────────── */}
+        {/* ── Section: Execution Performance ──────────────────────────────── */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.32 }}>
+          <SectionLabel label="Execution Performance" icon={BarChart3} />
+        </motion.div>
+
         <motion.div
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.38 }}
+          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.34 }}
+          style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
         >
           <Card>
-            <CardHeader icon={TrendingUp} title="Zephyr Test Execution — by Cycle" subtitle={`Version: ${data.version} · test execution results grouped by dealer cycle`} accent="#0052CC" />
+            <CardHeader
+              icon={BarChart3}
+              title="Test Execution Summary — All T&L Dealers"
+              subtitle={`${data.version} · ${data.project} · Pass / Fail / WIP / Blocked / Not Run per dealer cycle`}
+              accent="var(--accent-cool)"
+            />
+            <ExecutionTable rows={data.execution_summary} jiraBase={data.jira_base_url} />
+          </Card>
+          <AIInsightsPanel
+            apiPath="/api/mercury-dashboard/ai-insights"
+            payload={{
+              execution_summary: data.execution_summary,
+              version: data.version,
+              project: data.project,
+            }}
+            label="AI: Execution Performance Insight"
+          />
+        </motion.div>
+
+        {/* ── Section: Insights & Execution Trends ────────────────────────── */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.40 }}>
+          <SectionLabel label="Insights & Execution Trends" icon={TrendingUp} />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.42 }}
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'stretch' }}
+        >
+          <Card>
+            <CardHeader
+              icon={TrendingUp}
+              title="Zephyr Test Execution Chart"
+              subtitle="All active test cycles · sorted by cycle order"
+              accent="var(--blue)"
+            />
             <ExecutionBarsChart rows={data.execution_summary} />
+          </Card>
+
+          <Card>
+            <CardHeader icon={FileText} title="Findings — Observations & Blockers" subtitle="Click Jira IDs to open tickets · Confluence links below" accent="var(--amber)" />
+            <FindingsPanel data={findings} jiraBase={data.jira_base_url} />
           </Card>
         </motion.div>
 
         {/* ── Footer ──────────────────────────────────────────────────────── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 4 }}>
-          <LivePulse color={DS.blue} />
+          <LivePulse color="var(--accent-cool)" />
           <p style={{ color: DS.textHint, fontSize: 10, margin: 0 }}>
             Project Mercury · {data.project} · Zephyr Scale · CDK Global FalconX
           </p>

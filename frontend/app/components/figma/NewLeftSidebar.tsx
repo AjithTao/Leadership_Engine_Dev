@@ -74,7 +74,9 @@ export function NewLeftSidebar({
   const [integrationsExpanded, setIntegrationsExpanded] = useState(true)
   const [quickActionsExpanded, setQuickActionsExpanded] = useState(false)
   const [insightsExpanded, setInsightsExpanded] = useState(false)
-  // Removed tcoeExpanded - now QA Metrics is a separate top-level navigation item
+  const [cdkExpanded, setCdkExpanded] = useState(
+    activeView === 'tcoe-dashboard' || activeView === 'services-dashboard' || activeView === 'services-mod-dashboard'
+  )
   const [showWelcome, setShowWelcome] = useState(true)
   const [metricsExpanded, setMetricsExpanded] = useState(activeView === 'tcoe-report')
   const showLegacyAboutContent = false
@@ -135,6 +137,12 @@ export function NewLeftSidebar({
   React.useEffect(() => {
     if (activeView === 'tcoe-report') {
       setMetricsExpanded(true)
+    }
+  }, [activeView])
+
+  React.useEffect(() => {
+    if (activeView === 'tcoe-dashboard' || activeView === 'services-dashboard' || activeView === 'services-mod-dashboard') {
+      setCdkExpanded(true)
     }
   }, [activeView])
 
@@ -281,7 +289,7 @@ export function NewLeftSidebar({
                             primary={primary}
                           >
                             <Database className="w-3.5 h-3.5 flex-shrink-0" />
-                            Jira Insights
+                            <span className="truncate min-w-0 flex-1">Jira Insights</span>
                           </SubNavButton>
 
                           <SubNavButton
@@ -290,7 +298,7 @@ export function NewLeftSidebar({
                             primary={primary}
                           >
                             <Code className="w-3.5 h-3.5 flex-shrink-0" />
-                            GitHub Insights
+                            <span className="truncate min-w-0 flex-1">GitHub Insights</span>
                           </SubNavButton>
                         </div>
                       )}
@@ -312,31 +320,65 @@ export function NewLeftSidebar({
                 </div>
               </NavButton>
 
-              {/* QCOE Dashboard — Separate top-level */}
-              <NavButton
-                active={activeView === 'tcoe-dashboard'}
-                onClick={() => setActiveView('tcoe-dashboard')}
-                primary={primary}
-              >
-                <BarChart3 className="w-4 h-4 flex-shrink-0" style={{ color: activeView === 'tcoe-dashboard' ? primary : 'var(--text-secondary)' }} />
-                <div className="text-left min-w-0">
-                  <div className="text-sm font-medium leading-none">QCOE Dashboard</div>
-                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Quality Metrics</div>
-                </div>
-              </NavButton>
+              {/* CDK Dashboards — Collapsible group */}
+              <div className="space-y-0.5">
+                {(() => {
+                  const cdkActive = activeView === 'tcoe-dashboard' || activeView === 'services-dashboard' || activeView === 'services-mod-dashboard'
+                  return (
+                    <>
+                      <NavButton
+                        active={cdkActive}
+                        onClick={() => setCdkExpanded(!cdkExpanded)}
+                        primary={primary}
+                      >
+                        <BarChart3 className="w-4 h-4 flex-shrink-0" style={{ color: cdkActive ? primary : 'var(--text-secondary)' }} />
+                        <div className="text-left flex-1 min-w-0">
+                          <div className="text-sm font-medium leading-none">CDK Dashboards</div>
+                          <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Quality &amp; Services</div>
+                        </div>
+                        {cdkExpanded
+                          ? <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
+                          : <ChevronRight className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
+                        }
+                      </NavButton>
 
-              {/* Services Dashboard — Separate top-level */}
-              <NavButton
-                active={activeView === 'services-dashboard'}
-                onClick={() => setActiveView('services-dashboard')}
-                primary={primary}
-              >
-                <Workflow className="w-4 h-4 flex-shrink-0" style={{ color: activeView === 'services-dashboard' ? primary : 'var(--text-secondary)' }} />
-                <div className="text-left min-w-0">
-                  <div className="text-sm font-medium leading-none">Services Dashboard</div>
-                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>T&amp;L Execution</div>
-                </div>
-              </NavButton>
+                      {cdkExpanded && (
+                        <div
+                          className="ml-7 pl-3 space-y-0.5"
+                          style={{ borderLeft: '1px solid var(--border)' }}
+                        >
+                          <SubNavButton
+                            active={activeView === 'tcoe-dashboard'}
+                            onClick={() => setActiveView('tcoe-dashboard')}
+                            primary={primary}
+                          >
+                            <BarChart3 className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span className="truncate min-w-0 flex-1">QCOE Dashboard</span>
+                          </SubNavButton>
+
+                          <SubNavButton
+                            active={activeView === 'services-dashboard'}
+                            onClick={() => setActiveView('services-dashboard')}
+                            primary={primary}
+                          >
+                            <Workflow className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span className="truncate min-w-0 flex-1">Accounting Dashboard</span>
+                          </SubNavButton>
+
+                          <SubNavButton
+                            active={activeView === 'services-mod-dashboard'}
+                            onClick={() => setActiveView('services-mod-dashboard')}
+                            primary={primary}
+                          >
+                            <Target className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span className="truncate min-w-0 flex-1">Services Dashboard</span>
+                          </SubNavButton>
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
+              </div>
 
               {/* Metrics — Collapsible */}
               <div className="space-y-0.5">
@@ -371,7 +413,7 @@ export function NewLeftSidebar({
                             primary={primary}
                           >
                             <Shield className="w-3.5 h-3.5 flex-shrink-0" />
-                            TCOE Metrics
+                            <span className="truncate min-w-0 flex-1">TCOE Metrics</span>
                           </SubNavButton>
                         </div>
                       )}
@@ -895,7 +937,7 @@ function SubNavButton({
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-2 h-9 px-2 rounded-lg text-sm transition-colors duration-150"
+      className="w-full flex items-center gap-2 h-9 px-2 rounded-lg text-sm transition-colors duration-150 overflow-hidden"
       style={{
         backgroundColor: bg,
         color: active ? primary : 'var(--text-secondary)',
