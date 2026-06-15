@@ -278,7 +278,7 @@ function SearchableMultiSelect({
                     color: isOn ? 'var(--text-primary)' : 'var(--text-secondary)',
                     background: isOn ? 'var(--bg-card)' : 'transparent',
                     display: 'flex', alignItems: 'center', gap: 8,
-                    borderBottom: '1px solid var(--border)30',
+                    borderBottom: '1px solid var(--border)',
                   }}
                 >
                   <div style={{
@@ -1076,7 +1076,7 @@ export function TCOEDashboard() {
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
                     minHeight: 28, borderRadius: 6, padding: '4px 9px',
-                    border: `1px solid ${isVisible ? 'var(--border)' : 'var(--border)40'}`,
+                    border: `1px solid var(--border)`,
                     background: isVisible ? 'var(--bg-surface)' : 'var(--bg-page)',
                     color: isVisible ? 'var(--text-primary)' : 'var(--text-muted)',
                     fontSize: 11, fontWeight: 700, cursor: 'pointer',

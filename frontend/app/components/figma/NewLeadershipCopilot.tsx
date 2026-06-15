@@ -79,7 +79,7 @@ function formatSessionMeta(session: ChatSession): string {
     ? updated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
     : updated.toLocaleDateString([], { month: 'short', day: 'numeric' })
 
-  return `${session.messages.length} msg${session.messages.length !== 1 ? 's' : ''} - ${timeLabel}`
+  return `${session.messages.length} msg${session.messages.length !== 1 ? 's' : ''} · ${timeLabel}`
 }
 
 // ── TypingIndicator ───────────────────────────────────────────────────────────
@@ -827,7 +827,7 @@ export function NewLeadershipCopilot({
 
     setIsTyping(true)
     setIsLoading(true)
-    const loadingMsgs = [`Searching ${source === 'jira' ? 'Jira' : 'Confluence'}...`, 'Retrieving results...', 'Almost there...']
+    const loadingMsgs = [`Searching ${source === 'jira' ? 'Jira' : 'Confluence'}…`, 'Retrieving results…', 'Almost there…']
     let li = 0
     setLoadingMessage(loadingMsgs[0])
     const msgInterval = setInterval(() => {
@@ -916,7 +916,7 @@ export function NewLeadershipCopilot({
     if (uploadedDocReady) {
       setIsTyping(true)
       setIsLoading(true)
-      setLoadingMessage('Searching document...')
+      setLoadingMessage('Searching document…')
       try {
         const response = await fetch(getApiUrl(`/api/domain/qa`), {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -950,7 +950,7 @@ export function NewLeadershipCopilot({
     if (integrations.length > 0) {
       setIsTyping(true)
       setIsLoading(true)
-      const loadingMsgs = ['Thinking...', 'Analyzing your data...', 'Almost there...']
+      const loadingMsgs = ['Thinking…', 'Analyzing your data…', 'Almost there…']
       let li = 0
       setLoadingMessage(loadingMsgs[0])
       const msgInterval = setInterval(() => {
@@ -1113,6 +1113,7 @@ export function NewLeadershipCopilot({
         .wb-scroll::-webkit-scrollbar-track { background: transparent; }
         .wb-scroll::-webkit-scrollbar-thumb { background: ${colorAlpha(strongBorder, 0.55)}; border-radius: 4px; }
         .wb-scroll::-webkit-scrollbar-thumb:hover { background: ${colorAlpha(strongBorder, 0.82)}; }
+        .wb-chat-toolbar > div:first-child { display: none; }
         .wb-composer-input::placeholder { color: ${colorAlpha(mutedText, isDarkMode ? 0.64 : 0.72)}; }
         .wb-composer-input:focus {
           border-color: ${colorAlpha(accent, 0.58)} !important;
@@ -1258,7 +1259,7 @@ export function NewLeadershipCopilot({
                 {currentSession?.title ?? 'WorkBuddy'}
               </p>
               <p className="text-[11px]" style={{ color: mutedText }}>
-                  AI Assistant - FalconX
+                  AI Assistant · FalconX
               </p>
               </div>
             </div>
@@ -1417,7 +1418,7 @@ export function NewLeadershipCopilot({
                                 })}
                               </div>
                               {msg.buttonsUsed && (
-                                <p className="text-xs mt-3" style={{ color: mutedText }}>Searching...</p>
+                                <p className="text-xs mt-3" style={{ color: mutedText }}>Searching…</p>
                               )}
                             </div>
                           ) : (
@@ -1527,7 +1528,7 @@ export function NewLeadershipCopilot({
               />
               <div className="flex items-center justify-between px-1.5 pb-0 pt-2 gap-3">
                 <div className="flex items-center gap-1">
-                  <p className="text-[10px]" style={{ color: mutedText }}>Enter to send - Shift+Enter for new line</p>
+                  <p className="text-[10px]" style={{ color: mutedText }}>↵ Send · ⇧↵ New line</p>
                 </div>
                 <div className="flex items-center gap-2">
                   {/* Voice */}

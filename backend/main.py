@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends, Header, Query
+﻿from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends, Header, Query
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from fastapi.responses import StreamingResponse
@@ -166,6 +166,179 @@ def get_issue_story_points(fields: Dict[str, Any], story_point_field_ids: Option
         if points is not None:
             return points
     return None
+
+def build_advanced_filter_clause(advanced: dict) -> str:
+    """Translate advanced filter options from the UI into JQL clauses."""
+    if not advanced:
+        return ''
+    clauses = []
+    if advanced.get('priority'):
+        vals = ', '.join(f'"{v}"' for v in advanced['priority'])
+        clauses.append(f'priority in ({vals})')
+    if advanced.get('issueType'):
+        vals = ', '.join(f'"{v}"' for v in advanced['issueType'])
+        clauses.append(f'issuetype in ({vals})')
+    if advanced.get('statusCategory'):
+        vals = ', '.join(f'"{v}"' for v in advanced['statusCategory'])
+        clauses.append(f'statusCategory in ({vals})')
+    assignee = (advanced.get('assignee') or '').strip()
+    if assignee:
+        clauses.append(f'assignee = "{assignee}"')
+    label = (advanced.get('label') or '').strip()
+    if label:
+        labels = [lbl.strip() for lbl in label.split(',') if lbl.strip()]
+        if labels:
+            vals = ', '.join(f'"{lbl}"' for lbl in labels)
+            clauses.append(f'labels in ({vals})')
+    return ' AND '.join(clauses)
+
+
+def _jql_escape(value: str) -> str:
+    """Escape a value for safe interpolation inside a JQL double-quoted string."""
+    return (value or '').replace('\\', '\\\\').replace('"', '\\"')
+
+
+def _cf_jql_id(field_id: str) -> str:
+    """Turn a Jira field id into its JQL reference ('customfield_10600' -> 'cf[10600]')."""
+    if field_id and field_id.startswith('customfield_'):
+        return f"cf[{field_id.split('_', 1)[1]}]"
+    return field_id
+
+
+# Known QE value sets for projects.cdk.com test-case workflow. Used as a reliable
+# candidate list (a 100-issue sample alone can miss values); unioned with whatever
+# the live sample surfaces, then each candidate is counted exactly. Any value not
+# in the list still lands in "Unspecified" so totals always reconcile.
+QE_AUTOMATION_VALUES = ['Automated', 'Automation Not Required', 'Requires Automation', 'In Progress', 'Merged', 'Repair']
+QE_TEST_TYPE_VALUES = ['Functional Testing', 'Regression Testing', 'Configuration', 'Unit Testing',
+                       'Integration', 'Performance Testing', 'UI/X', 'Interoperability Testing']
+QE_TEST_STATUSES = ['Test', 'Accepted', 'Abandoned']
+
+
+async def resolve_qe_field_ids(jira_client) -> Dict[str, Optional[str]]:
+    """Resolve the 'Test Status' (automation lifecycle) and 'Test Type' custom field
+    ids by name, with the known projects.cdk.com ids as fallback."""
+    ids: Dict[str, Optional[str]] = {"automation": None, "testType": None}
+    try:
+        fields = await jira_client.get_fields()
+        for f in fields or []:
+            nm = (f.get('name') or '').strip().lower()
+            if nm == 'test status' and not ids["automation"]:
+                ids["automation"] = f.get('id')
+            elif nm == 'test type' and not ids["testType"]:
+                ids["testType"] = f.get('id')
+    except Exception as e:
+        logger.warning(f"QE field resolution failed: {e}")
+    ids["automation"] = ids["automation"] or "customfield_10600"
+    ids["testType"] = ids["testType"] or "customfield_14101"
+    return ids
+
+
+async def compute_qe_metrics(jira_client, base_jql: str, qe_fields: Dict[str, Optional[str]]) -> Optional[Dict[str, Any]]:
+    """Quality-Engineering metrics for test-case projects, scoped to the dashboard's
+    base JQL and computed via EXACT Jira counts (so they're unaffected by the
+    issue-fetch cap). Returns None when there are no Test issues in scope."""
+    import asyncio
+
+    def q(extra: str) -> str:
+        return f"{base_jql} AND {extra}" if base_jql else extra
+
+    async def count(jql: str) -> int:
+        try:
+            d = await jira_client.search(jql, max_results=0, fields=['key'])
+            return (d or {}).get('total', 0) if d else 0
+        except Exception as ce:
+            logger.warning(f"QE count failed for [{jql}]: {ce}")
+            return 0
+
+    def _opt(v):
+        if isinstance(v, dict):
+            return v.get('value')
+        if isinstance(v, list) and v:
+            return v[0].get('value') if isinstance(v[0], dict) else str(v[0])
+        return v
+
+    try:
+        test_total = await count(q('issuetype = Test'))
+        if not test_total:
+            return None
+
+        auto_field = qe_fields.get("automation")
+        type_field = qe_fields.get("testType")
+
+        # One sample to discover the status / automation / test-type values present in scope.
+        sample = await jira_client.search(
+            q('issuetype = Test'), max_results=100,
+            fields=[f for f in [auto_field, type_field, 'status'] if f])
+        sissues = (sample or {}).get('issues', [])
+        auto_vals, type_vals, status_vals = set(), set(), set()
+        for it in sissues:
+            fz = it.get('fields', {})
+            if auto_field and _opt(fz.get(auto_field)):
+                auto_vals.add(_opt(fz.get(auto_field)))
+            if type_field and _opt(fz.get(type_field)):
+                type_vals.add(_opt(fz.get(type_field)))
+            stt = (fz.get('status') or {}).get('name')
+            if stt:
+                status_vals.add(stt)
+
+        auto_id = _cf_jql_id(auto_field) if auto_field else None
+        type_id = _cf_jql_id(type_field) if type_field else None
+
+        # Union the live-sampled values with the known candidate sets so the dominant
+        # categories are always counted exactly (a 100-issue sample can miss values).
+        status_keys = sorted(status_vals | set(QE_TEST_STATUSES))
+        auto_keys = sorted(auto_vals | set(QE_AUTOMATION_VALUES))
+        type_keys = sorted(type_vals | set(QE_TEST_TYPE_VALUES))
+
+        async def dist(keys, clause_fn):
+            if not keys:
+                return {}
+            res = await asyncio.gather(*[count(q(clause_fn(k))) for k in keys])
+            return {k: c for k, c in zip(keys, res) if c > 0}
+
+        lifecycle, automation, test_type, defect_total, defect_open = await asyncio.gather(
+            dist(status_keys, lambda s: f'issuetype = Test AND status = "{_jql_escape(s)}"'),
+            dist(auto_keys, lambda v: f'issuetype = Test AND {auto_id} = "{_jql_escape(v)}"') if auto_id else _noop_dict(),
+            dist(type_keys, lambda v: f'issuetype = Test AND {type_id} = "{_jql_escape(v)}"') if type_id else _noop_dict(),
+            count(q('issuetype in (Bug, Defect)')),
+            count(q('issuetype in (Bug, Defect) AND statusCategory != Done')),
+        )
+
+        # Fold any uncounted remainder into "Unspecified" so each breakdown sums to the total.
+        for d in (automation, test_type):
+            rem = test_total - sum(d.values())
+            if rem > 0:
+                d['Unspecified'] = rem
+
+        automated = automation.get('Automated', 0)
+        not_required = automation.get('Automation Not Required', 0)
+        automatable = max(0, test_total - not_required)
+        accepted = lifecycle.get('Accepted', 0)
+        abandoned = lifecycle.get('Abandoned', 0)
+
+        return {
+            "testTotal": test_total,
+            "lifecycle": lifecycle,
+            "automation": automation,
+            "testType": test_type,
+            "defects": {"total": defect_total, "open": defect_open},
+            "automated": automated,
+            "requiresAutomation": automation.get('Requires Automation', 0),
+            "automationCoverage": round(automated / automatable * 100) if automatable else 0,
+            "accepted": accepted,
+            "acceptanceRate": round(accepted / test_total * 100) if test_total else 0,
+            "abandoned": abandoned,
+            "defectDensity": round(defect_total / test_total * 100, 1) if test_total else 0.0,
+        }
+    except Exception as e:
+        logger.error(f"compute_qe_metrics failed: {e}")
+        return None
+
+
+async def _noop_dict():
+    return {}
+
 
 def is_done_issue(fields: Dict[str, Any]) -> bool:
     """Use Jira's status category first, then common done-like status names."""
@@ -1714,7 +1887,6 @@ async def get_current_sprint():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.get("/api/jira/period-context", tags=["JIRA"], summary="Get Sprint and PI Date Ranges")
 async def get_period_context():
     """
@@ -2696,19 +2868,25 @@ async def get_sprint_history(board_id: int):
         logger.error(f"Sprint history error: {e}")
         return create_error_response("Sprint history failed", str(e))
 
-@app.get("/api/jira/blockers", tags=["JIRA"], summary="Get Blocked Issues")
-async def get_blocked_issues():
-    """Show flagged issues or status=Blocked"""
+@app.post("/api/jira/blockers", tags=["JIRA"], summary="Get Blocked Issues")
+async def get_blocked_issues(request: Dict[str, Any] = None):
+    """Show flagged issues or status=Blocked, optionally scoped to a project"""
     if not app_state.jira_configured or not app_state.jira_client:
         raise HTTPException(status_code=400, detail="Jira not configured")
-    
+
+    if request is None:
+        request = {}
+
     try:
+        project_key = (request.get('projectKey') or '').strip()
+        project_clause = f'project = "{project_key}" AND ' if project_key and project_key != 'null' else ''
+
         # Get blocked issues
-        blocked_jql = "status = Blocked OR status = Waiting"
+        blocked_jql = f"{project_clause}(status = Blocked OR status = Waiting)"
         blocked_issues = await app_state.jira_client.search(blocked_jql, max_results=100)
-        
+
         # Get flagged issues
-        flagged_jql = "labels = flagged OR priority = Highest"
+        flagged_jql = f"{project_clause}(labels = flagged OR priority = Highest)"
         flagged_issues = await app_state.jira_client.search(flagged_jql, max_results=100)
         
         # Process blocked issues
@@ -2877,7 +3055,9 @@ async def get_jira_projects(startAt: int = 0, maxResults: int = 100, minimal: bo
                     "projectTypeKey": project.get('projectTypeKey', ''),
                     "lead": project.get('lead', {}).get('displayName', '') if project.get('lead') else '',
                     "url": project.get('self', ''),
-                    "avatarUrls": project.get('avatarUrls', {})
+                    "avatarUrls": project.get('avatarUrls', {}),
+                    "categoryName": (project.get('projectCategory') or {}).get('name', ''),
+                    "categoryKey": (project.get('projectCategory') or {}).get('key', ''),
                 })
             cached_projects = normalized
             app_state.projects_cache = cached_projects
@@ -2889,7 +3069,7 @@ async def get_jira_projects(startAt: int = 0, maxResults: int = 100, minimal: bo
         total = len(detailed_projects)
         # Minimal shape for large menus
         if minimal:
-            minimal_list = [{"id": p.get("id"), "key": p.get("key"), "name": p.get("name")} for p in detailed_projects]
+            minimal_list = [{"id": p.get("id"), "key": p.get("key"), "name": p.get("name"), "categoryName": p.get("categoryName", "")} for p in detailed_projects]
             page = minimal_list[startAt:startAt+maxResults]
         else:
             page = detailed_projects[startAt:startAt+maxResults]
@@ -2912,6 +3092,29 @@ async def get_jira_projects(startAt: int = 0, maxResults: int = 100, minimal: bo
             "success": False,
             "error": f"Failed to fetch projects: {str(e)}"
         }
+
+@app.get("/api/jira/first-action-date", tags=["JIRA"], summary="Earliest Jira issue date for current project filter")
+async def jira_first_action_date(project: str = None):
+    """Return the earliest Jira issue created date for the given project (or all projects if omitted).
+    Used to populate the 'Since 1st action' date preset in the Jira Insights filter bar."""
+    if not app_state.jira_configured or not app_state.jira_client:
+        return {"first_action_date": None, "error": "Jira not configured"}
+    try:
+        project_clause = (
+            f'project = "{project}" AND '
+            if project and project.strip() not in ('', 'null', 'ALL', 'all')
+            else ''
+        )
+        jql = f"{project_clause}created is not EMPTY ORDER BY created ASC"
+        result = await app_state.jira_client.search(jql, max_results=1)
+        issues = result.get("issues", [])
+        if issues:
+            created = (issues[0].get("fields", {}).get("created") or "")[:10]
+            return {"first_action_date": created or None, "project": project}
+        return {"first_action_date": None, "project": project}
+    except Exception as e:
+        logger.error(f"first-action-date error: {e}")
+        return {"first_action_date": None, "error": str(e)}
 
 @app.post("/api/leadership/dashboard", tags=["Leadership"], summary="Get Leadership Dashboard Metrics")
 async def get_leadership_dashboard(request: Dict[str, Any]):
@@ -3483,9 +3686,10 @@ async def get_jira_metrics(request: Dict[str, Any]):
     
     try:
         project_key = request.get('projectKey')
-        
+
         date_from = (request.get('dateFrom') or '').strip()
         date_to = (request.get('dateTo') or '').strip()
+        advanced_filters = request.get('advancedFilters') or {}
 
         filters = []
 
@@ -3507,6 +3711,10 @@ async def get_jira_metrics(request: Dict[str, Any]):
             date_to_expr = f'{date_to} 23:59' if len(date_to) == 10 else date_to
             filters.append(f'updated <= "{date_to_expr}"')
 
+        advanced_clause = build_advanced_filter_clause(advanced_filters)
+        if advanced_clause:
+            filters.append(advanced_clause)
+
         jql = ' AND '.join(filters)
         if jql:
             jql = f"{jql} ORDER BY updated DESC"
@@ -3515,100 +3723,101 @@ async def get_jira_metrics(request: Dict[str, Any]):
         
         story_point_field_ids = await get_story_point_field_ids(app_state.jira_client)
 
-        # Get ALL issues to show exact real values
+        # Request ONLY the fields the breakdowns below actually read. The previous list
+        # pulled 'description', 'summary', 'components', etc. — none used here, but for a
+        # 5,000-issue all-projects fetch that bloated each page massively (description is
+        # huge). Trimming to the used set shrinks the payload several-fold and is the
+        # biggest single speedup for broad windows. (Due-date/labels/age live in the
+        # separate enhanced-metrics endpoint, which has its own fetch.)
         fields = [
-            'key', 'summary', 'status', 'assignee', 'priority', 'issuetype',
-            'project', 'created', 'updated', 'description', 'reporter', 'labels',
-            'components', 'fixVersions', 'duedate', *story_point_field_ids
+            'key', 'status', 'assignee', 'priority', 'issuetype',
+            'created', 'updated', *story_point_field_ids
         ]
 
-        # Get ALL issues with proper pagination to show exact values
-        all_issues = []
-        start_at = 0
-        max_results = 100  # Jira API v3 max limit is 100 per request
-        batch_count = 0
-        seen_keys = set()  # Track unique issue keys to detect duplicates
-        
-        # Get total count first - Jira API v3 doesn't return total in response
+        # Get ALL issues for the metric breakdowns, capped at 5,000.
+        import asyncio
+        PAGE = 100          # Jira API max per request
+        MAX_ISSUES = 5000   # retrieval cap (breakdowns are sampled from this)
+        CONCURRENCY = 20    # parallel page fetches — bounded so we never hammer Jira
+        metrics_truncated = False
+
+        # Get total count first — Jira DC returns 'total' in every search response.
+        # When we know the total we fetch all pages CONCURRENTLY (no sequential round
+        # trips, no inter-batch sleeps), which is what turned a broad all-projects
+        # window from ~30s into a few seconds.
+        total_count_from_api = 0
         try:
             count_data = await app_state.jira_client.search(jql, max_results=1, fields=['key'])
-            # Jira API v3 doesn't provide total count in response
-            total_count_from_api = 0  # We'll count as we go
-            logger.info(f"Jira API response structure: {list(count_data.keys()) if count_data else 'None'}")
+            total_count_from_api = count_data.get('total', 0) if count_data else 0
+            logger.info(f"Jira API total count: {total_count_from_api}")
         except Exception as e:
             logger.warning(f"Could not get count data: {e}")
-            total_count_from_api = 0
-        
-        try:
-            while True:
-                batch_count += 1
-                logger.info(f"Fetching batch #{batch_count} starting at {start_at}")
-                issues_data = await app_state.jira_client.search(jql, max_results=max_results, fields=fields, start_at=start_at)
-                
-                if not issues_data:
-                    logger.error("Jira API returned None")
-                    break
-                    
-                issues_batch = issues_data.get('issues', [])
-                logger.info(f"Got {len(issues_batch)} issues in batch #{batch_count} (Total so far: {len(all_issues) + len(issues_batch)})")
-                
-                if not issues_batch:
-                    logger.info("No more issues found, stopping pagination")
-                    break
-                
-                # Check for duplicates
-                batch_keys = [issue.get('key') for issue in issues_batch if issue.get('key')]
-                duplicates = [key for key in batch_keys if key in seen_keys]
-                
-                if duplicates:
-                    logger.warning(f"DUPLICATES DETECTED: {duplicates[:5]}... (showing first 5)")
-                    logger.warning("Stopping pagination to prevent infinite loop")
-                    break
-                
-                # Add new unique issues
-                seen_keys.update(batch_keys)
-                all_issues.extend(issues_batch)
-                
-                # Check if this is the last page (Jira API v3 uses isLast)
-                is_last = issues_data.get('isLast', False)
-                next_page_token = issues_data.get('nextPageToken')
-                logger.info(f"isLast flag: {is_last}, nextPageToken: {next_page_token}")
-                
-                # Stop if we got fewer issues than requested (this is the reliable way to detect end)
-                if len(issues_batch) < max_results:
-                    logger.info(f"Got fewer issues ({len(issues_batch)}) than requested ({max_results}), stopping")
-                    break
-                    
-                # Stop if isLast is true (this means we've reached the end)
-                if is_last:
-                    logger.info("isLast=true, stopping pagination")
-                    break
-                    
-                start_at += max_results
-                
-                # Add small delay to prevent rate limiting
-                import asyncio
-                await asyncio.sleep(0.2)  # 200ms delay between batches
-                
-                # Safety limit to prevent infinite loops (adjust as needed)
-                if batch_count > 50:  # Max 50 batches = 5,000 issues (should be enough for most workspaces)
-                    logger.warning(f"Reached safety limit of {batch_count} batches, stopping")
-                    break
-                
-        except Exception as e:
-            logger.error(f"Error during pagination: {e}")
-            # Continue with whatever we got
-            
-        issues = all_issues
+
+        async def _fetch_page(offset: int):
+            try:
+                d = await app_state.jira_client.search(jql, max_results=PAGE, fields=fields, start_at=offset)
+                return d.get('issues', []) if d else []
+            except Exception as e:
+                logger.warning(f"Metrics page at offset {offset} failed: {e}")
+                return []
+
+        issues = []
+        if total_count_from_api and total_count_from_api > 0:
+            capped = min(total_count_from_api, MAX_ISSUES)
+            if total_count_from_api > MAX_ISSUES:
+                metrics_truncated = True
+            offsets = list(range(0, capped, PAGE))
+            logger.info(f"Parallel-fetching {len(offsets)} pages (concurrency={CONCURRENCY}) for {capped} of {total_count_from_api} issues")
+            for i in range(0, len(offsets), CONCURRENCY):
+                chunk = offsets[i:i + CONCURRENCY]
+                for batch in await asyncio.gather(*[_fetch_page(o) for o in chunk]):
+                    issues.extend(batch)
+            # Offset paging can overlap if the result set shifts mid-fetch — dedup by key.
+            seen_keys, deduped = set(), []
+            for it in issues:
+                k = it.get('key')
+                if k and k in seen_keys:
+                    continue
+                if k:
+                    seen_keys.add(k)
+                deduped.append(it)
+            issues = deduped
+        else:
+            # Fallback: total unknown — paginate sequentially (no sleeps), stop on a
+            # short page / isLast / duplicates, capped at 50 pages.
+            start_at, batch_count, seen_keys = 0, 0, set()
+            try:
+                while True:
+                    batch_count += 1
+                    issues_data = await app_state.jira_client.search(jql, max_results=PAGE, fields=fields, start_at=start_at)
+                    if not issues_data:
+                        break
+                    issues_batch = issues_data.get('issues', [])
+                    if not issues_batch:
+                        break
+                    batch_keys = [i.get('key') for i in issues_batch if i.get('key')]
+                    if any(k in seen_keys for k in batch_keys):
+                        break  # duplicates — stop to avoid a loop
+                    seen_keys.update(batch_keys)
+                    issues.extend(issues_batch)
+                    if len(issues_batch) < PAGE or issues_data.get('isLast', False):
+                        break
+                    start_at += PAGE
+                    if batch_count >= 50:
+                        metrics_truncated = True
+                        break
+            except Exception as e:
+                logger.error(f"Error during sequential pagination: {e}")
+
         total_issues_all = len(issues)
-        logger.info(f"Retrieved {total_issues_all} total issues (exact count)")
+        logger.info(f"Retrieved {total_issues_all} issues (truncated={metrics_truncated})")
 
         # Calculate metrics with error handling
         total_issues = len(issues)
         logger.info(f"Processing {total_issues} issues for metrics")
         
-        # Use exact real values from filtered issues
-        display_total = total_issues  # Exact count of filtered issues
+        # display_total keeps the fetched count so all ratios (open/bugs/stories ÷ total) remain consistent
+        display_total = total_issues
         
         # Calculate resolved issues from ALL actual data with error handling
         resolved_issues = 0
@@ -3625,27 +3834,63 @@ async def get_jira_metrics(request: Dict[str, Any]):
         
         open_issues = total_issues - resolved_issues
         
-        # Count by issue type with error handling
-        bugs = stories = tasks = epics = subtasks = 0
+        # Count EVERY issue type (not just Bug/Story/Task/Epic) so the breakdown
+        # reconciles with the total — projects like test-case management are
+        # dominated by types such as "Test" that were previously invisible.
+        issues_by_type = {}
         try:
             for i in issues:
                 if i and i.get('fields'):
-                    type_name = get_issue_type_name(i.get('fields', {})).lower()
-                    if type_name == 'bug':
-                        bugs += 1
-                    elif type_name == 'story':
-                        stories += 1
-                    elif type_name == 'task':
-                        tasks += 1
-                    elif type_name == 'epic':
-                        epics += 1
-                    elif type_name in {'sub-task', 'subtask'}:
-                        subtasks += 1
+                    type_name = (get_issue_type_name(i.get('fields', {})) or 'Unknown').strip() or 'Unknown'
+                    issues_by_type[type_name] = issues_by_type.get(type_name, 0) + 1
         except Exception as e:
             logger.error(f"Error counting issue types: {e}")
-            # Use fallback counts
-            bugs = stories = tasks = epics = subtasks = 0
-        
+            issues_by_type = {}
+
+        def _type_count(d, *names):
+            target = {n.lower() for n in names}
+            return sum(c for t, c in d.items() if (t or '').lower() in target)
+
+        # When the fetch was capped, the per-type sample counts undercount the real
+        # totals. Replace them with EXACT Jira counts (one lightweight maxResults=0
+        # search per type, run concurrently) so the breakdown sums to the true total;
+        # any long-tail types beyond what we count are folded into "Other".
+        if metrics_truncated and total_count_from_api > 0 and issues_by_type:
+            try:
+                import asyncio
+                base_jql = ' AND '.join(filters)
+                ranked = sorted(issues_by_type.items(), key=lambda kv: kv[1], reverse=True)
+                types_to_count = [t for t, _ in ranked[:25]]
+
+                async def _exact_count(t):
+                    safe = t.replace('"', '\\"')
+                    q = f'{base_jql} AND issuetype = "{safe}"' if base_jql else f'issuetype = "{safe}"'
+                    try:
+                        d = await app_state.jira_client.search(q, max_results=0, fields=['key'])
+                        return t, (d.get('total', 0) if d else 0)
+                    except Exception as ce:
+                        logger.warning(f"Exact count failed for type '{t}': {ce}")
+                        return t, issues_by_type.get(t, 0)
+
+                exact_pairs = await asyncio.gather(*[_exact_count(t) for t in types_to_count])
+                exact = {t: c for t, c in exact_pairs if c > 0}
+                counted = sum(exact.values())
+                remainder = total_count_from_api - counted
+                if remainder > 0:
+                    exact['Other'] = remainder
+                if exact:
+                    issues_by_type = exact
+                    logger.info(f"Exact issue-type counts (truncated fetch): {issues_by_type}")
+            except Exception as e:
+                logger.error(f"Error computing exact issue-type counts: {e}")
+
+        # Derive the headline buckets from the (possibly exact) distribution.
+        bugs = _type_count(issues_by_type, 'bug')
+        stories = _type_count(issues_by_type, 'story')
+        tasks = _type_count(issues_by_type, 'task')
+        epics = _type_count(issues_by_type, 'epic')
+        subtasks = _type_count(issues_by_type, 'sub-task', 'subtask')
+
         # Calculate exact story points from ALL data with error handling
         story_points = 0.0
         completed_story_points = 0.0
@@ -3712,23 +3957,53 @@ async def get_jira_metrics(request: Dict[str, Any]):
             logger.error(f"Error counting by assignee: {e}")
             issues_by_assignee = {'Unassigned': total_issues}
         
-        # Calculate average resolution time (simplified)
-        # For now, use a calculated estimate based on resolved issues
-        avg_resolution_time = 7.5 if resolved_issues > 0 else 0  # days
+        # Calculate average resolution time from actual created→updated timestamps
+        resolution_days_list = []
+        try:
+            for i in issues:
+                if i and i.get('fields'):
+                    fields_obj = i.get('fields', {})
+                    if is_done_issue(fields_obj):
+                        created_str = (fields_obj.get('created') or '')[:19]
+                        updated_str = (fields_obj.get('updated') or '')[:19]
+                        if created_str and updated_str:
+                            try:
+                                created_dt = datetime.fromisoformat(created_str.replace('Z', '+00:00'))
+                                updated_dt = datetime.fromisoformat(updated_str.replace('Z', '+00:00'))
+                                days = max(0, (updated_dt - created_dt).days)
+                                resolution_days_list.append(days)
+                            except Exception:
+                                pass
+        except Exception as e:
+            logger.error(f"Error calculating resolution time: {e}")
+        avg_resolution_time = round(sum(resolution_days_list) / len(resolution_days_list), 1) if resolution_days_list else 0
         
         # Sprint velocity - completed story points, falling back to completed issue count
         # when the project does not populate story points.
         sprint_velocity = completed_story_points if story_point_values_found else resolved_issues
-        
+
+        # Quality-Engineering metrics are intentionally NOT computed here. They fire
+        # ~40 exact Jira count-queries over the entire Test backlog (tens of thousands
+        # of issues) and used to add ~40s to this call — blocking the dashboard's first
+        # render AND starving every other request on the shared worker (so even the
+        # GitHub Insights "Connecting…" loader hung). The frontend now loads them
+        # separately and non-blocking via /api/jira/qe-metrics, so the headline metrics
+        # render immediately and the QE panel fills in afterwards. issuesByType still
+        # carries the Test count, so the UI knows whether to show a QE loading panel.
+        qe_metrics = None
+
         metrics = {
             "totalIssues": display_total,
+            "jiraTotal": total_count_from_api if total_count_from_api > 0 else display_total,
             "resolvedIssues": resolved_issues,
-            "openIssues": display_total - resolved_issues,
+            "openIssues": total_issues - resolved_issues,
             "bugs": bugs,
             "stories": stories,
             "tasks": tasks,
             "epics": epics,
             "subtasks": subtasks,
+            "issuesByType": issues_by_type,
+            "qeMetrics": qe_metrics,
             "storyPoints": format_metric_number(story_points),
             "sprintVelocity": format_metric_number(sprint_velocity),
             "avgResolutionTime": avg_resolution_time,
@@ -3736,21 +4011,69 @@ async def get_jira_metrics(request: Dict[str, Any]):
             "issuesByPriority": issues_by_priority,
             "issuesByAssignee": issues_by_assignee,
             "totalIssuesAll": total_issues_all,
+            "fetchedCount": total_issues,
+            "truncated": metrics_truncated,
             "filters": {
                 "projectKey": filter_project_key,
                 "dateFrom": date_from_filter,
                 "dateTo": date_to_filter
             }
         }
-        
+
         return {
             "success": True,
             "metrics": metrics
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to get Jira metrics: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/jira/qe-metrics", tags=["JIRA"], summary="Get Quality-Engineering Metrics")
+async def get_jira_qe_metrics(request: Dict[str, Any]):
+    """Quality-Engineering (test-case) metrics, split off /api/jira/metrics so the main
+    dashboard can render fast. This is the heavy path — it fires ~40 exact Jira count
+    queries over the Test backlog — so the frontend loads it separately and non-blocking.
+
+    Filter construction MUST mirror /api/jira/metrics so the QE panel is scoped to the
+    exact same project + date + advanced filters as the headline numbers."""
+    if not app_state.jira_configured or not app_state.jira_client:
+        raise HTTPException(status_code=400, detail="Jira not configured")
+
+    try:
+        project_key = request.get('projectKey')
+        date_from = (request.get('dateFrom') or '').strip()
+        date_to = (request.get('dateTo') or '').strip()
+        advanced_filters = request.get('advancedFilters') or {}
+
+        filters = []
+        if project_key and project_key != 'null':
+            filters.append(f'project = "{project_key}"')
+        else:
+            filters.append('project IS NOT EMPTY')
+        if date_from:
+            filters.append(f'updated >= "{date_from}"')
+        if date_to:
+            date_to_expr = f'{date_to} 23:59' if len(date_to) == 10 else date_to
+            filters.append(f'updated <= "{date_to_expr}"')
+
+        advanced_clause = build_advanced_filter_clause(advanced_filters)
+        if advanced_clause:
+            filters.append(advanced_clause)
+
+        base_jql = ' AND '.join(filters)
+
+        qe_fields = await resolve_qe_field_ids(app_state.jira_client)
+        # compute_qe_metrics returns None when there are no Test issues in scope.
+        qe_metrics = await compute_qe_metrics(app_state.jira_client, base_jql, qe_fields)
+
+        return {"success": True, "qeMetrics": qe_metrics}
+
+    except Exception as e:
+        logger.error(f"Failed to get Jira QE metrics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/confluence/metrics", tags=["CONFLUENCE"], summary="Get Confluence Metrics")
 async def get_confluence_metrics():
@@ -4091,23 +4414,46 @@ async def get_best_performers(request: Dict[str, Any]):
     
     try:
         project_key = request.get('projectKey')
-        
-        # Build JQL query
+        date_from = (request.get('dateFrom') or '').strip()
+        date_to = (request.get('dateTo') or '').strip()
+
+        # Build JQL query — include date range so performers reflect the selected period
+        jql_filters = []
         if project_key and project_key != 'null':
-            jql = f'project = "{project_key}"'
+            jql_filters.append(f'project = "{project_key}"')
         else:
-            jql = "project is not EMPTY"
-        
+            jql_filters.append('project is not EMPTY')
+        if date_from:
+            jql_filters.append(f'updated >= "{date_from}"')
+        if date_to:
+            date_to_expr = f'{date_to} 23:59' if len(date_to) == 10 else date_to
+            jql_filters.append(f'updated <= "{date_to_expr}"')
+        jql = ' AND '.join(jql_filters)
+
         story_point_field_ids = await get_story_point_field_ids(app_state.jira_client)
 
-        # Get issues with assignee information
+        # Get issues with assignee information — paginate to avoid the 1000-issue hard cap
         fields = [
             'key', 'summary', 'status', 'assignee', 'priority', 'issuetype',
             'project', 'created', 'updated', *story_point_field_ids
         ]
-        
-        issues_result = await app_state.jira_client.search(jql, fields=fields, max_results=1000)
-        issues = issues_result.get('issues', [])
+
+        issues: list = []
+        start_at = 0
+        seen_keys: set = set()
+        while True:
+            batch = await app_state.jira_client.search(jql, fields=fields, max_results=100, start_at=start_at)
+            batch_issues = batch.get('issues', [])
+            if not batch_issues:
+                break
+            new_keys = [i.get('key') for i in batch_issues if i.get('key')]
+            if any(k in seen_keys for k in new_keys):
+                break
+            seen_keys.update(new_keys)
+            issues.extend(batch_issues)
+            if len(batch_issues) < 100:
+                break
+            start_at += 100
         
         # Calculate performance metrics for each assignee
         performer_stats = {}
@@ -4160,15 +4506,21 @@ async def get_best_performers(request: Dict[str, Any]):
         
         # Calculate performance scores and rank
         performers = list(performer_stats.values())
-        
+
+        # Compute raw scores first, then normalize relative to the team's max
+        # so the top contributor always scores 100 and rankings are meaningful
         for performer in performers:
-            # Calculate performance score based on multiple factors
-            resolved_weight = performer['issuesResolved'] * 10
-            story_points_weight = performer['storyPoints'] * 2
-            bugs_weight = performer['bugsFixed'] * 5
-            tasks_weight = performer['tasksCompleted'] * 3
-            
-            performer['performanceScore'] = min(100, resolved_weight + story_points_weight + bugs_weight + tasks_weight)
+            performer['_rawScore'] = (
+                performer['issuesResolved'] * 10 +
+                performer['storyPoints'] * 2 +
+                performer['bugsFixed'] * 5 +
+                performer['tasksCompleted'] * 3
+            )
+
+        max_raw = max((p['_rawScore'] for p in performers), default=1) or 1
+        for performer in performers:
+            performer['performanceScore'] = round((performer['_rawScore'] / max_raw) * 100)
+            del performer['_rawScore']
             
             # Generate achievements
             achievements = []
@@ -6770,6 +7122,7 @@ async def get_enhanced_metrics(request: Dict[str, Any]):
         project_key = request.get('projectKey')
         date_from = request.get('dateFrom', '')
         date_to = request.get('dateTo', '')
+        advanced_filters = request.get('advancedFilters') or {}
 
         # Get basic metrics first
         jql_filters = []
@@ -6780,6 +7133,9 @@ async def get_enhanced_metrics(request: Dict[str, Any]):
         if date_to:
             date_to_expr = f'{date_to} 23:59' if len(date_to) == 10 else date_to
             jql_filters.append(f'updated <= "{date_to_expr}"')
+        advanced_clause = build_advanced_filter_clause(advanced_filters)
+        if advanced_clause:
+            jql_filters.append(advanced_clause)
 
         jql = ' AND '.join(jql_filters) if jql_filters else 'project IS NOT EMPTY'
         jql += ' ORDER BY updated DESC'
@@ -6791,9 +7147,30 @@ async def get_enhanced_metrics(request: Dict[str, Any]):
             *story_point_field_ids
         ]
 
-        # Fetch issues for analysis
-        issues_data = await app_state.jira_client.search(jql, max_results=1000, fields=fields)
-        issues = issues_data.get('issues', [])
+        # Fetch issues for analysis — paginate so large projects aren't truncated
+        issues: list = []
+        start_at = 0
+        seen_keys_em: set = set()
+        batch_count_em = 0
+        while True:
+            batch_count_em += 1
+            issues_data = await app_state.jira_client.search(jql, max_results=100, fields=fields, start_at=start_at)
+            batch = issues_data.get('issues', [])
+            if not batch:
+                break
+            new_keys = [i.get('key') for i in batch if i.get('key')]
+            if any(k in seen_keys_em for k in new_keys):
+                break
+            seen_keys_em.update(new_keys)
+            issues.extend(batch)
+            if len(batch) < 100 or issues_data.get('isLast'):
+                break
+            start_at += 100
+            if batch_count_em >= 50:  # safety cap: 5000 issues
+                logger.warning(f"enhanced-metrics: reached 50-batch safety limit ({len(issues)} issues)")
+                break
+            import asyncio as _asyncio
+            await _asyncio.sleep(0.1)
 
         # Generate enhanced metrics (pass client + board_id for real sprint data)
         enhanced_metrics = await generate_enhanced_metrics(
@@ -6954,10 +7331,17 @@ async def generate_enhanced_metrics(
     total_issues = len(issues)
 
     for status, count in status_counts.items():
-        avg_time = sum(status_time_tracking.get(status, [0])) / len(status_time_tracking.get(status, [1])) if status_time_tracking.get(status) else 0
-        issues_stuck = count  # Simplified - in real implementation would check for issues stuck > threshold
-        is_bottleneck = issues_stuck > total_issues * 0.15  # 15% threshold
-        severity = 'high' if issues_stuck > total_issues * 0.25 else 'medium' if issues_stuck > total_issues * 0.15 else 'low'
+        time_list = status_time_tracking.get(status) or []
+        avg_time = round(sum(time_list) / len(time_list), 1) if time_list else 0
+        issues_stuck = count
+        is_bottleneck = avg_time >= 7 or issues_stuck >= 5
+        # Severity mirrors frontend calcBottleneckSeverity thresholds
+        if avg_time >= 30 or issues_stuck >= 20:
+            severity = 'high'
+        elif avg_time >= 7 or issues_stuck >= 5:
+            severity = 'medium'
+        else:
+            severity = 'low'
 
         bottleneck_analysis.append({
             "status": status,
@@ -6992,14 +7376,21 @@ async def generate_enhanced_metrics(
             "status": status
         })
 
+    # ── Date range anchor — use selected date_to (or now) as reference point ──
+    try:
+        range_end = datetime.fromisoformat(date_to) if date_to else datetime.now()
+    except Exception:
+        range_end = datetime.now()
+
     # ── Historical Comparison — derived from real issues ──────────────────────
-    now = datetime.now()
-    this_month_start = now.replace(day=1)
+    this_month_start = range_end.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     last_month_start = (this_month_start - timedelta(days=1)).replace(day=1)
+    this_month_label = this_month_start.strftime("%b %Y")
+    last_month_label = last_month_start.strftime("%b %Y")
 
     buckets_h = {
-        "Last Month": {"total": 0, "completed": 0, "resolution_days": [], "velocity": 0},
-        "This Month": {"total": 0, "completed": 0, "resolution_days": [], "velocity": 0},
+        last_month_label: {"total": 0, "completed": 0, "resolution_days": [], "velocity": 0},
+        this_month_label: {"total": 0, "completed": 0, "resolution_days": [], "velocity": 0},
     }
     for issue in issues:
         fields = issue.get("fields", {})
@@ -7014,9 +7405,9 @@ async def generate_enhanced_metrics(
             continue
         bucket_key = None
         if updated_d >= this_month_start:
-            bucket_key = "This Month"
+            bucket_key = this_month_label
         elif updated_d >= last_month_start:
-            bucket_key = "Last Month"
+            bucket_key = last_month_label
         if not bucket_key:
             continue
         b = buckets_h[bucket_key]
@@ -7032,7 +7423,7 @@ async def generate_enhanced_metrics(
                 pass
 
     historical_comparison = []
-    for period in ["Last Month", "This Month"]:
+    for period in [last_month_label, this_month_label]:
         b = buckets_h[period]
         total = b["total"] or 1
         completed = b["completed"]
@@ -7049,7 +7440,7 @@ async def generate_enhanced_metrics(
     # ── Monthly Trends — last 6 months from real issues ───────────────────────
     month_data: dict = {}
     for i in range(5, -1, -1):
-        ref = now - timedelta(days=30 * i)
+        ref = range_end - timedelta(days=30 * i)
         key = ref.strftime("%b")
         month_data[key] = {"issues": 0, "completed": 0, "velocity": 0, "month_dt": ref.replace(day=1)}
 
@@ -7468,6 +7859,387 @@ async def salesforce_metrics():
     except Exception as e:
         logger.error(f"❌ Salesforce metrics error: {e}")
         return create_error_response("Failed to fetch metrics", str(e))
+
+
+@app.get("/api/mercury-dashboard", tags=["Mercury Dashboard"], summary="PROJECT MERCURY - STATUS SUMMARY")
+async def get_mercury_dashboard():
+    """
+    Fetches all data for the PROJECT MERCURY - STATUS SUMMARY JIRA dashboard (ID 39900).
+    Replicates all 7 gadgets: Focused Test Suite, Comprehensive Test Suite,
+    Bugs Distribution, Zephyr Execution Charts, Execution Summary Table,
+    Findings links, and Two-Dimensional Bug Stats.
+    """
+    import httpx
+    import asyncio
+    from services.encryption import get_encrypted_env
+
+    JIRA_BASE = os.getenv("JIRA_BASE_URL", "https://projects.cdk.com")
+    # Service token is Fernet-encrypted in .env — decrypt it before use as a Bearer token.
+    JIRA_TOKEN = get_encrypted_env("JIRA_SERVICE_API_TOKEN") or ""
+    headers = {"Authorization": f"Bearer {JIRA_TOKEN}", "Accept": "application/json"}
+
+    PROJECT_ID = "21500"
+    VERSION_ID = "63449"  # MOD ACCOUNTING UAT
+    CYCLES = [
+        {"id": "18725", "name": "MERCED HONDA",       "color": "#0052CC"},
+        {"id": "18939", "name": "Team Nissan Group",   "color": "#00875A"},
+        {"id": "19128", "name": "Highland Park Ford",  "color": "#FF5630"},
+        {"id": "19129", "name": "Mike Burch Ford",     "color": "#FF7A00"},
+        {"id": "18938", "name": "TOYOTA OF GLENDORA",  "color": "#6554C0"},
+    ]
+    # Bug distribution grouped by JIRA project (functional module)
+    MODDWTC_BUG_PROJECTS = [
+        {"project": "APMODACC", "label": "Accounts Payable",    "color": "#0052CC"},
+        {"project": "GLMODACC", "label": "General Ledger",       "color": "#00875A"},
+        {"project": "ARMODACC", "label": "Accounts Receivable",  "color": "#FF5630"},
+        {"project": "POMODACC", "label": "Purchase Orders",      "color": "#FF8B00"},
+        {"project": "MODSRCH",  "label": "Search & Navigation",  "color": "#6554C0"},
+    ]
+    FOCUSED_BASE  = ('project = MODDWTC AND ((component IN (JournalEntry,GL_Inquiry,'
+                     'AdjustReverse,RecurringEntries) AND labels = GL-MH) OR '
+                     '(component IN (Name-Records,AccountsReceivable,AP-Payments,ODC,'
+                     'PaymentsRegister,PurchaseOrder,FS,ETC,Mod_DailyProcess,1099,'
+                     '1099E2ERegression,APInvoice) AND labels IN (MSWT-E2ERegression,M-DailyProcess)))')
+    BUG_BASE_JQL  = ('labels in (M-Bug-MH,M-Bug-Nissan,M-Bug-Toyota,M-Bug-Mike,'
+                     '"M-Bug-T&L",M-Bug-Highlandford,M-Bug-Mikeburchford) and type = bug')
+    # Component area JQLs for test suite breakdown (Focused)
+    COMP_AREAS_FOCUSED = [
+        {"label": "General Ledger",      "color": "#0052CC",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (JournalEntry,GL_Inquiry,AdjustReverse,RecurringEntries) AND labels = GL-MH"},
+        {"label": "Accounts Payable",    "color": "#00875A",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (AP-Payments,ODC,PaymentsRegister,PurchaseOrder,APInvoice) AND labels IN (MSWT-E2ERegression,M-DailyProcess)"},
+        {"label": "Accounts Receivable", "color": "#FF8B00",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (AccountsReceivable) AND labels IN (MSWT-E2ERegression,M-DailyProcess)"},
+        {"label": "1099 / Tax",          "color": "#6554C0",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (1099,1099E2ERegression) AND labels IN (MSWT-E2ERegression,M-DailyProcess)"},
+        {"label": "Other",               "color": "#8B929A",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (Name-Records,FS,ETC,Mod_DailyProcess) AND labels IN (MSWT-E2ERegression,M-DailyProcess)"},
+    ]
+    # Component area JQLs for test suite breakdown (Comprehensive)
+    COMP_AREAS_ALL = [
+        {"label": "General Ledger",      "color": "#0052CC",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (JournalEntry,GL_Inquiry,AdjustReverse,RecurringEntries)"},
+        {"label": "Accounts Payable",    "color": "#00875A",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (AP-Payments,ODC,PaymentsRegister,PurchaseOrder,APInvoice)"},
+        {"label": "Accounts Receivable", "color": "#FF8B00",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (AccountsReceivable)"},
+        {"label": "1099 / Tax",          "color": "#6554C0",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (1099,1099E2ERegression)"},
+        {"label": "Other",               "color": "#8B929A",
+         "jql": "project = MODDWTC AND issuetype = Test AND component IN (Name-Records,FS,ETC,Mod_DailyProcess)"},
+    ]
+
+    async def jql_count(client: httpx.AsyncClient, jql: str) -> int:
+        try:
+            r = await client.get(f"{JIRA_BASE}/rest/api/2/search",
+                                  params={"jql": jql, "maxResults": "0"}, headers=headers, timeout=20)
+            return r.json().get("total", 0) if r.status_code == 200 else 0
+        except Exception:
+            return 0
+
+    async def cycle_exec_summary(client: httpx.AsyncClient, cycle_id: str) -> dict:
+        try:
+            r = await client.get(
+                f"{JIRA_BASE}/rest/zapi/latest/cycle/{cycle_id}/folders",
+                params={"projectId": PROJECT_ID, "versionId": VERSION_ID},
+                headers=headers, timeout=30)
+            folders = r.json() if r.status_code == 200 and isinstance(r.json(), list) else []
+            totals = {"PASS": 0, "FAIL": 0, "WIP": 0, "BLOCKED": 0, "UNEXECUTED": 0}
+            for f in folders:
+                for s in f.get("executionSummaries", {}).get("executionSummary", []):
+                    key = s.get("statusName", "UNEXECUTED")
+                    totals[key] = totals.get(key, 0) + s.get("count", 0)
+            return totals
+        except Exception:
+            return {"PASS": 0, "FAIL": 0, "WIP": 0, "BLOCKED": 0, "UNEXECUTED": 0}
+
+    async with httpx.AsyncClient() as client:
+        # ── Parallel JIRA JQL counts ────────────────────────────────────────
+        counts = await asyncio.gather(
+            # Focused test suite
+            jql_count(client, f"{FOCUSED_BASE} AND issuetype = Test"),
+            jql_count(client, f"{FOCUSED_BASE} AND issuetype = Test AND labels != MSWT-Refactored"),
+            jql_count(client, f"{FOCUSED_BASE} AND issuetype = Test AND labels = MSWT-Refactored"),
+            # Comprehensive test suite
+            jql_count(client, "project = MODDWTC AND issuetype = Test"),
+            jql_count(client, "project = MODDWTC AND issuetype = Test AND labels != MSWT-Refactored"),
+            jql_count(client, "project = MODDWTC AND issuetype = Test AND labels = MSWT-Refactored"),
+            # Bug totals and priority breakdown
+            jql_count(client, BUG_BASE_JQL),
+            jql_count(client, f"{BUG_BASE_JQL} AND priority = High"),
+            jql_count(client, f"{BUG_BASE_JQL} AND priority = Medium"),
+            jql_count(client, f"{BUG_BASE_JQL} AND priority = Low"),
+            jql_count(client, f"{BUG_BASE_JQL} AND priority = Minor"),
+            jql_count(client, f"{BUG_BASE_JQL} AND priority = Blocker"),
+        )
+        (focused_total, focused_manual, focused_auto,
+         comp_total,    comp_manual,    comp_auto,
+         bugs_total,    bugs_high,      bugs_medium, bugs_low, bugs_minor, bugs_blocker) = counts
+
+        # ── Bug counts per JIRA project (parallel) ───────────────────────────
+        bug_proj_counts, focused_area_counts, comp_area_counts, exec_summaries = await asyncio.gather(
+            asyncio.gather(*[
+                jql_count(client, f'{BUG_BASE_JQL} AND project = {seg["project"]}')
+                for seg in MODDWTC_BUG_PROJECTS
+            ]),
+            asyncio.gather(*[jql_count(client, a["jql"]) for a in COMP_AREAS_FOCUSED]),
+            asyncio.gather(*[jql_count(client, a["jql"]) for a in COMP_AREAS_ALL]),
+            asyncio.gather(*[cycle_exec_summary(client, c["id"]) for c in CYCLES]),
+        )
+
+    bugs_distribution = [
+        {**seg, "count": bug_proj_counts[i]}
+        for i, seg in enumerate(MODDWTC_BUG_PROJECTS)
+    ]
+
+    execution_summary = []
+    for i, c in enumerate(CYCLES):
+        s = exec_summaries[i]
+        total = sum(s.values())
+        pass_rate = round(s["PASS"] / total * 100, 1) if total > 0 else 0
+        execution_summary.append({
+            "cycle":       c["name"],
+            "color":       c["color"],
+            "pass":        s["PASS"],
+            "fail":        s["FAIL"],
+            "wip":         s["WIP"],
+            "blocked":     s["BLOCKED"],
+            "unexecuted":  s["UNEXECUTED"],
+            "total":       total,
+            "pass_rate":   pass_rate,
+        })
+
+    return {
+        "focused_test_suite": {
+            "total":     focused_total,
+            "manual":    focused_manual,
+            "automated": focused_auto,
+            "by_area": [
+                {k: v for k, v in {**a, "count": focused_area_counts[i]}.items() if k != "jql"}
+                for i, a in enumerate(COMP_AREAS_FOCUSED)
+            ],
+        },
+        "comprehensive_test_suite": {
+            "total":     comp_total,
+            "manual":    comp_manual,
+            "automated": comp_auto,
+            "by_area": [
+                {k: v for k, v in {**a, "count": comp_area_counts[i]}.items() if k != "jql"}
+                for i, a in enumerate(COMP_AREAS_ALL)
+            ],
+        },
+        "bugs_distribution": bugs_distribution,
+        "bug_priorities": {
+            "Blocker": bugs_blocker,
+            "High":    bugs_high,
+            "Medium":  bugs_medium,
+            "Low":     bugs_low,
+            "Minor":   bugs_minor,
+        },
+        "bugs_total": bugs_total,
+        "execution_summary": execution_summary,
+        "version":      "MOD ACCOUNTING UAT",
+        "project":      "MODDWTC",
+        "dashboard_id": "39900",
+        "findings": {
+            "observations_url": "https://confluence.cdk.com/pages/viewpage.action?pageId=502140070",
+            "blockers_url":     "https://confluence.cdk.com/pages/viewpage.action?pageId=502140072",
+        },
+        "last_updated": datetime.utcnow().isoformat() + "Z",
+    }
+
+
+@app.get("/api/mercury-dashboard/findings", tags=["Mercury Dashboard"])
+async def get_findings_analysis():
+    """
+    Fetch both Confluence findings pages (observations + blockers), parse the HTML tables,
+    and return a structured high-level analysis for the FalconX Services Dashboard.
+    """
+    import httpx
+    import asyncio
+    import re
+    from services.encryption import get_encrypted_env
+
+    CONF_BASE  = os.getenv("CONFLUENCE_BASE_URL", "https://confluence.cdk.com")
+    # Service token is Fernet-encrypted in .env — decrypt it before use as a Bearer token.
+    CONF_TOKEN = get_encrypted_env("CONFLUENCE_SERVICE_API_TOKEN") or ""
+    OBS_PAGE   = "502140070"
+    BLK_PAGE   = "502140072"
+    ch = {"Authorization": f"Bearer {CONF_TOKEN}", "Accept": "application/json"}
+
+    # ── HTML table parser ────────────────────────────────────────────────────────
+    def parse_rows(html_content: str) -> list:
+        try:
+            from lxml import html as lx
+            tree = lx.fromstring(html_content)
+            out = []
+            for tr in tree.xpath("//tr")[2:]:          # skip title + header rows
+                cells = tr.xpath(".//td")
+                if len(cells) < 8:
+                    continue
+                def t(c): return re.sub(r"\s+", " ", c.text_content()).strip()
+                tx = [t(c) for c in cells]
+                desc = tx[1]
+                if not desc:
+                    continue
+                out.append({
+                    "num":    tx[0],
+                    "desc":   desc,
+                    "wf":     tx[2] if len(tx) > 2 else "",
+                    "mh":     tx[3].upper() if len(tx) > 3 else "",
+                    "ty":     tx[4].upper() if len(tx) > 4 else "",
+                    "ns":     tx[5].upper() if len(tx) > 5 else "",
+                    "hp":     tx[6].upper() if len(tx) > 6 else "",
+                    "mb":     tx[7].upper() if len(tx) > 7 else "",
+                    "status": tx[8] if len(tx) > 8 else "",
+                })
+            return out
+        except Exception:
+            return []
+
+    # ── Helpers ──────────────────────────────────────────────────────────────────
+    WF_LABELS = {
+        "1099": "1099 Workflow",
+        "AP Invoice": "AP Invoice",
+        "AP (Daily Process flows)": "AP Daily Processing",
+        "AP Payments": "AP Payments",
+        "PO": "Purchase Order",
+        "PO (Daily Process flows)": "PO Daily Processing",
+        "ETC (Daily Process flows)": "ETC",
+        "GL (Daily Process Flows)": "GL Processing",
+        "GL Inquiry (Daily Process Flows)": "GL Inquiry",
+        "GL Inquiry(Adjust/Reverse)": "GL Adjust/Reverse",
+        "GL Inquiry": "GL Inquiry",
+        "AR (Daily Process Flows)": "AR Processing",
+        "AR (Daily Process flow)": "AR Processing",
+        "AR": "AR",
+        "NE (Daily Process Flows)": "Name Entity",
+        "NE": "Name Entity",
+        "FS (Daily Process Flows)": "Financial Statement",
+        "FS": "Financial Statement",
+    }
+    DEALERS = {"mh": "Merced Honda", "ty": "Toyota", "ns": "Nissan", "hp": "Highland Park", "mb": "Mike Burch"}
+
+    def wf(s): return WF_LABELS.get(s.strip(), s.strip()) if s.strip() else "Other"
+
+    def classify(s):
+        s = s.lower()
+        if any(x in s for x in ["resolved", "solved", "no more a blocker", "expected behaviour", "expected behavior"]):
+            return "resolved"
+        if any(x in s for x in ["logged a bug", "raised bug", "bug logged", "existing bug", "already a bug", "defect", "projects.cdk.com/browse/"]):
+            return "bug_logged"
+        if any(x in s for x in ["in progress", "waiting", "awaiting", "discussed", "discussing", "on hold", "will be", "to check", "development"]):
+            return "in_progress"
+        return "pending"
+
+    def jids(s): return list(set(re.findall(r"[A-Z]+-\d+", s)))
+
+    def dealers(row):
+        conf = [DEALERS[k] for k in ("mh","ty","ns","hp","mb") if "YES" in row.get(k,"")]
+        pend = [DEALERS[k] for k in ("mh","ty","ns","hp","mb") if "YET" in row.get(k,"") or row.get(k,"").strip() == ""]
+        return conf, pend
+
+    def clip(s, n=120): return s[:n] + "…" if len(s) > n else s
+
+    # ── Observations analysis ────────────────────────────────────────────────────
+    def analyze_obs(rows):
+        groups: dict = {}
+        stats = {"bug_logged": 0, "resolved": 0, "in_progress": 0, "pending": 0}
+        for row in rows:
+            st  = classify(row["status"])
+            stats[st] = stats.get(st, 0) + 1
+            label = wf(row["wf"])
+            ids   = jids(row["status"])
+            conf, pend = dealers(row)
+            if label not in groups:
+                groups[label] = {"workflow": label, "count": 0, "statuses": set(), "conf": set(), "pend": set(), "ids": [], "items": []}
+            g = groups[label]
+            g["count"] += 1
+            g["statuses"].add(st)
+            g["conf"].update(conf)
+            g["pend"].update(pend)
+            g["ids"].extend(ids)
+            if len(g["items"]) < 2:
+                g["items"].append({"description": clip(row["desc"]), "status": st, "jira_ids": ids})
+        return {
+            "total": len(rows),
+            "stats": stats,
+            "by_workflow": sorted([
+                {"workflow": g["workflow"], "count": g["count"],
+                 "statuses": list(g["statuses"]),
+                 "confirmed_dealers": sorted(g["conf"]),
+                 "pending_dealers":   sorted(g["pend"]),
+                 "jira_ids": list(set(g["ids"])),
+                 "items": g["items"]}
+                for g in groups.values()
+            ], key=lambda x: -x["count"]),
+        }
+
+    # ── Blockers analysis ────────────────────────────────────────────────────────
+    def analyze_blk(rows):
+        active, resolved = [], []
+        for row in rows:
+            if not row["desc"].strip():
+                continue
+            st   = classify(row["status"])
+            conf, pend = dealers(row)
+            ids  = jids(row["status"])
+            item = {
+                "id": row["num"],
+                "description": clip(row["desc"]),
+                "workflow": wf(row["wf"]),
+                "status_type": st,
+                "status_text": clip(row["status"], 80),
+                "jira_ids": ids,
+                "confirmed_dealers": sorted(conf),
+                "pending_dealers":   sorted(pend),
+            }
+            (resolved if st == "resolved" else active).append(item)
+        return {
+            "total": len(active) + len(resolved),
+            "active_count":   len(active),
+            "resolved_count": len(resolved),
+            "active":   active,
+            "resolved": resolved,
+        }
+
+    # ── Fetch + parse ────────────────────────────────────────────────────────────
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=30) as client:
+            obs_r, blk_r = await asyncio.gather(
+                client.get(f"{CONF_BASE}/rest/api/content/{OBS_PAGE}", params={"expand": "body.storage"}, headers=ch),
+                client.get(f"{CONF_BASE}/rest/api/content/{BLK_PAGE}",  params={"expand": "body.storage"}, headers=ch),
+            )
+        obs_html = obs_r.json().get("body", {}).get("storage", {}).get("value", "")
+        blk_html = blk_r.json().get("body", {}).get("storage", {}).get("value", "")
+        return {
+            "observations": analyze_obs(parse_rows(obs_html)),
+            "blockers":     analyze_blk(parse_rows(blk_html)),
+            "obs_url": f"{CONF_BASE}/pages/viewpage.action?pageId={OBS_PAGE}",
+            "blk_url": f"{CONF_BASE}/pages/viewpage.action?pageId={BLK_PAGE}",
+            "last_fetched": datetime.utcnow().isoformat() + "Z",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Services Dashboard - Jira Fields Discovery Endpoint
+@app.get("/api/jira/fields")
+async def get_jira_fields():
+    """Get list of searchable Jira fields for Services Dashboard configuration"""
+    if not app_state.jira_configured or not app_state.jira_client:
+        raise HTTPException(status_code=400, detail="Jira not configured")
+
+    try:
+        fields = await app_state.jira_client.get_fields()
+        return {
+            "success": True,
+            "fields": fields if fields else [],
+            "total": len(fields) if fields else 0,
+            "note": "Look for custom field IDs like 'customfield_12345' for Zephyr test cycle and execution status fields"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
