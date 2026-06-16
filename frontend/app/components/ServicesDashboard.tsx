@@ -7,7 +7,7 @@ import {
   RefreshCw, ExternalLink, AlertCircle, CheckCircle2, XCircle,
   Clock, MinusCircle, Bug, TestTube2, BarChart3, FileText,
   TrendingUp, ShieldAlert, Layers, AlertTriangle, ChevronDown, ChevronRight,
-  Activity, Zap, Target
+  Activity, Zap, Target, PieChart
 } from 'lucide-react'
 import { getApiUrl } from '../../lib/api-config'
 
@@ -152,6 +152,7 @@ interface FindingsAnalysis {
 interface DashboardData {
   focused_test_suite:        TestSuiteData
   comprehensive_test_suite:  TestSuiteData
+  test_cases_distribution?:  TestSuiteData | null
   bugs_distribution:         BugDistItem[]
   bugs_distribution_total?:  number
   bugs_source_jql?:          string
@@ -594,6 +595,110 @@ function TestSuiteBreakdown({ manual, automated, total, by_area, columns: source
   )
 }
 
+// ── Donut chart — single-dimension breakdown (e.g. Test Cases Distribution) ───
+function TestCasesDonutChart({ data, jiraBase }: { data: TestSuiteData; jiraBase?: string }) {
+  const areas = (data.by_area ?? []).filter(a => a.count > 0)
+  const total = data.total || areas.reduce((s, a) => s + a.count, 0) || 1
+  const base = jiraBase ?? 'https://projects.cdk.com'
+  const [hovered, setHovered] = useState<string | null>(null)
+
+  const openJql = (jql?: string) => {
+    if (!jql) return
+    window.open(`${base}/issues/?jql=${encodeURIComponent(jql)}`, '_blank', 'noopener,noreferrer')
+  }
+
+  if (areas.length === 0) {
+    return (
+      <div style={{ padding: '24px 16px', textAlign: 'center', color: DS.textMuted, fontSize: 11 }}>
+        No test case data available
+      </div>
+    )
+  }
+
+  const radius = 58
+  const strokeWidth = 24
+  const circumference = 2 * Math.PI * radius
+  let offsetAccum = 0
+  const hoveredArea = areas.find(a => a.label === hovered)
+
+  return (
+    <div style={{ padding: '14px 16px', display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+      {/* SVG Donut */}
+      <div style={{ position: 'relative', width: 152, height: 152, flexShrink: 0 }}>
+        <svg width={152} height={152} viewBox="0 0 152 152">
+          <g transform="rotate(-90 76 76)">
+            <circle cx={76} cy={76} r={radius} fill="none" stroke={DS.border} strokeWidth={strokeWidth} />
+            {areas.map(area => {
+              const pct = area.count / total
+              const segLen = pct * circumference
+              const dashArray = `${segLen} ${circumference - segLen}`
+              const dashOffset = -offsetAccum
+              offsetAccum += segLen
+              const isHovered = hovered === area.label
+              return (
+                <circle
+                  key={area.label}
+                  cx={76} cy={76} r={radius} fill="none"
+                  stroke={area.color}
+                  strokeWidth={isHovered ? strokeWidth + 5 : strokeWidth}
+                  strokeDasharray={dashArray}
+                  strokeDashoffset={dashOffset}
+                  onMouseEnter={() => setHovered(area.label)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => openJql(area.jql)}
+                  style={{
+                    cursor: area.jql ? 'pointer' : 'default',
+                    opacity: hovered && !isHovered ? 0.35 : 0.95,
+                    transition: 'opacity 0.15s, stroke-width 0.15s',
+                  }}
+                >
+                  <title>{`${area.label}: ${area.count} (${Math.round(pct * 100)}%)`}</title>
+                </circle>
+              )
+            })}
+          </g>
+        </svg>
+        {/* Center label */}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          <span style={{ color: DS.text, fontSize: 20, fontWeight: 800, lineHeight: 1 }}>
+            {(hoveredArea ? hoveredArea.count : total).toLocaleString()}
+          </span>
+          <span style={{ color: DS.textMuted, fontSize: 9, marginTop: 3, textAlign: 'center', maxWidth: 90, lineHeight: 1.2 }}>
+            {hoveredArea ? hoveredArea.label : 'Total Cases'}
+          </span>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div style={{ flex: 1, minWidth: 180, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {areas.map(area => {
+          const pct = Math.round((area.count / total) * 100)
+          return (
+            <div
+              key={area.label}
+              onMouseEnter={() => setHovered(area.label)}
+              onMouseLeave={() => setHovered(null)}
+              onClick={() => openJql(area.jql)}
+              title={area.jql ? `Open in Jira: ${area.label}` : area.label}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '3px 6px', borderRadius: 6,
+                cursor: area.jql ? 'pointer' : 'default',
+                background: hovered === area.label ? DS.surface : 'transparent',
+                transition: 'background 0.15s',
+              }}
+            >
+              <div style={{ width: 9, height: 9, borderRadius: 2, background: area.color, flexShrink: 0 }} />
+              <span style={{ color: DS.textSec, fontSize: 11, flex: 1 }}>{area.label}</span>
+              <span style={{ color: DS.textMuted, fontSize: 10 }}>{pct}%</span>
+              <span style={{ color: DS.text, fontSize: 12, fontWeight: 700, minWidth: 36, textAlign: 'right' }}>{area.count.toLocaleString()}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── Bug Distribution horizontal bars ──────────────────────────────────────────
 function BugDistributionChart({ bugs, total, sourceJql, jiraBase }: {
   bugs: BugDistItem[]
@@ -884,7 +989,7 @@ function BugPriorityByProjectChart({ items = [], total, priorityOrder }: { items
           {activeItems.map((item, rowIdx) => (
             <tr
               key={item.project}
-              style={{ borderBottom: `1px solid ${DS.border}`, background: rowIdx % 2 === 0 ? 'transparent' : DS.bg + '55' }}
+              style={{ borderBottom: `1px solid ${DS.border}`, background: rowIdx % 2 === 0 ? 'transparent' : DS.surface + '55' }}
             >
               <td style={{ padding: '7px 14px 7px 16px', whiteSpace: 'nowrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1591,7 +1696,7 @@ export function ServicesDashboard() {
 
         <motion.div
           initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.18 }}
-          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'stretch' }}
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14, alignItems: 'stretch' }}
         >
           <Card>
             <CardHeader
@@ -1612,6 +1717,18 @@ export function ServicesDashboard() {
             />
             <TestSuiteBreakdown {...data.comprehensive_test_suite} />
           </Card>
+
+          {data.test_cases_distribution && (
+            <Card>
+              <CardHeader
+                icon={PieChart}
+                title={data.test_cases_distribution.chart_title || 'Test Cases Distribution'}
+                subtitle="Test case spread across functional components · click a slice to open in Jira"
+                accent="var(--amber)"
+              />
+              <TestCasesDonutChart data={data.test_cases_distribution} jiraBase={data.jira_base_url} />
+            </Card>
+          )}
         </motion.div>
 
         {/* ── Section: Bug Intelligence ────────────────────────────────────── */}
