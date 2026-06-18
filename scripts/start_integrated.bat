@@ -92,7 +92,7 @@ call npm install
 
 REM Start frontend in background
 echo 🚀 Starting frontend server on port 3000...
-start /b npm run dev
+start /b cmd /c "set NODE_OPTIONS=--max-old-space-size=4096 && for /L %%i in (0,0,1) do (npm run dev && timeout /t 2 /nobreak >nul)"
 
 REM Wait for frontend to start
 echo ⏳ Waiting for frontend to start...

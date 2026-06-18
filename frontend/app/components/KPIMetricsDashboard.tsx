@@ -383,7 +383,7 @@ export function KPIMetricsDashboard() {
               <button
                 onClick={fetchKPIMetrics}
                 disabled={loading}
-                style={{ background: 'var(--accent-cool)', color: 'var(--bg-page)', border: 'none', borderRadius: '10px', padding: '9px 18px', fontSize: '13px', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px', opacity: loading ? 0.7 : 1, fontFamily: DS.font, boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
+                style={{ background: '#D4A847', color: '#1C1A17', border: 'none', borderRadius: '10px', padding: '9px 18px', fontSize: '13px', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px', opacity: loading ? 0.7 : 1, fontFamily: DS.font, boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
               >
                 <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
                 Refresh

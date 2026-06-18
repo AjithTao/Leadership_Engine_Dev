@@ -15,26 +15,28 @@
   :root {
     color-scheme: light;
 
-    /* ── Backgrounds & surfaces ─────────────────────────────────────────── */
-    --bg-page:        #D8DDE8;   /* twilight fog canvas — cool blue-gray base  */
-    --bg-card:        #EDF0F6;   /* elevated surfaces — near-white cool tint   */
-    --bg-surface:     #E2E6EF;   /* table headers, input backgrounds           */
-    --bg-hover:       #D0D6E4;   /* nav hover, row hover                       */
-    --bg-active:      #C8D0E0;   /* active nav, selected states                */
+    /* ── Backgrounds & surfaces — warm-neutral light stack, elevated cards ─ */
+    --bg-page:        #F4F5F7;   /* light neutral canvas (never pure white)    */
+    --bg-card:        #FCFCFD;   /* elevated surface — near-white, lifts above page */
+    --bg-surface:     #ECEDF1;   /* table headers, inputs — subtle inset       */
+    --bg-hover:       #E5E7EC;   /* nav hover, row hover                       */
+    --bg-active:      #DBDEE6;   /* active nav, selected states                */
 
     /* ── Borders ────────────────────────────────────────────────────────── */
-    --border:         #C5CCDB;   /* cool blue-gray border                      */
-    --border-strong:  #B0BCCF;   /* focus / hover emphasis                     */
+    --border:         #E1E3E9;   /* subtle neutral border                      */
+    --border-strong:  #C9CCD5;   /* focus / hover emphasis                     */
 
-    /* ── Text ───────────────────────────────────────────────────────────── */
-    --text-primary:   #0B1220;   /* deep cool navy-black — high contrast       */
-    --text-secondary: #0B1220;   /* same as primary for better visibility      */
-    --text-muted:     #2C3E50;   /* darker for better visibility in light mode */
-    --text-hint:      #3D4A5C;   /* darker hint text for visibility            */
+    /* ── Text — genuine 3-step hierarchy (all ≥ AA on the surfaces above) ── */
+    --text-primary:   #16191F;   /* near-black — 17:1 on card                  */
+    --text-secondary: #4E5564;   /* mid-grey — 7.3:1, distinct from primary    */
+    --text-muted:     #646B79;   /* muted — 5.2:1 on card, 4.6:1 on surface    */
+    --text-hint:      #646B79;   /* hint — kept AA for small uppercase labels  */
 
-    /* ── Brand accent — EXACT DARK MODE MUSTARD, UNCHANGED ─────────────── */
-    --accent-cool:    #D4A847;
-    --accent-cool-bg: #EEE6CC;   /* rgba(212,168,71,0.14) on #EDF0F6          */
+    /* ── Brand accent — gold tuned for LIGHT surfaces ──────────────────── */
+    --accent-cool:      #A07815; /* fills/dots/stripes/icons — 3.9:1 UI on card */
+    --accent-cool-text: #816213; /* gold as TEXT on light — 5.0:1+ (badges)    */
+    --accent-cool-hover:#6E5410; /* hover/active accent                        */
+    --accent-cool-bg:   #F6F0DF; /* pale warm-gold tint background             */
 
     /* ── Semantic colors ────────────────────────────────────────────────── */
     --amber:          #B87700;
@@ -62,49 +64,76 @@
     --shadow-large:   0 8px 28px rgba(10,20,50,0.12), 0 4px 8px rgba(10,20,50,0.07);
 
     /* ── Legacy compat aliases ──────────────────────────────────────────── */
-    --bg-primary:        #D8DDE8;
-    --bg-secondary:      #EDF0F6;
-    --bg-tertiary:       #E2E6EF;
-    --accent-primary:    #0B1220;
-    --accent-secondary:  #253550;
-    --accent-tertiary:   #506080;
-    --text-muted-legacy: #506080;
-    --border-subtle:     #C5CCDB;
-    --border-muted:      #C5CCDB;
-    --border-accent:     #B0BCCF;
+    --bg-primary:        #F4F5F7;
+    --bg-secondary:      #FCFCFD;
+    --bg-tertiary:       #ECEDF1;
+    --accent-primary:    #16191F;
+    --accent-secondary:  #4E5564;
+    --accent-tertiary:   #646B79;
+    --text-muted-legacy: #646B79;
+    --border-subtle:     #E1E3E9;
+    --border-muted:      #E1E3E9;
+    --border-accent:     #C9CCD5;
     --success:           #D4A847;
     --green:             var(--accent-cool);
     --green-bg:          var(--accent-cool-bg);
     --warning:           #B87700;
     --error:             #C01C1C;
 
-    /* ── Tailwind HSL compat (light — twilight fog cool blue-gray) ───────── */
-    --background:              221 18% 87%;   /* #D8DDE8                      */
-    --foreground:              223 50% 10%;   /* #0B1220                      */
-    --card:                    220 30% 95%;   /* #EDF0F6                      */
-    --card-foreground:         223 50% 10%;
-    --popover:                 220 30% 95%;
-    --popover-foreground:      223 50% 10%;
-    --primary:                 223 50% 10%;
-    --primary-foreground:      221 18% 87%;
-    --secondary:               220 22% 91%;   /* #E2E6EF surface              */
-    --secondary-foreground:    223 50% 10%;
-    --muted:                   220 22% 91%;
-    --muted-foreground:        218 33% 40%;   /* #506080                      */
-    --accent:                  220 22% 91%;
-    --accent-foreground:       223 50% 10%;
-    --destructive:             0 72% 45%;
+    /* ── Status semantics (success / warning / danger) — AA as text on light */
+    --status-success:    #1A7331;   /* 5.8:1 text · 3:1 dot on card           */
+    --status-success-bg: #E4F2E8;
+    --status-warning:    #8A5E10;   /* dark amber/ochre — 5.6:1 text          */
+    --status-warning-bg: #F6ECD7;
+    --status-danger:     #C01C1C;   /* 6:1 text                               */
+    --status-danger-bg:  #F7DEDE;
+
+    /* ── Semantic design tokens (brand naming) + interactive states ──────── */
+    --color-bg-primary:     var(--bg-page);
+    --color-bg-surface:     var(--bg-surface);
+    --color-bg-elevated:    var(--bg-card);
+    --color-text-primary:   var(--text-primary);
+    --color-text-secondary: var(--text-secondary);
+    --color-text-muted:     var(--text-muted);
+    --color-border:         var(--border);
+    --color-border-subtle:  var(--border-subtle);
+    --color-accent:         var(--accent-cool);
+    --color-accent-hover:   var(--accent-cool-hover);
+    --color-accent-text:    var(--accent-cool-text);
+    --color-status-success: var(--status-success);
+    --color-status-warning: var(--status-warning);
+    --color-status-danger:  var(--status-danger);
+    --state-hover-bg:       var(--bg-hover);
+    --state-active-bg:      var(--bg-active);
+    --state-focus-ring:     var(--accent-cool);
+
+    /* ── Tailwind HSL compat (light — warm-neutral, matches hexes above) ─── */
+    --background:              220 16% 96%;   /* #F4F5F7                      */
+    --foreground:              220 17% 10%;   /* #16191F                      */
+    --card:                    240 20% 99%;   /* #FCFCFD                      */
+    --card-foreground:         220 17% 10%;
+    --popover:                 240 20% 99%;
+    --popover-foreground:      220 17% 10%;
+    --primary:                 220 17% 10%;
+    --primary-foreground:      220 16% 96%;
+    --secondary:               228 15% 94%;   /* #ECEDF1 surface              */
+    --secondary-foreground:    220 17% 10%;
+    --muted:                   228 15% 94%;
+    --muted-foreground:        220 10% 43%;   /* #646B79                      */
+    --accent:                  228 15% 94%;
+    --accent-foreground:       220 17% 10%;
+    --destructive:             0 75% 43%;     /* #C01C1C                      */
     --destructive-foreground:  0 0% 100%;
-    --input:                   220 22% 91%;
-    --ring:                    223 50% 10%;
-    --sidebar:                 220 30% 95%;   /* elevated card surface        */
-    --sidebar-foreground:      223 50% 10%;
-    --sidebar-primary:         223 50% 10%;
-    --sidebar-primary-foreground: 221 18% 87%;
-    --sidebar-accent:          220 18% 88%;   /* hover in sidebar             */
-    --sidebar-accent-foreground: 223 50% 10%;
-    --sidebar-border:          220 16% 80%;   /* #C5CCDB                      */
-    --sidebar-ring:            223 50% 10%;
+    --input:                   228 15% 94%;
+    --ring:                    220 17% 10%;
+    --sidebar:                 240 20% 99%;   /* elevated card surface        */
+    --sidebar-foreground:      220 17% 10%;
+    --sidebar-primary:         220 17% 10%;
+    --sidebar-primary-foreground: 220 16% 96%;
+    --sidebar-accent:          223 16% 91%;   /* hover in sidebar (#E5E7EC)   */
+    --sidebar-accent-foreground: 220 17% 10%;
+    --sidebar-border:          225 15% 90%;   /* #E1E3E9                      */
+    --sidebar-ring:            220 17% 10%;
 
     /* ── Chart colors (twilight fog light) ──────────────────────────────── */
     --chart-1: 43 65% 50%;    /* mustard gold                                 */
@@ -139,8 +168,10 @@
     --text-hint:      #3A4060;
 
     /* ── Brand accent ───────────────────────────────────────────────────── */
-    --accent-cool:    #D4A847;
-    --accent-cool-bg: #2A2418;
+    --accent-cool:      #D4A847;
+    --accent-cool-text: #D4A847;   /* gold reads fine as text on dark — unchanged */
+    --accent-cool-hover:#E0B860;
+    --accent-cool-bg:   #2A2418;
 
     /* ── Semantic colors ────────────────────────────────────────────────── */
     --amber:          #FCD34D;
@@ -176,6 +207,14 @@
     --green-bg:          var(--accent-cool-bg);
     --warning:           #FCD34D;
     --error:             #F87171;
+
+    /* ── Status semantics (dark variants) — bright enough on dark surfaces ─ */
+    --status-success:    #4ADE80;
+    --status-success-bg: #14301E;
+    --status-warning:    #FCD34D;
+    --status-warning-bg: #2A2410;
+    --status-danger:     #F87171;
+    --status-danger-bg:  #2A1212;
 
     /* ── Tailwind HSL compat (dark) ─────────────────────────────────────── */
     --background:              228 16% 9%;
@@ -363,6 +402,13 @@ select:focus-visible {
 }
 .ds-card:hover { border-color: var(--border-strong); }
 
+/* Light-mode card elevation — subtle, enterprise. Dark mode keeps its flat,
+   border-defined cards so the dark theme is completely unaffected. */
+html:not(.dark) .ds-card,
+html:not(.dark) .premium-card { box-shadow: var(--shadow-small); }
+html:not(.dark) .ds-card:hover,
+html:not(.dark) .premium-card:hover { box-shadow: var(--shadow-medium); }
+
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 .btn {
   background: var(--bg-surface);
@@ -401,7 +447,7 @@ select:focus-visible {
   font-weight: 500;
   font-family: var(--font);
 }
-.badge-green { background: var(--accent-cool-bg);  color: var(--accent-cool); }
+.badge-green { background: var(--accent-cool-bg);  color: var(--accent-cool-text); }
 .badge-amber { background: var(--amber-bg);         color: var(--amber); }
 .badge-red   { background: var(--red-bg);           color: var(--red);   }
 .badge-blue  { background: var(--blue-bg);          color: var(--blue);  }
@@ -947,3 +993,14 @@ tr.pdf-grand-total-row td {
 
 /* Card shadow utility */
 .ji-shadow { box-shadow: var(--shadow-small); }
+
+/*
+ * Radix ScrollArea wraps its children in an internal <div style="display:table">
+ * that sizes to content, which lets `white-space:nowrap` text expand past the
+ * sidebar width and defeats `truncate` (text hard-clips instead of ellipsing).
+ * Force that wrapper to block so it fills 100% of the viewport, giving inner
+ * truncation a fixed width to clamp against. Scoped to the sidebar nav only.
+ */
+.sidebar-nav-scroll [data-radix-scroll-area-viewport] > div {
+  display: block !important;
+}
