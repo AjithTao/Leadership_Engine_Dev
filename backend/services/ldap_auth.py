@@ -9,7 +9,7 @@ import os
 import ssl
 import logging
 from typing import Optional, Dict
-from ldap3 import Server, Connection, ALL, SUBTREE, Tls
+from ldap3 import Server, Connection, NONE, SUBTREE, Tls
 from ldap3.core.exceptions import LDAPException
 
 # Import encryption utility
@@ -76,17 +76,28 @@ def authenticate_user_from_ldap(username: str, password: str) -> Optional[Dict[s
         if is_ldaps:
             tls_config = Tls(validate=ssl.CERT_NONE)  # Allow self-signed certs
         
+        # get_info=NONE skips the RootDSE + full AD schema fetch that ldap3 does
+        # on every bind. This auth path only needs a bind plus a sAMAccountName
+        # search (attributes come from the search result, not the schema), so the
+        # schema read is pure, repeated-per-login overhead — dropping it is the
+        # single largest avoidable cut to login latency.
+        # connect_timeout bounds TCP/TLS setup so an unreachable DC fails fast
+        # instead of hanging on the OS default (~21s).
         server = Server(
-            LDAP_SERVER_URL, 
-            get_info=ALL, 
+            LDAP_SERVER_URL,
+            get_info=NONE,
             use_ssl=is_ldaps,
-            tls=tls_config
+            tls=tls_config,
+            connect_timeout=3
         )
+        # receive_timeout bounds the wait for each bind/search response so a
+        # stalled DC can't block the login request indefinitely.
         service_conn = Connection(
-            server, 
-            user=LDAP_USER, 
-            password=LDAP_SERVICE_ACCOUNT_PASSWORD, 
-            auto_bind=True
+            server,
+            user=LDAP_USER,
+            password=LDAP_SERVICE_ACCOUNT_PASSWORD,
+            auto_bind=True,
+            receive_timeout=5
         )
         
         print(f"🔐 LDAP CONNECTION: Connected to {LDAP_SERVER_URL}", flush=True)
@@ -127,7 +138,7 @@ def authenticate_user_from_ldap(username: str, password: str) -> Optional[Dict[s
         bind_error_msg = None
         
         try:
-            user_conn = Connection(server, user=user_dn, password=password, auto_bind=True)
+            user_conn = Connection(server, user=user_dn, password=password, auto_bind=True, receive_timeout=5)
             
             if user_conn and user_conn.bound:
                 print(f"✅ LDAP AUTHENTICATION SUCCESS (Direct Bind): {username}", flush=True)
