@@ -87,7 +87,7 @@ pushd frontend >nul
 call :say "Checking npm packages..."
 call npm install
 if exist "%FRONTEND_LOG%" del "%FRONTEND_LOG%" >nul 2>&1
-start "frontend-dev" /B cmd /c "cd /d ""%PROJECT_ROOT%\frontend"" && call npm run dev > ""%FRONTEND_LOG%"" 2>&1"
+start "frontend-dev" /B cmd /c "cd /d ""%PROJECT_ROOT%\frontend"" && set NODE_OPTIONS=--max-old-space-size=4096 && for /L %%i in (0,0,1) do (echo [%%DATE%% %%TIME%%] frontend runner start >> ""%FRONTEND_LOG%"" && call npm run dev >> ""%FRONTEND_LOG%"" 2>&1 && echo [%%DATE%% %%TIME%%] frontend exited, restarting in 2s >> ""%FRONTEND_LOG%"" && timeout /t 2 /nobreak >nul)"
 call :say "Frontend is warming up on http://localhost:3000 (logs: %FRONTEND_LOG%)."
 popd >nul
 
