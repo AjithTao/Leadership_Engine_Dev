@@ -34,7 +34,10 @@ import {
   FileBarChart,
   MessagesSquare,
   LineChart,
-  Cloud
+  Cloud,
+  Rocket,
+  FolderOpen,
+  Layers
 } from 'lucide-react'
 import { FalconXLogo, MUSTARD, MUSTARD_DIM, OLIVE } from '../ui/FalconXLogo'
 import { getApiUrl } from '../../../lib/api-config'
@@ -82,6 +85,7 @@ export function NewLeftSidebar({
   const [integrationsExpanded, setIntegrationsExpanded] = useState(true)
   const [quickActionsExpanded, setQuickActionsExpanded] = useState(false)
   const [insightsExpanded, setInsightsExpanded] = useState(false)
+  const [mercuryExpanded, setMercuryExpanded] = useState(false)
   const [showWelcome, setShowWelcome] = useState(true)
   const showLegacyAboutContent = false
 
@@ -141,6 +145,12 @@ export function NewLeftSidebar({
   React.useEffect(() => {
     if (['insights', 'github-insights', 'tcoe-dashboard', 'tcoe-report'].includes(activeView)) {
       setInsightsExpanded(true)
+    }
+  }, [activeView])
+
+  React.useEffect(() => {
+    if (['services-dashboard', 'services-modern'].includes(activeView)) {
+      setMercuryExpanded(true)
     }
   }, [activeView])
 
@@ -224,7 +234,7 @@ export function NewLeftSidebar({
           </AnimatePresence>
         </div>
 
-        <ScrollArea className="flex-1 min-h-0">
+        <ScrollArea className="sidebar-nav-scroll flex-1 min-h-0">
           <div className="p-4 pb-6 space-y-5">
             {/* Navigation */}
             <div className="space-y-1.5">
@@ -347,7 +357,78 @@ export function NewLeftSidebar({
                 })()}
               </div>
 
-              {/* Salesforce — Separate top-level */}
+              {/* Project Mercury — Collapsible */}
+              <div className="space-y-0.5">
+                {(() => {
+                  const mercuryActive = activeView === 'services-dashboard' || activeView === 'services-modern'
+                  return (
+                    <>
+                      <NavButton
+                        active={mercuryActive}
+                        onClick={() => setMercuryExpanded(!mercuryExpanded)}
+                        primary={primary}
+                      >
+                        <Rocket className="w-4 h-4 flex-shrink-0" style={{ color: mercuryActive ? MUSTARD : 'var(--text-secondary)' }} />
+                        <div className="text-left flex-1 min-w-0">
+                          <div className="text-sm font-medium leading-none">Project Mercury</div>
+                          <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>T&L Execution</div>
+                        </div>
+                        {mercuryExpanded
+                          ? <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
+                          : <ChevronRight className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
+                        }
+                      </NavButton>
+
+                      {mercuryExpanded && (
+                        <div
+                          className="ml-7 pl-3 space-y-0.5 overflow-hidden"
+                          style={{ borderLeft: '1px solid var(--border)' }}
+                        >
+                          <SubNavButton
+                            active={activeView === 'services-dashboard'}
+                            onClick={() => setActiveView('services-dashboard')}
+                            primary={primary}
+                          >
+                            <FolderOpen className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span className="min-w-0 truncate text-left">
+                              DMS Modern Enablement
+                            </span>
+                          </SubNavButton>
+
+                          <SubNavButton
+                            active={activeView === 'services-modern'}
+                            onClick={() => setActiveView('services-modern')}
+                            primary={primary}
+                          >
+                            <Layers className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span className="min-w-0 truncate text-left">
+                              Services Modern Enablement
+                            </span>
+                            <span style={{
+                              fontSize: 8,
+                              fontWeight: 700,
+                              letterSpacing: '0.05em',
+                              textTransform: 'uppercase' as const,
+                              lineHeight: 1,
+                              padding: '2px 5px',
+                              borderRadius: 999,
+                              color: MUSTARD,
+                              background: MUSTARD_DIM,
+                              border: `1px solid ${MUSTARD}40`,
+                              flexShrink: 0,
+                              whiteSpace: 'nowrap' as const,
+                            }}>
+                              Soon
+                            </span>
+                          </SubNavButton>
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
+              </div>
+
+              {/* Salesforce — Separate top-level (last) */}
               <NavButton
                 active={activeView === 'salesforce-insights'}
                 onClick={() => setActiveView('salesforce-insights')}
@@ -376,19 +457,6 @@ export function NewLeftSidebar({
                       Coming Soon
                     </span>
                   </div>
-                </div>
-              </NavButton>
-
-              {/* Services Dashboard — Separate top-level */}
-              <NavButton
-                active={activeView === 'services-dashboard'}
-                onClick={() => setActiveView('services-dashboard')}
-                primary={primary}
-              >
-                <Workflow className="w-4 h-4 flex-shrink-0" style={{ color: activeView === 'services-dashboard' ? MUSTARD : 'var(--text-secondary)' }} />
-                <div className="text-left min-w-0">
-                  <div className="text-sm font-medium leading-none">Services Dashboard</div>
-                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>T&L Execution</div>
                 </div>
               </NavButton>
 
@@ -450,7 +518,7 @@ export function NewLeftSidebar({
                 <button
                   onClick={() => setShowSettings(true)}
                   className="w-full h-9 flex items-center justify-center gap-2 rounded-xl text-sm font-medium transition-opacity duration-200 active:scale-[0.98] hover:opacity-90"
-                  style={{ backgroundColor: primary, color: '#000000' }}
+                  style={{ backgroundColor: primary, color: background }}
                 >
                   <Plug className="w-3.5 h-3.5" />
                   Connect Integrations
@@ -858,7 +926,7 @@ export function NewLeftSidebar({
                     className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold transition-opacity duration-200 hover:opacity-80"
                     style={{
                       backgroundColor: primary,
-                      color: '#000000',
+                      color: background,
                     }}
                   >
                     <Globe className="w-4 h-4" />
@@ -944,7 +1012,7 @@ function SubNavButton({
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-2 h-9 px-2 rounded-lg text-sm transition-colors duration-150"
+      className="w-full flex items-center gap-2 h-9 px-2 rounded-lg text-sm transition-colors duration-150 overflow-hidden"
       style={{
         backgroundColor: bg,
         color: active ? primary : 'var(--text-secondary)',
@@ -979,7 +1047,7 @@ function IntegrationRow({
   const dotColor = coming
     ? 'var(--text-muted)'
     : isConnected
-    ? '#22C55E'
+    ? 'var(--status-success)'
     : 'var(--red)'
 
   return (

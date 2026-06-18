@@ -223,7 +223,7 @@ export function NewHeader({
                             <button
                               onClick={handleSaveProfile}
                               className="flex-1 h-8 text-xs font-semibold rounded-full transition-opacity duration-150 hover:opacity-80"
-                              style={{ backgroundColor: c.primary, color: '#000000' }}
+                              style={{ backgroundColor: c.primary, color: c.background }}
                             >
                               Save
                             </button>
