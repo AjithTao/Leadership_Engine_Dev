@@ -1,49 +1,65 @@
 'use client'
 
 import React, { useEffect, useState, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ScrollArea } from './ui/scroll-area'
+import { DashboardLayout } from './DashboardLayout'
 import {
   RefreshCw, ExternalLink, AlertCircle, CheckCircle2, XCircle,
   Clock, MinusCircle, Bug, TestTube2, BarChart3, FileText,
   TrendingUp, ShieldAlert, Layers, AlertTriangle, ChevronDown, ChevronRight,
-  Activity, Zap, Target, PieChart
+  Activity, Zap, Target, PieChart, Info
 } from 'lucide-react'
 import { getApiUrl } from '../../lib/api-config'
+import { useTheme } from '../contexts/ThemeContext'
 
-// ── Design tokens — mirrors the globals.css variable structure ─────────────────
+// Theme detection. The semantic accent hexes below need darker, WCAG-AA variants
+// on light surfaces — the vivid dark-mode hues (e.g. #F59E0B amber, #22C55E green)
+// fail contrast as text on near-white. These resolve per render; the dashboard
+// subscribes to useTheme() so the whole subtree re-renders — and these getters
+// re-evaluate — whenever the theme toggles. Default to dark (the app's default)
+// during SSR / before the class is applied.
+const isDarkTheme = () =>
+  typeof document === 'undefined' || document.documentElement.classList.contains('dark')
+const pick = (light: string, dark: string) => (isDarkTheme() ? dark : light)
+
+// ── Design tokens ─────────────────────────────────────────────────────────────
+// Surfaces / text / border are theme-aware CSS vars so the dashboard matches the
+// Jira & GitHub Insights pages in both light and dark mode. The semantic accents
+// are concrete hex (so the `${color}NN` 8-digit-alpha tints resolve) but theme-
+// aware via pick(): light = AA-on-near-white variants, dark = original vivid hues.
 const DS = {
-  page:         'var(--bg-page)',
-  card:         'var(--bg-card)',
-  surface:      'var(--bg-surface)',
-  hover:        'var(--bg-hover)',
-  border:       'var(--border)',
-  borderStrong: 'var(--border-strong)',
-  text:         'var(--text-primary)',
-  textSec:      'var(--text-secondary)',
-  textMuted:    'var(--text-muted)',
-  textHint:     'var(--text-hint)',
-  // Primary brand accent (mustard gold — same as insights page)
-  accent:       'var(--accent-cool)',
-  accentBg:     'var(--accent-cool-bg)',
-  // Semantic colours (direct hex in CSS, so +hex-alpha suffix pattern works)
-  amber:        'var(--amber)',
-  amberBg:      'var(--amber-bg)',
-  red:          'var(--red)',
-  redBg:        'var(--red-bg)',
-  blue:         'var(--blue)',
-  blueBg:       'var(--blue-bg)',
-  font:         "'Plus Jakarta Sans', system-ui, sans-serif",
-} as const
+  page:          'var(--bg-page)',
+  card:          'var(--bg-card)',
+  surface:       'var(--bg-surface)',
+  hover:         'var(--bg-hover)',
+  border:        'var(--border)',
+  borderStrong:  'var(--border-strong)',
+  text:          'var(--text-primary)',
+  textSec:       'var(--text-secondary)',
+  textMuted:     'var(--text-muted)',
+  textHint:      'var(--text-hint)',
+  get accent()   { return pick('#816213', '#D4A847') },
+  get accentBg() { return pick('#81621318', '#D4A84718') },
+  get green()    { return pick('#1A7331', '#22C55E') },
+  get greenBg()  { return pick('#1A733118', '#22C55E18') },
+  get amber()    { return pick('#8A5E10', '#F59E0B') },
+  get amberBg()  { return pick('#8A5E1018', '#F59E0B18') },
+  get red()      { return pick('#C01C1C', '#EF4444') },
+  get redBg()    { return pick('#C01C1C18', '#EF444418') },
+  blue:          'var(--blue)',
+  blueBg:        'var(--blue-bg)',
+  font:          'var(--font)',
+}
 
-// ── Zephyr execution status colours — aligned to theme semantic palette ────────
+// ── Zephyr status colours (theme-aware: light variants pass AA as table text) ──
 const STATUS = {
-  PASS:        { color: 'var(--accent-cool)', bg: 'var(--accent-cool-bg)', label: 'Pass',    icon: CheckCircle2 },
-  FAIL:        { color: 'var(--red)',          bg: 'var(--red-bg)',         label: 'Fail',    icon: XCircle      },
-  WIP:         { color: 'var(--amber)',        bg: 'var(--amber-bg)',       label: 'WIP',     icon: Clock        },
-  BLOCKED:     { color: 'var(--blue)',         bg: 'var(--blue-bg)',        label: 'Blocked', icon: MinusCircle  },
-  UNEXECUTED:  { color: 'var(--text-muted)',   bg: 'var(--bg-surface)',     label: 'Not Run', icon: MinusCircle  },
-} as const
+  PASS:        { get color() { return pick('#4F7A0F', '#75B000') }, get bg() { return pick('#4F7A0F18', '#75B00018') }, label: 'Pass',    icon: CheckCircle2 },
+  FAIL:        { get color() { return pick('#C0330A', '#CC3300') }, get bg() { return pick('#C0330A18', '#CC330018') }, label: 'Fail',    icon: XCircle      },
+  WIP:         { get color() { return pick('#8A5E10', '#F2B000') }, get bg() { return pick('#8A5E1018', '#F2B00018') }, label: 'WIP',     icon: Clock        },
+  BLOCKED:     { get color() { return pick('#3D6A8C', '#6693B0') }, get bg() { return pick('#3D6A8C18', '#6693B018') }, label: 'Blocked', icon: MinusCircle  },
+  UNEXECUTED:  { get color() { return pick('#5E6573', '#8B929A') }, get bg() { return pick('#5E657318', '#8B929A18') }, label: 'Not Run', icon: MinusCircle  },
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface TestAreaData {
@@ -433,7 +449,7 @@ function AnimatedCounter({ target, duration = 900 }: { target: number; duration?
 }
 
 // ── Live pulse dot ────────────────────────────────────────────────────────────
-function LivePulse({ color = 'var(--accent-cool)' }: { color?: string }) {
+function LivePulse({ color = DS.accent }: { color?: string }) {
   return (
     <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 12, height: 12, flexShrink: 0 }}>
       <motion.span
@@ -454,7 +470,7 @@ function Card({ children, style = {}, className = '', hover = true }: { children
       whileHover={hover ? { y: -2, boxShadow: '0 8px 32px rgba(0,0,0,0.12)' } : undefined}
       transition={{ duration: 0.18 }}
       style={{
-        background: DS.card, border: `1px solid ${DS.border}`, borderRadius: 12, ...style,
+        background: DS.card, border: `1px solid ${DS.border}`, borderRadius: 16, overflow: 'hidden', ...style,
       }}
     >
       {children}
@@ -462,36 +478,118 @@ function Card({ children, style = {}, className = '', hover = true }: { children
   )
 }
 
-function CardHeader({ icon: Icon, title, subtitle, accent = 'var(--accent-cool)' }: {
-  icon: React.ElementType; title: string; subtitle?: string; accent?: string
+
+// ── Info tooltip ("i" button + hover/click explanation) ───────────────────────
+// Rendered through a portal to <body> so the floating panel can never be clipped
+// by a card's overflow or painted over by a sibling card's stacking context.
+const TOOLTIP_W = 248
+
+function InfoTooltip({
+  text,
+  accent = DS.blue,
+  align = 'right',
+  size = 16,
+}: {
+  text: string
+  accent?: string
+  align?: 'left' | 'right'
+  size?: number
+}) {
+  const [show, setShow] = useState(false)
+  const [coords, setCoords] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
+  const btnRef = useRef<HTMLButtonElement>(null)
+
+  const open = () => {
+    const el = btnRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    let left = align === 'right' ? r.right - TOOLTIP_W : r.left
+    const maxLeft = window.innerWidth - TOOLTIP_W - 8
+    if (left > maxLeft) left = maxLeft
+    if (left < 8) left = 8
+    setCoords({ top: r.bottom + 8, left })
+    setShow(true)
+  }
+
+  return (
+    <span
+      style={{ display: 'inline-flex', flexShrink: 0, lineHeight: 0 }}
+      onMouseEnter={open}
+      onMouseLeave={() => setShow(false)}
+    >
+      <button
+        ref={btnRef}
+        type="button"
+        aria-label="More information"
+        onClick={e => { e.stopPropagation(); if (show) setShow(false); else open() }}
+        style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: size, height: size, borderRadius: '50%', padding: 0, flexShrink: 0,
+          border: `1px solid ${show ? accent + '60' : DS.border}`,
+          background: show ? accent + '14' : 'transparent',
+          color: show ? accent : DS.textMuted,
+          cursor: 'help', transition: 'all 0.15s', fontFamily: DS.font,
+        }}
+      >
+        <Info size={Math.round(size * 0.62)} strokeWidth={2.4} />
+      </button>
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {show && (
+            <motion.div
+              role="tooltip"
+              initial={{ opacity: 0, y: 4, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 4, scale: 0.97 }}
+              transition={{ duration: 0.13 }}
+              style={{
+                position: 'fixed',
+                top: coords.top,
+                left: coords.left,
+                zIndex: 9999,
+                width: TOOLTIP_W,
+                padding: '9px 11px',
+                borderRadius: 8,
+                background: DS.card,
+                border: `1px solid ${DS.borderStrong}`,
+                boxShadow: '0 10px 30px rgba(0,0,0,0.20)',
+                color: DS.textSec,
+                fontSize: 11,
+                fontWeight: 400,
+                lineHeight: 1.5,
+                textAlign: 'left',
+                whiteSpace: 'normal',
+                fontFamily: DS.font,
+                pointerEvents: 'none',
+              }}
+            >
+              {text}
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+    </span>
+  )
+}
+
+function CardHeader({ icon: Icon, title, subtitle, accent = DS.blue, info }: {
+  icon: React.ElementType; title: string; subtitle?: string; accent?: string; info?: string
 }) {
   return (
-    <div style={{
-      padding: '11px 16px',
-      borderBottom: `1px solid ${DS.border}`,
-      display: 'flex', alignItems: 'flex-start', gap: 10,
-      borderTop: `3px solid ${accent}`,
-      borderRadius: '12px 12px 0 0',
-    }}>
-      {/* Icon badge — uses hex-alpha suffix trick; works because all theme semantic vars are direct hex */}
-      <div style={{
-        width: 28, height: 28, borderRadius: 8,
-        background: accent + '18',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-      }}>
-        <Icon size={13} style={{ color: accent }} />
+    <div style={{ padding: '13px 20px', borderBottom: `1px solid ${DS.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ width: 30, height: 30, borderRadius: 10, background: accent + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <Icon size={15} style={{ color: accent }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ color: DS.text, fontSize: 12, fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.01em' }}>{title}</p>
-        {subtitle && (
-          <p style={{ color: DS.textMuted, fontSize: 10, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {subtitle}
-          </p>
-        )}
+        <p style={{ color: DS.text, fontSize: 13, fontWeight: 600, lineHeight: 1.2 }}>{title}</p>
+        {subtitle && <p style={{ color: DS.textMuted, fontSize: 11, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitle}</p>}
       </div>
+      {info && <InfoTooltip text={info} accent={accent} />}
     </div>
   )
 }
+
 
 // ── Test Suite Component Area Breakdown ───────────────────────────────────────
 // Column accent colours: Automated=blue, Manual=amber, everything else gets area colour
@@ -1034,10 +1132,10 @@ function BugPriorityByProjectChart({ items = [], total, priorityOrder }: { items
 
 // ── Status pill helper ────────────────────────────────────────────────────────
 const STATUS_STYLE: Record<string, { color: string; bg: string; label: string }> = {
-  bug_logged:  { color: 'var(--red)',          bg: 'var(--red-bg)',         label: 'Bug'         },
-  resolved:    { color: 'var(--accent-cool)',  bg: 'var(--accent-cool-bg)', label: 'Resolved'    },
-  in_progress: { color: 'var(--amber)',        bg: 'var(--amber-bg)',       label: 'In Progress' },
-  pending:     { color: 'var(--text-muted)',   bg: 'var(--bg-surface)',     label: 'Pending'     },
+  bug_logged:  { get color() { return pick('#C0330A', '#CC3300') }, get bg() { return pick('#C0330A18', '#CC330018') }, label: 'Bug'         },
+  resolved:    { get color() { return pick('#1A7331', '#00875A') }, get bg() { return pick('#1A733118', '#00875A18') }, label: 'Resolved'    },
+  in_progress: { get color() { return pick('#8A5E10', '#F2B000') }, get bg() { return pick('#8A5E1018', '#F2B00018') }, label: 'In Progress' },
+  pending:     { get color() { return pick('#5E6573', '#8B929A') }, get bg() { return pick('#5E657318', '#8B929A18') }, label: 'Pending'     },
 }
 
 function StatusPill({ type, small }: { type: string; small?: boolean }) {
@@ -1067,11 +1165,11 @@ function DealerChip({ name, confirmed }: { name: string; confirmed: boolean }) {
       display: 'inline-block',
       padding: '1px 5px',
       borderRadius: 4,
-      background: confirmed ? 'var(--accent-cool-bg)' : 'var(--amber-bg)',
-      color:      confirmed ? 'var(--accent-cool)'    : 'var(--amber)',
+      background: confirmed ? pick('#1A733118', '#00875A18') : pick('#8A5E1018', '#F2B00018'),
+      color: confirmed ? pick('#1A7331', '#00875A') : pick('#8A5E10', '#F2B000'),
       fontSize: 9,
       fontWeight: 700,
-      border: `1px solid var(--border)`,
+      border: `1px solid ${confirmed ? pick('#1A733130', '#00875A30') : pick('#8A5E1030', '#F2B00030')}`,
     }}>
       {abbr[name] ?? name.slice(0, 2).toUpperCase()}
     </span>
@@ -1118,10 +1216,10 @@ function FindingsPanel({ data, jiraBase }: { data: FindingsAnalysis; jiraBase?: 
       {/* ── Summary stat pills ─────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, padding: '10px 14px', borderBottom: `1px solid ${DS.border}` }}>
         {[
-          { label: 'Observations', value: obs.total,               color: DS.blue,   bg: DS.blueBg   },
-          { label: 'Bugs Logged',  value: obs.stats.bug_logged,    color: DS.red,    bg: DS.redBg    },
-          { label: 'In Progress',  value: obs.stats.in_progress,   color: DS.amber,  bg: DS.amberBg  },
-          { label: 'Blockers',     value: blk.active_count,        color: DS.red,    bg: DS.redBg    },
+          { label: 'Observations', value: obs.total,               color: DS.accent,                          bg: DS.accentBg                           },
+          { label: 'Bugs Logged',  value: obs.stats.bug_logged,   color: pick('#C0330A', '#CC3300'),         bg: pick('#C0330A18', '#CC330018')         },
+          { label: 'In Progress',  value: obs.stats.in_progress,  color: pick('#8A5E10', '#F2B000'),         bg: pick('#8A5E1018', '#F2B00018')         },
+          { label: 'Blockers',     value: blk.active_count,       color: pick('#A82C18', '#FF5630'),         bg: pick('#A82C1818', '#FF563018')         },
         ].map(s => (
           <div key={s.label} style={{ textAlign: 'center', padding: '6px 4px', borderRadius: 8, background: s.bg }}>
             <div style={{ color: s.color, fontSize: 16, fontWeight: 700, lineHeight: 1 }}>{s.value}</div>
@@ -1142,9 +1240,9 @@ function FindingsPanel({ data, jiraBase }: { data: FindingsAnalysis; jiraBase?: 
             style={{
               padding: '4px 10px',
               borderRadius: 6,
-              border: `1px solid ${tab === t.id ? 'var(--accent-cool)' : DS.border}`,
-              background: tab === t.id ? 'var(--accent-cool-bg)' : 'transparent',
-              color: tab === t.id ? 'var(--accent-cool)' : DS.textMuted,
+              border: `1px solid ${tab === t.id ? DS.accent : DS.border}`,
+              background: tab === t.id ? DS.accentBg : 'transparent',
+              color: tab === t.id ? DS.accent : DS.textMuted,
               fontSize: 10,
               fontWeight: 600,
               cursor: 'pointer',
@@ -1261,8 +1359,8 @@ function FindingsPanel({ data, jiraBase }: { data: FindingsAnalysis; jiraBase?: 
       {/* ── Footer links ────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 8, padding: '8px 14px', borderTop: `1px solid ${DS.border}` }}>
         {[
-          { label: 'Observations ↗', url: data.obs_url, color: 'var(--accent-cool)' },
-          { label: 'Blockers ↗',     url: data.blk_url, color: 'var(--red)'         },
+          { label: 'Observations ↗', url: data.obs_url, color: pick('#1A7331', '#00875A') },
+          { label: 'Blockers ↗',     url: data.blk_url, color: pick('#A82C18', '#FF5630') },
         ].map(l => (
           <a key={l.label} href={l.url} target="_blank" rel="noopener noreferrer"
             style={{ color: l.color, fontSize: 10, fontWeight: 600, textDecoration: 'none', opacity: 0.8 }}
@@ -1516,6 +1614,9 @@ const EMPTY_FINDINGS: FindingsAnalysis = {
 }
 
 export function ServicesDashboard() {
+  // Subscribe to theme changes so the theme-aware accent getters (DS / STATUS /
+  // STATUS_STYLE) re-resolve and the dashboard repaints when light/dark toggles.
+  useTheme()
   const [data, setData]         = useState<DashboardData>(EMPTY_DASHBOARD)
   const [findings, setFindings] = useState<FindingsAnalysis>(EMPTY_FINDINGS)
   const [loading, setLoading]   = useState(false)
@@ -1581,44 +1682,64 @@ export function ServicesDashboard() {
   const activeBlockers = findings.blockers.active_count
 
   const KPI_CARDS = [
-    { label: 'Total Tests',       value: totalTests,       color: DS.blue,    Icon: TestTube2,     suffix: '' },
-    { label: 'Open Bugs',         value: data.bugs_total,  color: DS.red,     Icon: Bug,           suffix: '' },
-    { label: 'Total Executions',  value: totalExecs,       color: DS.accent,  Icon: BarChart3,     suffix: '' },
-    { label: 'Overall Pass Rate', value: overallPassRate,  color: DS.accent,  Icon: TrendingUp,    suffix: '%' },
-    { label: 'Active Blockers',   value: activeBlockers,   color: DS.amber,   Icon: AlertTriangle, suffix: '' },
+    { label: 'Total Tests',      value: totalTests,        color: DS.accent, Icon: TestTube2,    suffix: '',
+      info: 'Combined count of every test case across the Focused and Comprehensive suites for the MODDWTC (Modern Accounting) project — the sum of both suite totals.' },
+    { label: 'Open Bugs',        value: data.bugs_total,   color: DS.red,    Icon: Bug,          suffix: '',
+      info: 'Total open (unresolved) defects logged across all T&L modules — Accounts Payable, General Ledger, Accounts Receivable, Purchase Orders and Search & Navigation.' },
+    { label: 'Total Executions', value: totalExecs,        color: DS.accent, Icon: BarChart3,    suffix: '',
+      info: 'Total number of test-case executions recorded in Zephyr Scale across every dealer test cycle for the current version.' },
+    { label: 'Overall Pass Rate',value: overallPassRate,   color: DS.green,  Icon: TrendingUp,   suffix: '%',
+      info: 'Share of executed tests that passed across all dealer cycles — total Pass ÷ total Executions. Thresholds: green ≥ 85%, amber 70–84%, red < 70%.' },
+    { label: 'Active Blockers',  value: activeBlockers,    color: DS.amber,  Icon: AlertTriangle, suffix: '',
+      info: 'Unresolved blocking issues currently preventing testing or go-live across T&L dealers, pulled live from the Confluence blockers page.' },
   ]
 
   return (
-    <ScrollArea className="h-full">
-      <div style={{ minHeight: '100%', background: DS.page, fontFamily: DS.font, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <DashboardLayout>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', background: DS.page }}>
+        <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: 20, fontFamily: DS.font }}>
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <LivePulse color="var(--accent-cool)" />
-                <span style={{ color: DS.accent, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Live</span>
-                <span style={{ color: DS.textHint, fontSize: 10 }}>·</span>
-                <span style={{ color: DS.textMuted, fontSize: 10 }}>Next refresh in {fmtCountdown(Math.max(0, countdown))}</span>
-              </div>
-              <h1 style={{ color: DS.text, fontSize: 20, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.2, margin: 0 }}>
-                Project Mercury — Status Summary
-              </h1>
-              <p style={{ color: DS.textMuted, fontSize: 12, marginTop: 4 }}>
-                Version: <strong style={{ color: DS.text }}>{data.version}</strong>&ensp;·&ensp;Project: <strong style={{ color: DS.text }}>{data.project}</strong>
-                {lastFetched && <>&ensp;·&ensp;<span style={{ color: DS.textHint }}>Updated {fmtDate(lastFetched)}</span></>}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ color: DS.accent, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 6px' }}>
+                Project Mercury
               </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h1 style={{ color: DS.text, fontSize: 24, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.15, margin: 0 }}>
+                  DMS Modern Enablement
+                </h1>
+                <InfoTooltip
+                  align="left"
+                  accent={DS.accent}
+                  size={18}
+                  text="DMS Modern Enablement dashboard — summarises QA status for Project Mercury (Modern Accounting / MODDWTC) across all T&L dealer environments. It combines Zephyr Scale test-execution data with live Confluence findings and auto-refreshes every 5 minutes. Hover the ⓘ on any card or KPI for details about that metric."
+                />
+              </div>
+              <p style={{ color: DS.textMuted, fontSize: 13, margin: '4px 0 0' }}>
+                Version: <strong style={{ color: DS.textSec }}>{data.version}</strong>&ensp;·&ensp;Project: <strong style={{ color: DS.textSec }}>{data.project}</strong>
+                {lastFetched && <>&ensp;·&ensp;Updated {fmtDate(lastFetched)}</>}
+              </p>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10,
+                background: DS.accentBg, color: DS.accent, border: `1px solid ${DS.accent}30`,
+                borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 600,
+              }}>
+                <LivePulse color={DS.accent} /> Live
+                <span style={{ marginLeft: 2, background: `${DS.accent}20`, borderRadius: 10, padding: '1px 8px', fontSize: 11 }}>
+                  Next refresh {fmtCountdown(Math.max(0, countdown))}
+                </span>
+              </span>
             </div>
             <button
               onClick={fetchData}
               disabled={loading}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
-                padding: '7px 14px', borderRadius: 8, flexShrink: 0,
-                background: DS.surface, border: `1px solid ${DS.border}`,
-                color: DS.text, fontSize: 12, fontWeight: 600,
-                cursor: loading ? 'wait' : 'pointer',
+                padding: '8px 14px', borderRadius: 10, flexShrink: 0,
+                background: DS.card, border: `1px solid ${DS.border}`, color: DS.textSec,
+                fontSize: 13, fontWeight: 600, cursor: loading ? 'wait' : 'pointer',
                 fontFamily: DS.font, opacity: loading ? 0.6 : 1, transition: 'opacity 0.15s',
               }}
             >
@@ -1628,11 +1749,11 @@ export function ServicesDashboard() {
           </div>
 
           {/* Refresh progress bar */}
-          <div style={{ height: 2, background: DS.border, borderRadius: 1, marginTop: 10, overflow: 'hidden' }}>
+          <div style={{ height: 2, background: DS.border, borderRadius: 1, marginTop: 14, overflow: 'hidden' }}>
             <motion.div
               animate={{ width: `${(countdown / AUTO_REFRESH_SECS) * 100}%` }}
               transition={{ duration: 1, ease: 'linear' }}
-              style={{ height: '100%', background: `linear-gradient(90deg, var(--blue), var(--accent-cool))`, borderRadius: 1 }}
+              style={{ height: '100%', background: `linear-gradient(90deg, ${DS.accent}, ${DS.accent}88)`, borderRadius: 1 }}
             />
           </div>
 
@@ -1640,8 +1761,8 @@ export function ServicesDashboard() {
             {error && (
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '6px 10px', borderRadius: 6, background: DS.amberBg, border: `1px solid ${DS.amber}30` }}>
-                <AlertCircle size={13} style={{ color: DS.amber, flexShrink: 0 }} />
-                <span style={{ color: DS.amber, fontSize: 11 }}>{error}</span>
+                <AlertCircle size={13} style={{ color: 'var(--amber)', flexShrink: 0 }} />
+                <span style={{ color: 'var(--amber)', fontSize: 11 }}>{error}</span>
               </motion.div>
             )}
           </AnimatePresence>
@@ -1659,30 +1780,28 @@ export function ServicesDashboard() {
               transition={{ duration: 0.3, delay: 0.1 + i * 0.06 }}
               whileHover={{ y: -2, boxShadow: 'var(--shadow-medium)' }}
               style={{
-                background: DS.card,
-                border: `1px solid ${DS.border}`,
-                borderRadius: 12,
-                padding: '14px 16px',
-                borderTop: `3px solid ${kpi.color}`,
+                background: DS.card, border: `1px solid ${DS.border}`,
+                borderRadius: 14, padding: '16px 18px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ color: DS.textMuted, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <span style={{ display: 'flex', alignItems: 'center', color: DS.textMuted, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
                   {kpi.label}
+                  <InfoTooltip text={kpi.info ?? ''} accent={kpi.color} size={14} />
                 </span>
-                <div style={{ width: 24, height: 24, borderRadius: 6, background: kpi.color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <kpi.Icon size={12} style={{ color: kpi.color }} />
+                <div style={{ width: 32, height: 32, borderRadius: 10, background: `${kpi.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <kpi.Icon size={15} style={{ color: kpi.color }} />
                 </div>
               </div>
               <div style={{ fontSize: 26, fontWeight: 800, color: DS.text, letterSpacing: '-0.04em', lineHeight: 1 }}>
                 <AnimatedCounter target={kpi.value} />{kpi.suffix}
               </div>
-              <div style={{ height: 2, background: DS.border, borderRadius: 1, marginTop: 10, overflow: 'hidden' }}>
+              <div style={{ height: 3, background: DS.surface, borderRadius: 2, marginTop: 12, overflow: 'hidden' }}>
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: kpi.suffix === '%' ? `${kpi.value}%` : '100%' }}
                   transition={{ duration: 1, delay: 0.4 + i * 0.08, ease: 'easeOut' }}
-                  style={{ height: '100%', background: kpi.color, borderRadius: 1, opacity: 0.6 }}
+                  style={{ height: '100%', background: kpi.color, borderRadius: 2 }}
                 />
               </div>
             </motion.div>
@@ -1703,7 +1822,8 @@ export function ServicesDashboard() {
               icon={Zap}
               title={data.focused_test_suite.chart_title || 'Focused Test Suite'}
               subtitle="High-priority regression — GL, AP, AR, 1099 (version-scoped)"
-              accent="var(--accent-cool)"
+              accent={DS.accent}
+              info="High-priority regression coverage for the most critical GL, AP, AR and 1099 workflows. Broken down by accounting component area, with the manual vs automated split shown below."
             />
             <TestSuiteBreakdown {...data.focused_test_suite} />
           </Card>
@@ -1713,7 +1833,8 @@ export function ServicesDashboard() {
               icon={Layers}
               title={data.comprehensive_test_suite.chart_title || 'Comprehensive Test Suite'}
               subtitle="Full coverage across all MODDWTC components (all versions)"
-              accent="var(--blue)"
+              accent={DS.accent}
+              info="Full end-to-end test coverage across every MODDWTC (Modern Accounting) component. Broken down by component area, with the manual vs automated split shown below."
             />
             <TestSuiteBreakdown {...data.comprehensive_test_suite} />
           </Card>
@@ -1724,7 +1845,7 @@ export function ServicesDashboard() {
                 icon={PieChart}
                 title={data.test_cases_distribution.chart_title || 'Test Cases Distribution'}
                 subtitle="Test case spread across functional components · click a slice to open in Jira"
-                accent="var(--amber)"
+                accent={DS.amber}
               />
               <TestCasesDonutChart data={data.test_cases_distribution} jiraBase={data.jira_base_url} />
             </Card>
@@ -1746,7 +1867,7 @@ export function ServicesDashboard() {
                 icon={Bug}
                 title="Bugs distribution across T&L boxes"
                 subtitle="Click any row to open in Jira"
-                accent="var(--red)"
+                accent={DS.red}
               />
               <BugDistributionChart
                 bugs={data.bugs_distribution ?? []}
@@ -1772,7 +1893,7 @@ export function ServicesDashboard() {
                 icon={ShieldAlert}
                 title="Bug Priority — by Module"
                 subtitle="Open bugs per module with severity breakdown"
-                accent="var(--amber)"
+                accent={DS.amber}
               />
               <BugPriorityByProjectChart items={data.bug_priority_by_project} total={data.bugs_total} priorityOrder={data.priority_order} />
             </Card>
@@ -1803,7 +1924,7 @@ export function ServicesDashboard() {
               icon={BarChart3}
               title="Test Execution Summary — All T&L Dealers"
               subtitle={`${data.version} · ${data.project} · Pass / Fail / WIP / Blocked / Not Run per dealer cycle`}
-              accent="var(--accent-cool)"
+              accent={DS.accent}
             />
             <ExecutionTable rows={data.execution_summary} jiraBase={data.jira_base_url} />
           </Card>
@@ -1832,7 +1953,7 @@ export function ServicesDashboard() {
               icon={TrendingUp}
               title="Zephyr Test Execution Chart"
               subtitle="All active test cycles · sorted by cycle order"
-              accent="var(--blue)"
+              accent={DS.blue}
             />
             <ExecutionBarsChart rows={data.execution_summary} />
           </Card>
@@ -1845,7 +1966,7 @@ export function ServicesDashboard() {
 
         {/* ── Footer ──────────────────────────────────────────────────────── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 4 }}>
-          <LivePulse color="var(--accent-cool)" />
+          <LivePulse color={DS.accent} />
           <p style={{ color: DS.textHint, fontSize: 10, margin: 0 }}>
             Project Mercury · {data.project} · Zephyr Scale · CDK Global FalconX
           </p>
@@ -1853,7 +1974,8 @@ export function ServicesDashboard() {
             Auto-refreshes every 5 min · Next in {fmtCountdown(Math.max(0, countdown))}
           </span>
         </div>
+        </div>
       </div>
-    </ScrollArea>
+    </DashboardLayout>
   )
 }

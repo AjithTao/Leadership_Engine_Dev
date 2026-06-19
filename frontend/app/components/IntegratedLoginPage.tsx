@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useRouter } from 'next/navigation'
-import { getApiUrl } from '../../lib/api-config'
+import { getApiUrl, fetchWithTimeout } from '../../lib/api-config'
 import { FalconXLogo, CDKLogo, MUSTARD, OLIVE, MUSTARD_DIM, OLIVE_DIM } from './ui/FalconXLogo'
 
 // ── Design tokens — CSS variable references (theme-aware) ─────────────────────
@@ -61,34 +61,45 @@ export function IntegratedLoginPage() {
         setLoading(false)
         return
       }
-      try {
-        const token = localStorage.getItem('auth_token')
-        const res   = await fetch(getApiUrl('/api/auth/auto-connect-integrations'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: token ? `Bearer ${token}` : ''
+
+      // The user is authenticated the instant login() resolves — the JWT is
+      // stored and isAuthenticated has flipped, so page.tsx will swap in the app
+      // on the next render. Connecting the Jira/Confluence/GitHub service
+      // accounts is best-effort warmup that makes several serial calls to CDK
+      // over VPN, so fire it in the BACKGROUND and redirect immediately rather
+      // than holding the user on "Connecting…" for it. When it resolves it
+      // dispatches 'integration-update'; the app also polls service status on
+      // mount, so a dropped event self-heals. Do NOT set React state in this
+      // callback — this component unmounts the moment we navigate.
+      const token = localStorage.getItem('auth_token')
+      fetchWithTimeout(getApiUrl('/api/auth/auto-connect-integrations'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : ''
+        }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            const { jira, confluence, github } = data.results
+            if (jira.success || confluence.success || github?.success) {
+              window.dispatchEvent(new CustomEvent('integration-update', {
+                detail: {
+                  service: 'auto-connect',
+                  jira: jira.success,
+                  confluence: confluence.success,
+                  github: github?.success ?? false
+                }
+              }))
+            }
           }
         })
-        const data = await res.json()
-        if (data.success) {
-          const { jira, confluence, github } = data.results
-          if (jira.success || confluence.success || github?.success) {
-            window.dispatchEvent(new CustomEvent('integration-update', {
-              detail: {
-                service: 'auto-connect',
-                jira: jira.success,
-                confluence: confluence.success,
-                github: github?.success ?? false
-              }
-            }))
-          }
-        }
-      } catch { /* non-critical */ }
+        .catch(() => { /* non-critical: the user is already authenticated */ })
+
       router.push('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
-    } finally {
       setLoading(false)
     }
   }

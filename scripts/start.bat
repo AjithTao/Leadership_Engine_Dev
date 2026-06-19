@@ -97,7 +97,7 @@ call npm install
 REM Start frontend in a visible window so logs are visible
 echo 🚀 Starting frontend server on port 3000...
 echo 📋 Frontend logs will appear in a separate window
-start "Frontend Server - Port 3000" /d "%~dp0..\frontend" cmd /k "npm run dev"
+start "Frontend Server - Port 3000" /d "%~dp0..\frontend" cmd /k "set NODE_OPTIONS=--max-old-space-size=4096 && for /L %%i in (0,0,1) do (npm run dev && echo Frontend exited, restarting in 2s... && timeout /t 2 /nobreak >nul)"
 
 REM Wait for frontend to start
 echo ⏳ Waiting for frontend to start...
