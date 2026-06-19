@@ -29,7 +29,7 @@ import {
   GitBranch,
   Ticket
 } from 'lucide-react'
-import { FalconXLogo, MUSTARD, OLIVE } from '../ui/FalconXLogo'
+import { FalconXLogo, MUSTARD, MUSTARD_DIM, OLIVE } from '../ui/FalconXLogo'
 import { useRouter } from 'next/navigation'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useSettings } from '../../contexts/SettingsContext'
@@ -251,7 +251,27 @@ export function NewLeftSidebar({
               >
                 <Bot className="w-4 h-4 flex-shrink-0" style={{ color: activeView === 'copilot' ? primary : 'var(--text-secondary)' }} />
                 <div className="text-left min-w-0">
-                  <div className="text-sm font-medium leading-none">Work Buddy</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium leading-none">Work Buddy</span>
+                    <span
+                      title="Work Buddy is in beta — it's still being trained, so responses may occasionally be inaccurate."
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        lineHeight: 1,
+                        padding: '2px 6px',
+                        borderRadius: 999,
+                        color: MUSTARD,
+                        background: MUSTARD_DIM,
+                        border: `1px solid ${MUSTARD}40`,
+                        flexShrink: 0
+                      }}
+                    >
+                      Beta
+                    </span>
+                  </div>
                   <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>AI Assistant</div>
                 </div>
               </NavButton>
@@ -315,8 +335,27 @@ export function NewLeftSidebar({
               >
                 <Ticket className="w-4 h-4 flex-shrink-0" style={{ color: activeView === 'salesforce-insights' ? primary : 'var(--text-secondary)' }} />
                 <div className="text-left min-w-0">
-                  <div className="text-sm font-medium leading-none">Salesforce</div>
-                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>CRM Insights</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium leading-none">Salesforce</span>
+                    <span
+                      title="Salesforce CRM insights are under development and not yet available."
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        lineHeight: 1,
+                        padding: '2px 6px',
+                        borderRadius: 999,
+                        color: MUSTARD,
+                        background: MUSTARD_DIM,
+                        border: `1px solid ${MUSTARD}40`,
+                        flexShrink: 0
+                      }}
+                    >
+                      Coming Soon
+                    </span>
+                  </div>
                 </div>
               </NavButton>
 
@@ -905,8 +944,8 @@ function NavButton({
     >
       {active && (
         <span
-          className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full"
-          style={{ backgroundColor: primary }}
+          className="absolute top-1/2 -translate-y-1/2 rounded-full"
+          style={{ left: 5, width: 3, height: 18, backgroundColor: MUSTARD }}
         />
       )}
       {children}

@@ -8912,10 +8912,10 @@ async def get_services_mod_dashboard():
         },
         {
             "name": "TK",
-            "overall":                'project = FXDOPSINSP AND issuetype = Test AND component = "Inspect modernization" AND labels in (TK, tk_testCase) AND status NOT IN (Abandoned)',
-            "automated":              'project = FXDOPSINSP AND issuetype = Test AND component = "Inspect modernization" AND labels in (TK, tk_testCase) AND status NOT IN (Abandoned) AND "Test Status" = Automated',
-            "requires_automation":    'project = FXDOPSINSP AND issuetype = Test AND component = "Inspect modernization" AND labels in (TK, tk_testCase) AND status NOT IN (Abandoned) AND "Test Status" = "Requires Automation"',
-            "automation_not_required":'project = FXDOPSINSP AND issuetype = Test AND component = "Inspect modernization" AND labels in (TK, tk_testCase) AND status NOT IN (Abandoned) AND "Test Status" = "Automation Not Required"',
+            "overall":                'project = "23907" AND issuetype = Test AND labels = Tech_Persona',
+            "automated":              'project = "23907" AND issuetype = Test AND labels = Tech_Persona AND "Test Status" = Automated',
+            "requires_automation":    'project = "23907" AND issuetype = Test AND labels = Tech_Persona AND "Test Status" = "Requires Automation"',
+            "automation_not_required":'project = "23907" AND issuetype = Test AND labels = Tech_Persona AND "Test Status" = "Automation Not Required"',
         },
         {
             "name": "Booking",
@@ -8970,21 +8970,235 @@ async def get_services_mod_dashboard():
     modules_out = []
     for i, m in enumerate(MODULES):
         b = i * 4
+        overall   = counts[b]
+        automated = counts[b + 1]
+        req_auto  = counts[b + 2]
+        not_req   = counts[b + 3]
+        unclassified = max(0, overall - automated - req_auto - not_req)
         modules_out.append({
             "name":                   m["name"],
-            "overall":                counts[b],
-            "automated":              counts[b + 1],
-            "requires_automation":    counts[b + 2],
-            "automation_not_required":counts[b + 3],
+            "overall":                overall,
+            "automated":              automated,
+            "requires_automation":    req_auto,
+            "automation_not_required":not_req,
+            "unclassified":           unclassified,
             "jql": {
                 "overall":                m["overall"],
                 "automated":              m["automated"],
                 "requires_automation":    m["requires_automation"],
                 "automation_not_required":m["automation_not_required"],
+                "unclassified":           (
+                    f'({m["overall"]}) AND "Test Status" not in (Automated, "Requires Automation", "Automation Not Required")'
+                ),
             },
         })
 
     return {"modules": modules_out, "jira_base_url": jira_base, "last_fetched": datetime.utcnow().isoformat() + "Z"}
+
+
+# ── TK Function-Category breakdown endpoint ───────────────────────────────────
+TK_FUNC_CATEGORIES = [
+    {
+        "name": "Time Keeping",
+        "description": "Start/stop work timer in DMS (TTK)",
+        "color": "#2E7D5E",
+        "labels": ["DRIVECOMMAND_W"],
+    },
+    {
+        "name": "Complete Repair",
+        "description": "Finish service lines, mark Done",
+        "color": "#1B6CA8",
+        "labels": ["DriveCommand_F", "DriveCommand_FN"],
+    },
+    {
+        "name": "Dispatch & Hold",
+        "description": "Put/remove hold, dispatch from NXT",
+        "color": "#6D28D9",
+        "labels": ["Dispatch_NXT", "DriveCommand_H", "DriveCommand_O"],
+    },
+    {
+        "name": "Tech Workbench (CDKS)",
+        "description": "Technician availability and CDKS integration",
+        "color": "#B45309",
+        "labels": ["TWB"],
+    },
+    {
+        "name": "Service Line Details",
+        "description": "Display and edit service line info",
+        "color": "#0369A1",
+        "labels": ["DriveCommand_DD"],
+    },
+    {
+        "name": "Tech Assignment",
+        "description": "Assign and pre-assign technicians",
+        "color": "#7C3AED",
+        "labels": ["DriveCommand_DMT", "DriveCommand_PRE", "DRIVECOMMAND_DMT"],
+    },
+    {
+        "name": "Story / 3Cs",
+        "description": "Complaint, Cause, Correction updates",
+        "color": "#BE185D",
+        "labels": ["DriveCommand_STY"],
+    },
+    {
+        "name": "Indirect Time",
+        "description": "Non-RO indirect time tracking",
+        "color": "#065F46",
+        "labels": ["Indirect_Time", "DriveCommand_WI", "DriveCommand_FI"],
+    },
+    {
+        "name": "Diagnostic Time",
+        "description": "Diagnostic time recording per service line",
+        "color": "#92400E",
+        "labels": ["Diag_Time", "DriveCommand_DT", "DriveCommand_DW"],
+    },
+    {
+        "name": "Punch Time Details",
+        "description": "Punch time detail display (DPT screen)",
+        "color": "#1E40AF",
+        "labels": ["DriveCommand_DPT"],
+    },
+    {
+        "name": "Remove Tech",
+        "description": "Remove technician from line or RO",
+        "color": "#9F1239",
+        "labels": ["DriveCommand_RT"],
+    },
+    {
+        "name": "Part Request",
+        "description": "Send and manage parts requests",
+        "color": "#3730A3",
+        "labels": ["DriveCommand_PREQ", "PREQ"],
+    },
+    {
+        "name": "Hours Reports",
+        "description": "Flagged hours and time-tracking reports",
+        "color": "#155E75",
+        "labels": ["FH", "DriveCommand_FLAG", "DTT", "DriveCommand_DTT"],
+    },
+    {
+        "name": "RO Lifecycle",
+        "description": "RO creation, updates, and comebacks",
+        "color": "#1C4532",
+        "labels": ["RO_Creation", "RO_Update", "DriveCommand_UC", "DriveCommand_FCV", "DriveCommand_DTL"],
+    },
+    {
+        "name": "Quality Reports",
+        "description": "Service Advisor and Technician report cards",
+        "color": "#78350F",
+        "labels": ["QMSm-Dan_Vaden", "QMSm-Heat_Sheet", "QMSm-Mgmt_Esc"],
+    },
+    {
+        "name": "RO Dashboard UI",
+        "description": "RO Dashboard automated UI/UX tests",
+        "color": "#374151",
+        "labels": ["AutomatedTLASFUIUX", "ro-dashboard"],
+    },
+    {
+        "name": "RO Details UI",
+        "description": "RO Details page automated UI/UX tests",
+        "color": "#1F2937",
+        "labels": ["AutomatedTLASFUIUX", "ro-details"],
+    },
+]
+
+TK_BASE_JQL = 'project = "23907" AND issuetype = Test AND labels = Tech_Persona'
+
+
+@app.get("/api/services-mod-dashboard/tk-categories", tags=["Services MOD Dashboard"],
+         summary="TK test cases broken down by functional category (label-based)")
+async def get_tk_categories():
+    import asyncio, httpx
+
+    try:
+        from services.encryption import get_encrypted_env
+    except Exception:
+        get_encrypted_env = None
+
+    jira_base  = os.getenv("JIRA_BASE_URL", "https://projects.cdk.com").rstrip("/")
+    jira_token = get_encrypted_env("JIRA_SERVICE_API_TOKEN") if get_encrypted_env else ""
+    jira_token = jira_token or os.getenv("JIRA_SERVICE_API_TOKEN", "")
+    if not jira_token:
+        raise HTTPException(status_code=500, detail="Jira service token not configured")
+
+    headers = {"Authorization": f"Bearer {jira_token}", "Accept": "application/json"}
+
+    async def count(client: httpx.AsyncClient, jql: str) -> int:
+        try:
+            r = await client.get(
+                f"{jira_base}/rest/api/2/search",
+                params={"jql": jql, "maxResults": 0},
+                headers=headers,
+            )
+            return r.json().get("total", 0) if r.status_code == 200 else 0
+        except Exception:
+            return 0
+
+    def labels_clause(labels: list) -> str:
+        if len(labels) == 1:
+            return f'labels = "{labels[0]}"'
+        quoted = ", ".join(f'"{l}"' for l in labels)
+        return f"labels in ({quoted})"
+
+    async with httpx.AsyncClient(verify=False, timeout=45) as client:
+        tasks = []
+        for cat in TK_FUNC_CATEGORIES:
+            lclause = labels_clause(cat["labels"])
+            base    = f'{TK_BASE_JQL} AND {lclause}'
+            tasks.append(count(client, base))
+            tasks.append(count(client, f'{base} AND "Test Status" = Automated'))
+            tasks.append(count(client, f'{base} AND "Test Status" = "Requires Automation"'))
+            tasks.append(count(client, f'{base} AND "Test Status" = "Automation Not Required"'))
+
+        # Total for unclassified calculation
+        tasks.append(count(client, TK_BASE_JQL))
+
+        counts = await asyncio.gather(*tasks)
+
+    tk_total = counts[-1]
+    categories_out = []
+    classified_sum = 0
+
+    for i, cat in enumerate(TK_FUNC_CATEGORIES):
+        b          = i * 4
+        overall_c  = counts[b]
+        auto_c     = counts[b + 1]
+        req_c      = counts[b + 2]
+        not_req_c  = counts[b + 3]
+        unclass_c  = max(0, overall_c - auto_c - req_c - not_req_c)
+        classified_sum += overall_c
+
+        lclause = labels_clause(cat["labels"])
+        base    = f'{TK_BASE_JQL} AND {lclause}'
+        categories_out.append({
+            "name":                   cat["name"],
+            "description":            cat["description"],
+            "color":                  cat["color"],
+            "total":                  overall_c,
+            "automated":              auto_c,
+            "requires_automation":    req_c,
+            "automation_not_required":not_req_c,
+            "unclassified":           unclass_c,
+            "jql": {
+                "overall":                base,
+                "automated":              f'{base} AND "Test Status" = Automated',
+                "requires_automation":    f'{base} AND "Test Status" = "Requires Automation"',
+                "automation_not_required":f'{base} AND "Test Status" = "Automation Not Required"',
+                "unclassified":           f'({base}) AND "Test Status" not in (Automated, "Requires Automation", "Automation Not Required")',
+            },
+        })
+
+    # Categories with at least 1 test, sorted by total desc
+    categories_out.sort(key=lambda c: c["total"], reverse=True)
+
+    return {
+        "module":        "TK",
+        "base_jql":      TK_BASE_JQL,
+        "tk_total":      tk_total,
+        "categories":    categories_out,
+        "jira_base_url": jira_base,
+        "last_fetched":  datetime.utcnow().isoformat() + "Z",
+    }
 
 
 # Services Dashboard - Jira Fields Discovery Endpoint

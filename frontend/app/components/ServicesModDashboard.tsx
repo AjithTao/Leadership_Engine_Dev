@@ -4,7 +4,8 @@ import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   RefreshCw, AlertCircle, TestTube2, Zap, Clock, CheckCircle2,
-  ExternalLink, ChevronDown, ChevronRight, Activity,
+  ExternalLink, ChevronDown, ChevronRight, Activity, HelpCircle,
+  Layers, Tag,
 } from 'lucide-react'
 import { getApiUrl } from '../../lib/api-config'
 
@@ -28,6 +29,7 @@ const CAT = {
   automated:              { color: '#2E7D5E', bg: 'rgba(46,125,94,0.12)',   label: 'Automated' },
   requires_automation:    { color: '#8B6020', bg: 'rgba(139,96,32,0.12)',   label: 'Requires Automation' },
   automation_not_required:{ color: '#555E6B', bg: 'rgba(85,94,107,0.12)',   label: 'Not Required' },
+  unclassified:           { color: '#9B2C2C', bg: 'rgba(155,44,44,0.10)',   label: 'Unclassified' },
 } as const
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -37,12 +39,41 @@ interface ModuleData {
   automated: number
   requires_automation: number
   automation_not_required: number
+  unclassified: number
   jql: {
     overall: string
     automated: string
     requires_automation: string
     automation_not_required: string
+    unclassified: string
   }
+}
+
+interface TKCategory {
+  name: string
+  description: string
+  color: string
+  total: number
+  automated: number
+  requires_automation: number
+  automation_not_required: number
+  unclassified: number
+  jql: {
+    overall: string
+    automated: string
+    requires_automation: string
+    automation_not_required: string
+    unclassified: string
+  }
+}
+
+interface TKCategoryData {
+  module: string
+  base_jql: string
+  tk_total: number
+  categories: TKCategory[]
+  jira_base_url: string
+  last_fetched: string
 }
 
 interface DashboardData {
@@ -83,20 +114,22 @@ function AnimatedCounter({ target }: { target: number }) {
 
 // ── Summary bar ───────────────────────────────────────────────────────────────
 function SummaryBar({ modules }: { modules: ModuleData[] }) {
-  const total  = modules.reduce((s, m) => s + m.overall, 0)
-  const auto   = modules.reduce((s, m) => s + m.automated, 0)
-  const req    = modules.reduce((s, m) => s + m.requires_automation, 0)
-  const notReq = modules.reduce((s, m) => s + m.automation_not_required, 0)
+  const total    = modules.reduce((s, m) => s + m.overall, 0)
+  const auto     = modules.reduce((s, m) => s + m.automated, 0)
+  const req      = modules.reduce((s, m) => s + m.requires_automation, 0)
+  const notReq   = modules.reduce((s, m) => s + m.automation_not_required, 0)
+  const unclass  = modules.reduce((s, m) => s + (m.unclassified ?? 0), 0)
 
   const stats = [
-    { label: 'Total Tests',             count: total,  color: DS.accent,                         Icon: TestTube2    },
-    { label: 'Automated',               count: auto,   color: CAT.automated.color,               Icon: Zap          },
-    { label: 'Requires Automation',     count: req,    color: CAT.requires_automation.color,     Icon: Clock        },
-    { label: 'Automation Not Required', count: notReq, color: CAT.automation_not_required.color, Icon: CheckCircle2 },
+    { label: 'Total Tests',             count: total,   color: DS.accent,                          Icon: TestTube2    },
+    { label: 'Automated',               count: auto,    color: CAT.automated.color,                Icon: Zap          },
+    { label: 'Requires Automation',     count: req,     color: CAT.requires_automation.color,      Icon: Clock        },
+    { label: 'Automation Not Required', count: notReq,  color: CAT.automation_not_required.color,  Icon: CheckCircle2 },
+    { label: 'Unclassified',            count: unclass, color: CAT.unclassified.color,             Icon: HelpCircle   },
   ]
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
       {stats.map(s => (
         <div
           key={s.label}
@@ -120,12 +153,14 @@ function SummaryBar({ modules }: { modules: ModuleData[] }) {
 }
 
 // ── Module bar chart ──────────────────────────────────────────────────────────
+type CatKey = 'automated' | 'requires_automation' | 'automation_not_required' | 'unclassified'
 type CatSegment = { key: CatKey; jqlKey: keyof ModuleData['jql'] }
 
 const SEGMENTS: CatSegment[] = [
   { key: 'automated',               jqlKey: 'automated'               },
   { key: 'requires_automation',     jqlKey: 'requires_automation'     },
   { key: 'automation_not_required', jqlKey: 'automation_not_required' },
+  { key: 'unclassified',            jqlKey: 'unclassified'            },
 ]
 
 function ModuleBarChart({ modules, jiraBase }: { modules: ModuleData[]; jiraBase: string }) {
@@ -185,9 +220,9 @@ function ModuleBarChart({ modules, jiraBase }: { modules: ModuleData[]; jiraBase
             {/* ── Stacked bar ── */}
             <div style={{ height: 7, borderRadius: 4, overflow: 'hidden', display: 'flex', background: DS.border }}>
               {SEGMENTS.map(seg => {
-                const count = mod[seg.key as keyof ModuleData] as number
+                const count = (mod[seg.key as keyof ModuleData] as number) ?? 0
                 const pct   = (count / total) * 100
-                if (pct < 0.3) return null
+                if (!count || pct < 0.3) return null
                 return (
                   <motion.div
                     key={seg.key}
@@ -212,9 +247,9 @@ function ModuleBarChart({ modules, jiraBase }: { modules: ModuleData[]; jiraBase
                   transition={{ duration: 0.2, ease: 'easeInOut' }}
                   style={{ overflow: 'hidden' }}
                 >
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, paddingTop: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, paddingTop: 10 }}>
                     {SEGMENTS.map(seg => {
-                      const count = mod[seg.key as keyof ModuleData] as number
+                      const count = (mod[seg.key as keyof ModuleData] as number) ?? 0
                       const pct   = Math.round((count / total) * 100)
                       const cat   = CAT[seg.key]
                       return (
@@ -267,11 +302,11 @@ function ModuleBarChart({ modules, jiraBase }: { modules: ModuleData[]; jiraBase
 }
 
 // ── Module table ──────────────────────────────────────────────────────────────
-type CatKey = 'automated' | 'requires_automation' | 'automation_not_required'
 const COLS: { key: CatKey; jqlKey: keyof ModuleData['jql'] }[] = [
   { key: 'automated',               jqlKey: 'automated'               },
   { key: 'requires_automation',     jqlKey: 'requires_automation'     },
   { key: 'automation_not_required', jqlKey: 'automation_not_required' },
+  { key: 'unclassified',            jqlKey: 'unclassified'            },
 ]
 
 function ModuleTable({ modules, jiraBase }: { modules: ModuleData[]; jiraBase: string }) {
@@ -320,8 +355,8 @@ function ModuleTable({ modules, jiraBase }: { modules: ModuleData[]; jiraBase: s
 
               {/* Per-category counts */}
               {COLS.map(col => {
-                const count = mod[col.key as keyof ModuleData] as number
-                const jql   = mod.jql[col.jqlKey]
+                const count = (mod[col.key as keyof ModuleData] as number) ?? 0
+                const jql   = mod.jql[col.jqlKey] ?? mod.jql.overall
                 return (
                   <td key={col.key} style={{ padding: '8px 12px', textAlign: 'center' }}>
                     <motion.span
@@ -537,6 +572,256 @@ function AIInsightsPanel({ modules }: { modules: ModuleData[] }) {
   )
 }
 
+// ── TK Function Categorisation Gadget ─────────────────────────────────────────
+const STATUS_COLS: { key: keyof TKCategory; label: string; color: string }[] = [
+  { key: 'automated',               label: 'Automated',      color: CAT.automated.color               },
+  { key: 'requires_automation',     label: 'Req. Auto',      color: CAT.requires_automation.color     },
+  { key: 'automation_not_required', label: 'Not Required',   color: CAT.automation_not_required.color },
+  { key: 'unclassified',            label: 'Unclassified',   color: CAT.unclassified.color            },
+]
+
+function TKCategorizationGadget({ jiraBase }: { jiraBase: string }) {
+  const [open,    setOpen]    = useState(false)
+  const [data,    setData]    = useState<TKCategoryData | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState<string | null>(null)
+  const fetched = useRef(false)
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(getApiUrl('/api/services-mod-dashboard/tk-categories'))
+      if (!res.ok) throw new Error(await res.text())
+      setData(await res.json())
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const handleToggle = () => {
+    setOpen(o => !o)
+    if (!fetched.current) { fetched.current = true; fetchData() }
+  }
+
+  const cats = data?.categories ?? []
+  const maxTotal = Math.max(...cats.map(c => c.total), 1)
+
+  return (
+    <div style={{ border: `1px solid ${DS.border}`, borderRadius: 12, background: DS.card, fontFamily: DS.font }}>
+      {/* Header toggle */}
+      <button
+        onClick={handleToggle}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+          padding: '12px 16px', background: 'transparent', border: 'none',
+          cursor: 'pointer', fontFamily: DS.font, textAlign: 'left', borderRadius: 12,
+        }}
+      >
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+          background: 'linear-gradient(135deg, #0369A1, #7C3AED)',
+        }}>
+          <Layers size={12} style={{ color: '#fff' }} />
+        </div>
+        <span style={{ color: DS.text, fontSize: 12, fontWeight: 700, flex: 1 }}>
+          TK Test Case Categorisation
+        </span>
+        <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(3,105,161,0.12)', color: '#0369A1' }}>
+          by Function Code
+        </span>
+        {data && (
+          <span style={{ color: DS.textMuted, fontSize: 10 }}>{data.tk_total} tests</span>
+        )}
+        {open
+          ? <ChevronDown  size={13} style={{ color: DS.textMuted }} />
+          : <ChevronRight size={13} style={{ color: DS.textMuted }} />
+        }
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ borderTop: `1px solid ${DS.border}`, padding: '12px 16px 16px' }}>
+
+              {loading && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 0' }}>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                    style={{ width: 14, height: 14, border: `2px solid ${DS.border}`, borderTopColor: '#0369A1', borderRadius: '50%' }}
+                  />
+                  <span style={{ color: DS.textMuted, fontSize: 11 }}>Fetching TK test case categories from Jira…</span>
+                </div>
+              )}
+
+              {error && !loading && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 0' }}>
+                  <AlertCircle size={12} style={{ color: 'var(--red)', flexShrink: 0 }} />
+                  <span style={{ color: 'var(--red)', fontSize: 10 }}>{error}</span>
+                  <button onClick={fetchData} style={{ marginLeft: 'auto', color: DS.textMuted, fontSize: 10, background: 'none', border: 'none', cursor: 'pointer' }}>Retry</button>
+                </div>
+              )}
+
+              {!loading && cats.length > 0 && (
+                <>
+                  {/* Column header */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 60px 80px 80px 80px 80px 80px',
+                    gap: 4,
+                    padding: '6px 8px',
+                    marginBottom: 4,
+                    borderBottom: `1px solid ${DS.border}`,
+                  }}>
+                    <span style={{ color: DS.textMuted, fontSize: 10, fontWeight: 700 }}>Category</span>
+                    <span style={{ color: DS.textMuted, fontSize: 10, fontWeight: 700, textAlign: 'center' }}>Total</span>
+                    {STATUS_COLS.map(sc => (
+                      <span key={sc.key} style={{ color: sc.color, fontSize: 9, fontWeight: 700, textAlign: 'center' }}>{sc.label}</span>
+                    ))}
+                    <span style={{ color: DS.textMuted, fontSize: 10, fontWeight: 700, textAlign: 'center' }}>Coverage</span>
+                  </div>
+
+                  {/* Category rows */}
+                  {cats.filter(c => c.total > 0).map((cat, i) => {
+                    const autoPct = cat.total > 0 ? Math.round((cat.automated / cat.total) * 100) : 0
+                    return (
+                      <motion.div
+                        key={cat.name}
+                        initial={{ opacity: 0, x: -6 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.03 }}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 60px 80px 80px 80px 80px 80px',
+                          gap: 4,
+                          padding: '8px',
+                          borderRadius: 8,
+                          marginBottom: 2,
+                          background: i % 2 === 0 ? 'transparent' : DS.surface + '55',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {/* Name + description + mini bar */}
+                        <div>
+                          <button
+                            onClick={() => window.open(`${jiraBase}/issues/?jql=${encodeURIComponent(cat.jql.overall)}`, '_blank', 'noopener,noreferrer')}
+                            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}
+                          >
+                            <Tag size={9} style={{ color: cat.color, flexShrink: 0 }} />
+                            <span style={{ color: DS.text, fontSize: 11, fontWeight: 600 }}>{cat.name}</span>
+                            <ExternalLink size={8} style={{ color: DS.textHint }} />
+                          </button>
+                          <div style={{ fontSize: 9, color: DS.textHint, marginBottom: 4 }}>{cat.description}</div>
+                          {/* Mini stacked bar */}
+                          <div style={{ height: 4, borderRadius: 3, overflow: 'hidden', display: 'flex', background: DS.border, width: '90%' }}>
+                            {[
+                              { pct: (cat.automated / maxTotal) * 100,               color: CAT.automated.color },
+                              { pct: (cat.requires_automation / maxTotal) * 100,     color: CAT.requires_automation.color },
+                              { pct: (cat.automation_not_required / maxTotal) * 100, color: CAT.automation_not_required.color },
+                              { pct: (cat.unclassified / maxTotal) * 100,            color: CAT.unclassified.color },
+                            ].map((seg, si) => seg.pct > 0.3 ? (
+                              <motion.div
+                                key={si}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${seg.pct}%` }}
+                                transition={{ duration: 0.6, ease: 'easeOut', delay: i * 0.03 }}
+                                style={{ height: '100%', background: seg.color, opacity: 0.85 }}
+                              />
+                            ) : null)}
+                          </div>
+                        </div>
+
+                        {/* Total */}
+                        <div style={{ textAlign: 'center' }}>
+                          <motion.span
+                            onClick={() => window.open(`${jiraBase}/issues/?jql=${encodeURIComponent(cat.jql.overall)}`, '_blank', 'noopener,noreferrer')}
+                            whileHover={{ scale: 1.1 }}
+                            style={{
+                              display: 'inline-block', padding: '2px 7px', borderRadius: 6,
+                              background: cat.color + '18', color: cat.color,
+                              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                            }}
+                          >
+                            {cat.total}
+                          </motion.span>
+                        </div>
+
+                        {/* Per-status counts */}
+                        {STATUS_COLS.map(sc => {
+                          const count = cat[sc.key] as number
+                          const jqlForCol = cat.jql[sc.key as keyof TKCategory['jql']]
+                          return (
+                            <div key={sc.key} style={{ textAlign: 'center' }}>
+                              {count > 0 ? (
+                                <motion.span
+                                  onClick={() => window.open(`${jiraBase}/issues/?jql=${encodeURIComponent(jqlForCol)}`, '_blank', 'noopener,noreferrer')}
+                                  whileHover={{ scale: 1.1 }}
+                                  style={{
+                                    display: 'inline-block', padding: '2px 6px', borderRadius: 4,
+                                    background: sc.color + '15', color: sc.color,
+                                    fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                                  }}
+                                >
+                                  {count}
+                                </motion.span>
+                              ) : (
+                                <span style={{ color: DS.textHint, fontSize: 10 }}>–</span>
+                              )}
+                            </div>
+                          )
+                        })}
+
+                        {/* Coverage % */}
+                        <div style={{ textAlign: 'center' }}>
+                          <span style={{
+                            fontSize: 11, fontWeight: 700,
+                            color: autoPct >= 60 ? CAT.automated.color
+                                 : autoPct >= 30 ? CAT.requires_automation.color
+                                 : CAT.unclassified.color,
+                          }}>
+                            {autoPct}%
+                          </span>
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+
+                  {/* Footer */}
+                  <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${DS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                      {STATUS_COLS.map(sc => (
+                        <div key={sc.key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: 2, background: sc.color }} />
+                          <span style={{ color: DS.textMuted, fontSize: 9 }}>{sc.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {data?.last_fetched && (
+                      <span style={{ color: DS.textHint, fontSize: 9 }}>
+                        Updated {new Date(data.last_fetched).toLocaleTimeString()}
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 export function ServicesModDashboard() {
   const [data,       setData]       = useState<DashboardData | null>(null)
@@ -664,6 +949,9 @@ export function ServicesModDashboard() {
         <div style={{ background: DS.card, border: `1px solid ${DS.border}`, borderRadius: 12, overflow: 'hidden' }}>
           <ModuleTable modules={modules} jiraBase={jiraBase} />
         </div>
+
+        {/* TK Categorisation gadget */}
+        <TKCategorizationGadget jiraBase={jiraBase} />
 
         {/* AI insights */}
         {modules.length > 0 && <AIInsightsPanel modules={modules} />}
