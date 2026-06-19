@@ -13,7 +13,6 @@ import { TCOEDashboard } from '../TCOEDashboard'
 import { QAMetricsDashboard } from '../QAMetricsDashboard'
 import { KPIMetricsDashboard } from '../KPIMetricsDashboard'
 import { GitHubInsightsDashboard } from '../GitHubInsightsDashboard'
-import { SalesforceInsightsDashboard } from '../SalesforceInsightsDashboard'
 import { ServicesDashboard } from '../ServicesDashboard'
 import { ServicesModDashboard } from '../ServicesModDashboard'
 import { useTheme } from '../../contexts/ThemeContext'
@@ -201,7 +200,47 @@ function NewFigmaAppContent() {
       case 'github-insights':
         return <GitHubInsightsDashboard />
       case 'salesforce-insights':
-        return <SalesforceInsightsDashboard />
+        return (
+          <div className="h-full flex flex-col items-center justify-center gap-5">
+            <div style={{
+              width: 72,
+              height: 72,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+            }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+                <path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+              </svg>
+            </div>
+            <div className="text-center" style={{ maxWidth: 340 }}>
+              <h2 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+                Salesforce CRM Insights
+              </h2>
+              <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                Salesforce CRM insights are under development and not yet available. Check back soon for deal pipeline, lead conversion, and account health data.
+              </p>
+            </div>
+            <span style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              lineHeight: 1,
+              padding: '5px 12px',
+              borderRadius: 999,
+              color: 'var(--accent-cool-text)',
+              background: 'var(--accent-cool-bg)',
+              border: '1px solid color-mix(in srgb, var(--accent-cool) 35%, transparent)',
+            }}>
+              Coming Soon
+            </span>
+          </div>
+        )
       case 'leadership':
         return <FigmaDashboard hasActiveConnections={hasActiveConnections} theme={isDarkMode ? 'dark' : 'light'} />
       case 'services-dashboard':

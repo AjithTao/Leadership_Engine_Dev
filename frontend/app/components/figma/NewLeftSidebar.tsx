@@ -85,7 +85,7 @@ export function NewLeftSidebar({
   const [quickActionsExpanded, setQuickActionsExpanded] = useState(false)
   const [insightsExpanded, setInsightsExpanded] = useState(false)
   const [cdkExpanded, setCdkExpanded] = useState(
-    activeView === 'tcoe-dashboard' || activeView === 'services-dashboard' || activeView === 'services-mod-dashboard'
+    activeView === 'tcoe-dashboard'
   )
   const [mercuryExpanded, setMercuryExpanded] = useState(false)
   const [showWelcome, setShowWelcome] = useState(true)
@@ -152,7 +152,7 @@ export function NewLeftSidebar({
   }, [activeView])
 
   React.useEffect(() => {
-    if (activeView === 'tcoe-dashboard' || activeView === 'services-dashboard' || activeView === 'services-mod-dashboard') {
+    if (activeView === 'tcoe-dashboard') {
       setCdkExpanded(true)
     }
   }, [activeView])
@@ -450,7 +450,7 @@ export function NewLeftSidebar({
               {/* CDK Dashboards — Collapsible group */}
               <div className="space-y-0.5">
                 {(() => {
-                  const cdkActive = activeView === 'tcoe-dashboard' || activeView === 'services-dashboard' || activeView === 'services-mod-dashboard'
+                  const cdkActive = activeView === 'tcoe-dashboard'
                   return (
                     <>
                       <NavButton
@@ -481,24 +481,6 @@ export function NewLeftSidebar({
                           >
                             <BarChart3 className="w-3.5 h-3.5 flex-shrink-0" />
                             <span className="truncate min-w-0 flex-1">QCOE Dashboard</span>
-                          </SubNavButton>
-
-                          <SubNavButton
-                            active={activeView === 'services-dashboard'}
-                            onClick={() => setActiveView('services-dashboard')}
-                            primary={primary}
-                          >
-                            <Workflow className="w-3.5 h-3.5 flex-shrink-0" />
-                            <span className="truncate min-w-0 flex-1">Accounting Dashboard</span>
-                          </SubNavButton>
-
-                          <SubNavButton
-                            active={activeView === 'services-mod-dashboard'}
-                            onClick={() => setActiveView('services-mod-dashboard')}
-                            primary={primary}
-                          >
-                            <Target className="w-3.5 h-3.5 flex-shrink-0" />
-                            <span className="truncate min-w-0 flex-1">Services Dashboard</span>
                           </SubNavButton>
                         </div>
                       )}
