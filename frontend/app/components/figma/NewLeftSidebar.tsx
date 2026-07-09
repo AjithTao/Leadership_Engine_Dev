@@ -369,7 +369,7 @@ export function NewLeftSidebar({
               {/* Project Mercury — Collapsible */}
               <div className="space-y-0.5">
                 {(() => {
-                  const mercuryActive = activeView === 'services-dashboard' || activeView === 'services-modern'
+                  const mercuryActive = activeView === 'services-dashboard' || activeView === 'services-mod-dashboard' || activeView === 'services-modern'
                   return (
                     <>
                       <NavButton
@@ -401,6 +401,17 @@ export function NewLeftSidebar({
                             <FolderOpen className="w-3.5 h-3.5 flex-shrink-0" />
                             <span className="min-w-0 truncate text-left">
                               DMS Modern Enablement
+                            </span>
+                          </SubNavButton>
+
+                          <SubNavButton
+                            active={activeView === 'services-mod-dashboard'}
+                            onClick={() => setActiveView('services-mod-dashboard')}
+                            primary={primary}
+                          >
+                            <LayoutDashboard className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span className="min-w-0 truncate text-left">
+                              Module Test Status
                             </span>
                           </SubNavButton>
 

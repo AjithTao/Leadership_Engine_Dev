@@ -8,9 +8,9 @@ import {
   RefreshCw, ExternalLink, AlertCircle, CheckCircle2, XCircle,
   Clock, MinusCircle, Bug, TestTube2, BarChart3, FileText,
   TrendingUp, ShieldAlert, Layers, AlertTriangle, ChevronDown, ChevronRight,
-  Activity, Zap, Target, Info
+  Activity, Zap, Target, PieChart, Info
 } from 'lucide-react'
-import { getApiUrl } from '../../lib/api-config'
+import { getApiUrl, fetchWithTimeout } from '../../lib/api-config'
 import { useTheme } from '../contexts/ThemeContext'
 
 // Theme detection. The semantic accent hexes below need darker, WCAG-AA variants
@@ -39,7 +39,7 @@ const DS = {
   textSec:       'var(--text-secondary)',
   textMuted:     'var(--text-muted)',
   textHint:      'var(--text-hint)',
-  get accent()   { return pick('#816213', '#D4A847') },   // brand gold
+  get accent()   { return pick('#816213', '#D4A847') },
   get accentBg() { return pick('#81621318', '#D4A84718') },
   get green()    { return pick('#1A7331', '#22C55E') },
   get greenBg()  { return pick('#1A733118', '#22C55E18') },
@@ -66,6 +66,15 @@ interface TestAreaData {
   label: string
   color: string
   count: number
+  jql?: string
+  columns?: MetricCell[]
+}
+
+interface MetricCell {
+  label: string
+  color?: string
+  count: number
+  jql?: string
 }
 
 interface TestSuiteData {
@@ -73,13 +82,26 @@ interface TestSuiteData {
   manual: number
   automated: number
   by_area?: TestAreaData[]
+  columns?: MetricCell[]
+  source_jql?: string
+  gadget_id?: string
+  chart_title?: string
 }
 
 interface BugDistItem {
-  project: string
+  key: string
   label: string
   color: string
   count: number
+  jql?: string
+}
+
+interface BugPriorityByProject {
+  project: string
+  label: string
+  color: string
+  total: number
+  priorities: Record<string, number>
 }
 
 interface ExecRow {
@@ -144,19 +166,34 @@ interface FindingsAnalysis {
 }
 
 interface DashboardData {
-  focused_test_suite:       TestSuiteData
-  comprehensive_test_suite: TestSuiteData
-  bugs_distribution:        BugDistItem[]
-  bug_priorities:           Record<string, number>
-  bugs_total:               number
-  execution_summary:        ExecRow[]
-  version:                  string
-  project:                  string
+  focused_test_suite:        TestSuiteData
+  comprehensive_test_suite:  TestSuiteData
+  test_cases_distribution?:  TestSuiteData | null
+  bugs_distribution:         BugDistItem[]
+  bugs_distribution_total?:  number
+  bugs_source_jql?:          string
+  bug_priority_by_project:   BugPriorityByProject[]
+  bug_priorities:            Record<string, number>
+  priority_order?:           string[]
+  bugs_total:                number
+  execution_summary:         ExecRow[]
+  execution_chart_summary?:  ExecRow[]
+  version:                   string
+  project:                   string
+  jira_base_url?:            string
   findings: {
     observations_url: string
     blockers_url:     string
   }
   last_updated: string
+}
+
+interface AIInsight {
+  gadget:   string
+  headline: string
+  insight:  string
+  priority: 'high' | 'medium' | 'low'
+  action:   string
 }
 
 // ── Seed data — shown while backend loads ──────────────────────────────────────
@@ -182,11 +219,23 @@ const SEED: DashboardData = {
     ],
   },
   bugs_distribution: [
-    { project: 'APMODACC', label: 'Accounts Payable',    color: '#0052CC', count: 35 },
-    { project: 'GLMODACC', label: 'General Ledger',       color: '#00875A', count: 27 },
-    { project: 'ARMODACC', label: 'Accounts Receivable',  color: '#FF5630', count: 13 },
-    { project: 'POMODACC', label: 'Purchase Orders',      color: '#FF8B00', count: 9  },
-    { project: 'MODSRCH',  label: 'Search & Navigation',  color: '#6554C0', count: 5  },
+    { key: 'M-Bug-MH',            label: 'Merced Honda',       color: '#0052CC', count: 35 },
+    { key: 'M-Bug-Nissan',        label: 'Team Nissan Group',   color: '#00875A', count: 22 },
+    { key: 'M-Bug-Highlandford',  label: 'Highland Park Ford',  color: '#FF5630', count: 18 },
+    { key: 'M-Bug-Mikeburchford', label: 'Mike Burch Ford',     color: '#FF7A00', count: 15 },
+    { key: 'M-Bug-Toyota',        label: 'Toyota of Glendora',  color: '#6554C0', count: 12 },
+  ],
+  bug_priority_by_project: [
+    { project: 'APMODACC', label: 'Accounts Payable',    color: '#0052CC', total: 35,
+      priorities: { Blocker: 0, High: 8, Medium: 20, Low: 6, Minor: 1 } },
+    { project: 'GLMODACC', label: 'General Ledger',       color: '#00875A', total: 27,
+      priorities: { Blocker: 0, High: 5, Medium: 17, Low: 4, Minor: 1 } },
+    { project: 'ARMODACC', label: 'Accounts Receivable',  color: '#FF5630', total: 13,
+      priorities: { Blocker: 0, High: 3, Medium: 7,  Low: 3, Minor: 0 } },
+    { project: 'POMODACC', label: 'Purchase Orders',      color: '#FF8B00', total: 9,
+      priorities: { Blocker: 0, High: 2, Medium: 5,  Low: 2, Minor: 0 } },
+    { project: 'MODSRCH',  label: 'Search & Navigation',  color: '#6554C0', total: 5,
+      priorities: { Blocker: 0, High: 0, Medium: 3,  Low: 2, Minor: 0 } },
   ],
   bug_priorities: { Blocker: 0, High: 8, Medium: 62, Low: 7, Minor: 1 },
   bugs_total: 89,
@@ -197,8 +246,9 @@ const SEED: DashboardData = {
     { cycle: 'Mike Burch Ford',    color: '#FF7A00', pass:  499, fail:  31, wip: 0, blocked:   4, unexecuted: 153, total:  687, pass_rate: 72.6 },
     { cycle: 'TOYOTA OF GLENDORA', color: '#6554C0', pass:  510, fail:  12, wip: 0, blocked:   1, unexecuted: 177, total:  700, pass_rate: 72.9 },
   ],
-  version:      'MOD ACCOUNTING UAT',
-  project:      'MODDWTC',
+  version:        'MOD ACCOUNTING UAT',
+  project:        'MODDWTC',
+  jira_base_url:  'https://projects.cdk.com',
   findings: {
     observations_url: 'https://confluence.cdk.com/pages/viewpage.action?pageId=502140070',
     blockers_url:     'https://confluence.cdk.com/pages/viewpage.action?pageId=502140072',
@@ -428,6 +478,7 @@ function Card({ children, style = {}, className = '', hover = true }: { children
   )
 }
 
+
 // ── Info tooltip ("i" button + hover/click explanation) ───────────────────────
 // Rendered through a portal to <body> so the floating panel can never be clipped
 // by a card's overflow or painted over by a sibling card's stacking context.
@@ -539,103 +590,291 @@ function CardHeader({ icon: Icon, title, subtitle, accent = DS.blue, info }: {
   )
 }
 
-// ── Test Suite Component Area Breakdown ───────────────────────────────────────
-function TestSuiteBreakdown({ manual, automated, total, by_area }: TestSuiteData) {
-  const areas = by_area?.filter(a => a.count > 0) ?? []
-  return (
-    <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {/* Total */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ color: DS.text, fontSize: 24, fontWeight: 700, lineHeight: 1 }}>
-          <AnimatedCounter target={total} />
-        </span>
-        <span style={{ color: DS.textMuted, fontSize: 11 }}>total test cases</span>
-      </div>
 
-      {/* Component area breakdown */}
-      {areas.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          {areas.map(area => {
-            const pct = total > 0 ? (area.count / total) * 100 : 0
-            return (
-              <div key={area.label}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <div style={{ width: 7, height: 7, borderRadius: 2, background: area.color, flexShrink: 0 }} />
-                    <span style={{ color: DS.textSec, fontSize: 11 }}>{area.label}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
-                    <span style={{ color: DS.text, fontSize: 12, fontWeight: 600 }}>{area.count.toLocaleString()}</span>
-                    <span style={{ color: DS.textMuted, fontSize: 10 }}>{pct.toFixed(1)}%</span>
-                  </div>
-                </div>
-                <div style={{ height: 4, background: DS.border, borderRadius: 2, overflow: 'hidden' }}>
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${pct}%` }}
-                    transition={{ duration: 0.7, ease: 'easeOut' }}
-                    style={{ height: '100%', background: area.color, borderRadius: 2 }}
-                  />
-                </div>
-              </div>
-            )
-          })}
+// ── Test Suite Component Area Breakdown ───────────────────────────────────────
+// Column accent colours: Automated=blue, Manual=amber, everything else gets area colour
+// Used only for column header labels and legend dots — not cell values
+const COL_COLORS: Record<string, string> = {
+  Automated: 'var(--accent-cool)',
+  Manual:    'var(--text-secondary)',
+}
+
+function TestSuiteBreakdown({ manual, automated, total, by_area, columns: sourceColumns, source_jql }: TestSuiteData) {
+  const areas = by_area?.filter(a => a.count > 0) ?? []
+  const allColumns = sourceColumns?.length ? sourceColumns : by_area?.flatMap(a => a.columns ?? [])
+    .reduce<MetricCell[]>((acc, cell) => {
+      if (!acc.some(existing => existing.label === cell.label)) acc.push(cell)
+      return acc
+    }, []) ?? []
+  const columns = allColumns.filter(c => c.label.toLowerCase() !== 'total')
+  const totalTooltip = source_jql ? `Base JQL:\n${source_jql}` : undefined
+
+  return (
+    <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+      {/* ── 1. Detail table — TOP ─────────────────────────────────────────── */}
+      {columns.length > 0 && areas.length > 0 && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+            <thead>
+              <tr>
+                <th style={{ padding: '5px 8px', textAlign: 'left', color: DS.textMuted, fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${DS.border}`, whiteSpace: 'nowrap' }}>
+                  Area
+                </th>
+                {columns.map(col => (
+                  <th key={col.label} style={{ padding: '5px 8px', textAlign: 'right', color: COL_COLORS[col.label] ?? DS.textMuted, fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${DS.border}`, whiteSpace: 'nowrap' }}>
+                    {col.label}
+                  </th>
+                ))}
+                <th style={{ padding: '5px 8px', textAlign: 'right', color: DS.textMuted, fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${DS.border}` }}>
+                  Total
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {areas.map((area, idx) => (
+                <tr key={area.label} style={{ background: idx % 2 === 1 ? `color-mix(in srgb, ${DS.surface} 55%, transparent)` : 'transparent', borderBottom: `1px solid ${DS.border}` }}>
+                  {/* Area name with colour dot */}
+                  <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: 2, background: area.color, flexShrink: 0 }} />
+                      <span style={{ color: DS.textSec, fontWeight: 500 }}>{area.label}</span>
+                    </div>
+                  </td>
+                  {columns.map(col => {
+                    const cell = area.columns?.find(c => c.label === col.label)
+                    return (
+                      <td key={col.label} title={cell?.jql} style={{ padding: '6px 8px', textAlign: 'right', color: DS.textSec, fontWeight: 500 }}>
+                        {(cell?.count ?? 0).toLocaleString()}
+                      </td>
+                    )
+                  })}
+                  <td style={{ padding: '6px 8px', textAlign: 'right', color: DS.text, fontWeight: 600 }}>
+                    {columns.reduce((s, col) => s + (area.columns?.find(c => c.label === col.label)?.count ?? 0), 0).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* Manual / Automated summary strip */}
-      <div style={{ display: 'flex', gap: 14, paddingTop: 6, borderTop: `1px solid ${DS.border}` }}>
-        {[
-          { label: 'Manual',    count: manual,    color: '#BF2600' },
-          { label: 'Automated', count: automated, color: '#0052CC' },
-        ].map(s => (
-          <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <div style={{ width: 7, height: 7, borderRadius: 2, background: s.color, flexShrink: 0 }} />
-            <span style={{ color: DS.textMuted, fontSize: 10 }}>
-              {s.label}: <strong style={{ color: DS.textSec, fontWeight: 600 }}>{s.count.toLocaleString()}</strong>
+      {/* ── 2. Automated / Manual totals — BOTTOM ───────────────────────── */}
+      {(() => {
+        // Sum each column directly from the table rows so footer always matches table
+        const summaryItems = columns.length > 0
+          ? columns.map(col => ({
+              ...col,
+              count: areas.reduce((s, a) => s + (a.columns?.find(c => c.label === col.label)?.count ?? 0), 0),
+            }))
+          : [
+              { label: 'Automated', count: areas.reduce((s, a) => s + (a.columns?.find(c => c.label === 'Automated')?.count ?? 0), automated), color: 'var(--blue)'  },
+              { label: 'Manual',    count: areas.reduce((s, a) => s + (a.columns?.find(c => c.label === 'Manual')?.count ?? 0), manual),    color: 'var(--amber)' },
+            ]
+        const derivedTotal = summaryItems.reduce((s, i) => s + i.count, 0)
+        return (
+          <div style={{ borderTop: `1px solid ${DS.border}`, paddingTop: 8, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            {summaryItems.map(s => (
+              <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ width: 7, height: 7, borderRadius: 2, background: COL_COLORS[s.label] ?? s.color ?? DS.blue, flexShrink: 0 }} />
+                <span style={{ color: DS.textMuted, fontSize: 10 }}>
+                  {s.label}: <strong style={{ color: DS.textSec, fontWeight: 600 }}>{s.count.toLocaleString()}</strong>
+                </span>
+              </div>
+            ))}
+            <span style={{ marginLeft: 'auto', color: DS.textMuted, fontSize: 10 }} title={totalTooltip}>
+              Total: <strong style={{ color: DS.text, fontWeight: 700 }}>{derivedTotal.toLocaleString()}</strong>
+              {source_jql ? ' ⓘ' : ''}
             </span>
           </div>
-        ))}
-        {total > (manual + automated) && (
-          <span style={{ color: DS.textMuted, fontSize: 10 }}>
-            Other: <strong style={{ color: DS.textSec, fontWeight: 600 }}>{(total - manual - automated).toLocaleString()}</strong>
+        )
+      })()}
+    </div>
+  )
+}
+
+// ── Donut chart — single-dimension breakdown (e.g. Test Cases Distribution) ───
+function TestCasesDonutChart({ data, jiraBase }: { data: TestSuiteData; jiraBase?: string }) {
+  const areas = (data.by_area ?? []).filter(a => a.count > 0)
+  const total = data.total || areas.reduce((s, a) => s + a.count, 0) || 1
+  const base = jiraBase ?? 'https://projects.cdk.com'
+  const [hovered, setHovered] = useState<string | null>(null)
+
+  const openJql = (jql?: string) => {
+    if (!jql) return
+    window.open(`${base}/issues/?jql=${encodeURIComponent(jql)}`, '_blank', 'noopener,noreferrer')
+  }
+
+  if (areas.length === 0) {
+    return (
+      <div style={{ padding: '24px 16px', textAlign: 'center', color: DS.textMuted, fontSize: 11 }}>
+        No test case data available
+      </div>
+    )
+  }
+
+  const radius = 58
+  const strokeWidth = 24
+  const circumference = 2 * Math.PI * radius
+  let offsetAccum = 0
+  const hoveredArea = areas.find(a => a.label === hovered)
+
+  return (
+    <div style={{ padding: '14px 16px', display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+      {/* SVG Donut */}
+      <div style={{ position: 'relative', width: 152, height: 152, flexShrink: 0 }}>
+        <svg width={152} height={152} viewBox="0 0 152 152">
+          <g transform="rotate(-90 76 76)">
+            <circle cx={76} cy={76} r={radius} fill="none" stroke={DS.border} strokeWidth={strokeWidth} />
+            {areas.map(area => {
+              const pct = area.count / total
+              const segLen = pct * circumference
+              const dashArray = `${segLen} ${circumference - segLen}`
+              const dashOffset = -offsetAccum
+              offsetAccum += segLen
+              const isHovered = hovered === area.label
+              return (
+                <circle
+                  key={area.label}
+                  cx={76} cy={76} r={radius} fill="none"
+                  stroke={area.color}
+                  strokeWidth={isHovered ? strokeWidth + 5 : strokeWidth}
+                  strokeDasharray={dashArray}
+                  strokeDashoffset={dashOffset}
+                  onMouseEnter={() => setHovered(area.label)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => openJql(area.jql)}
+                  style={{
+                    cursor: area.jql ? 'pointer' : 'default',
+                    opacity: hovered && !isHovered ? 0.35 : 0.95,
+                    transition: 'opacity 0.15s, stroke-width 0.15s',
+                  }}
+                >
+                  <title>{`${area.label}: ${area.count} (${Math.round(pct * 100)}%)`}</title>
+                </circle>
+              )
+            })}
+          </g>
+        </svg>
+        {/* Center label */}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          <span style={{ color: DS.text, fontSize: 20, fontWeight: 800, lineHeight: 1 }}>
+            {(hoveredArea ? hoveredArea.count : total).toLocaleString()}
           </span>
-        )}
+          <span style={{ color: DS.textMuted, fontSize: 9, marginTop: 3, textAlign: 'center', maxWidth: 90, lineHeight: 1.2 }}>
+            {hoveredArea ? hoveredArea.label : 'Total Cases'}
+          </span>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div style={{ flex: 1, minWidth: 180, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {areas.map(area => {
+          const pct = Math.round((area.count / total) * 100)
+          return (
+            <div
+              key={area.label}
+              onMouseEnter={() => setHovered(area.label)}
+              onMouseLeave={() => setHovered(null)}
+              onClick={() => openJql(area.jql)}
+              title={area.jql ? `Open in Jira: ${area.label}` : area.label}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '3px 6px', borderRadius: 6,
+                cursor: area.jql ? 'pointer' : 'default',
+                background: hovered === area.label ? DS.surface : 'transparent',
+                transition: 'background 0.15s',
+              }}
+            >
+              <div style={{ width: 9, height: 9, borderRadius: 2, background: area.color, flexShrink: 0 }} />
+              <span style={{ color: DS.textSec, fontSize: 11, flex: 1 }}>{area.label}</span>
+              <span style={{ color: DS.textMuted, fontSize: 10 }}>{pct}%</span>
+              <span style={{ color: DS.text, fontSize: 12, fontWeight: 700, minWidth: 36, textAlign: 'right' }}>{area.count.toLocaleString()}</span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
 }
 
 // ── Bug Distribution horizontal bars ──────────────────────────────────────────
-function BugDistributionChart({ bugs }: { bugs: BugDistItem[] }) {
+function BugDistributionChart({ bugs, total, sourceJql, jiraBase }: {
+  bugs: BugDistItem[]
+  total?: number
+  sourceJql?: string
+  jiraBase?: string
+}) {
   const max = Math.max(...bugs.map(b => b.count), 1)
+  const base = jiraBase ?? 'https://projects.cdk.com'
+
+  const openJql = (jql?: string) => {
+    if (!jql) return
+    window.open(`${base}/issues/?jql=${encodeURIComponent(jql)}`, '_blank', 'noopener,noreferrer')
+  }
+
+  const totalTooltip = sourceJql ? `Click to open in Jira\nJQL: ${sourceJql}` : 'Total unique bugs'
+
   return (
     <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {bugs.map(bug => (
-        <div key={bug.project}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 8, height: 8, borderRadius: 2, background: bug.color, flexShrink: 0 }} />
-              <span style={{ color: DS.textSec, fontSize: 11, whiteSpace: 'nowrap' }}>{bug.label}</span>
-            </div>
-            <span style={{ color: DS.text, fontSize: 12, fontWeight: 600, marginLeft: 8 }}>{bug.count}</span>
-          </div>
-          <div style={{ height: 6, background: DS.border, borderRadius: 3, overflow: 'hidden' }}>
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${(bug.count / max) * 100}%` }}
-              transition={{ duration: 0.7, ease: 'easeOut' }}
-              style={{ height: '100%', background: bug.color, borderRadius: 3 }}
-            />
-          </div>
+      {/* Total row */}
+      {total !== undefined && (
+        <div
+          onClick={() => openJql(sourceJql)}
+          title={totalTooltip}
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            paddingBottom: 8, marginBottom: 2, borderBottom: `1px solid ${DS.border}`,
+            cursor: sourceJql ? 'pointer' : 'default',
+          }}
+        >
+          <span style={{ color: DS.textMuted, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Total unique bugs {sourceJql ? '↗' : 'ⓘ'}
+          </span>
+          <span style={{ color: DS.text, fontSize: 15, fontWeight: 700 }}>{total}</span>
         </div>
-      ))}
+      )}
+
+      {bugs.map(bug => {
+        const pct = total && total > 0 ? Math.round((bug.count / total) * 100) : null
+        const hasLink = !!bug.jql
+        return (
+          <motion.div
+            key={bug.key}
+            onClick={() => openJql(bug.jql)}
+            title={hasLink ? `Open in Jira: ${bug.label}` : bug.label}
+            whileHover={hasLink ? { x: 2 } : {}}
+            style={{ cursor: hasLink ? 'pointer' : 'default' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 8, height: 8, borderRadius: 2, background: bug.color, flexShrink: 0 }} />
+                <span style={{ color: DS.textSec, fontSize: 11, whiteSpace: 'nowrap' }}>{bug.label}</span>
+                {hasLink && <ExternalLink size={9} style={{ color: DS.textHint, flexShrink: 0 }} />}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 8 }}>
+                {pct !== null && (
+                  <span style={{ color: DS.textMuted, fontSize: 10 }}>{pct}%</span>
+                )}
+                <span style={{ color: DS.text, fontSize: 12, fontWeight: 600 }}>{bug.count}</span>
+              </div>
+            </div>
+            <div style={{ height: 5, background: DS.border, borderRadius: 3, overflow: 'hidden' }}>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${(bug.count / max) * 100}%` }}
+                transition={{ duration: 0.7, ease: 'easeOut' }}
+                style={{ height: '100%', background: bug.color, borderRadius: 3, opacity: 0.6 }}
+              />
+            </div>
+          </motion.div>
+        )
+      })}
     </div>
   )
 }
 
 // ── Execution Status Table ────────────────────────────────────────────────────
-function ExecutionTable({ rows }: { rows: ExecRow[] }) {
+function ExecutionTable({ rows, jiraBase, project }: { rows: ExecRow[]; jiraBase?: string; project?: string }) {
   const cols: Array<{ key: keyof ExecRow; label: string; status: keyof typeof STATUS }> = [
     { key: 'pass',       label: 'Pass',     status: 'PASS'       },
     { key: 'fail',       label: 'Fail',     status: 'FAIL'       },
@@ -668,6 +907,17 @@ function ExecutionTable({ rows }: { rows: ExecRow[] }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: row.color, flexShrink: 0 }} />
                   <span style={{ color: DS.text, fontWeight: 500 }}>{row.cycle}</span>
+                  {jiraBase && (
+                    <a
+                      href={`${jiraBase}/issues/?jql=${encodeURIComponent(`project in (${project || 'MODDWTC'}) AND issuetype = Test AND "Test Cycle" ~ "${row.cycle.replace(/"/g, '\\"')}"`)}`}
+                      target="_blank" rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      title="Open in Jira"
+                      style={{ color: DS.textHint, lineHeight: 0, flexShrink: 0 }}
+                    >
+                      <ExternalLink size={10} />
+                    </a>
+                  )}
                 </div>
               </td>
               {cols.map(c => (
@@ -683,8 +933,8 @@ function ExecutionTable({ rows }: { rows: ExecRow[] }) {
               <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                 <span style={{
                   display: 'inline-block', padding: '2px 8px', borderRadius: 10,
-                  background: row.pass_rate >= 85 ? DS.greenBg : row.pass_rate >= 70 ? DS.amberBg : DS.redBg,
-                  color:      row.pass_rate >= 85 ? DS.green   : row.pass_rate >= 70 ? DS.amber   : DS.red,
+                  background: row.pass_rate >= 85 ? DS.accentBg : row.pass_rate >= 70 ? DS.amberBg : DS.redBg,
+                  color:      row.pass_rate >= 85 ? DS.accent   : row.pass_rate >= 70 ? DS.amber   : DS.red,
                   fontSize: 11, fontWeight: 700,
                 }}>
                   {row.pass_rate.toFixed(1)}%
@@ -716,7 +966,7 @@ function ExecutionTable({ rows }: { rows: ExecRow[] }) {
                   {tot.total.toLocaleString()}
                 </td>
                 <td style={{ padding: '8px 14px', textAlign: 'right' }}>
-                  <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 10, background: DS.blueBg, color: DS.blue, fontSize: 11, fontWeight: 700 }}>
+                  <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 10, background: DS.accentBg, color: DS.accent, fontSize: 11, fontWeight: 700 }}>
                     {overallPass}%
                   </span>
                 </td>
@@ -781,42 +1031,110 @@ function ExecutionBarsChart({ rows }: { rows: ExecRow[] }) {
   )
 }
 
-// ── Bug priority chart ────────────────────────────────────────────────────────
-function BugPriorityChart({ priorities, total }: { priorities: Record<string, number>; total: number }) {
-  const PRIORITY_COLORS: Record<string, string> = {
-    Blocker: '#CC3300', High: '#FF5630', Medium: '#FF8B00', Low: '#00875A', Minor: '#6554C0',
+// ── Bug Priority by Project (stacked horizontal bars) ────────────────────────
+// Theme-aware (pick pattern, see DS above): these hexes render as TEXT (and as
+// `${color}18` tints) in the matrix — dark AA-on-light hues for the light theme,
+// bright 400-weight hues readable on #1E2028 for the dark theme.
+const PRIORITY_COLORS: Record<string, string> = {
+  get Blocker()  { return pick('#9B1C1C', '#F87171') },
+  get Highest()  { return pick('#92400E', '#FB923C') },
+  get High()     { return pick('#78350F', '#FBBF24') },
+  get Medium()   { return pick('#854D0E', '#FCD34D') },
+  get Normal()   { return pick('#1E40AF', '#60A5FA') },
+  get Low()      { return pick('#166534', '#4ADE80') },
+  get Lowest()   { return pick('#5B21B6', '#A78BFA') },
+  get Minor()    { return pick('#4B5563', '#9CA3AF') },
+}
+const PRIORITY_ORDER = ['Blocker', 'Highest', 'High', 'Medium', 'Normal', 'Low', 'Lowest', 'Minor']
+const FALLBACK_SERIES_COLORS: Array<[light: string, dark: string]> = [
+  ['#1E3A5F', '#60A5FA'], ['#14532D', '#34D399'], ['#78350F', '#FBBF24'], ['#3B0764', '#C084FC'],
+  ['#7F1D1D', '#F87171'], ['#164E63', '#22D3EE'], ['#374151', '#9CA3AF'], ['#5C0A00', '#FCA5A5'],
+]
+const paletteColor = (index: number) => {
+  const [light, dark] = FALLBACK_SERIES_COLORS[Math.abs(index) % FALLBACK_SERIES_COLORS.length]
+  return pick(light, dark)
+}
+
+function BugPriorityByProjectChart({ items = [], total, priorityOrder }: { items?: BugPriorityByProject[]; total: number; priorityOrder?: string[] }) {
+  const activeItems = items.filter(item => item.total > 0)
+  const liveOrder = priorityOrder?.length
+    ? priorityOrder
+    : Array.from(new Set(items.flatMap(item => Object.keys(item.priorities ?? {}))))
+  const order = liveOrder.length ? liveOrder : PRIORITY_ORDER
+  const usedPriorities = order.filter(p => activeItems.some(item => (item.priorities[p] ?? 0) > 0))
+
+  const cellStyle = (count: number, p: string, idx: number): React.CSSProperties => {
+    if (count === 0) return { color: DS.textMuted, opacity: 0.35 }
+    const color = PRIORITY_COLORS[p] ?? paletteColor(idx)
+    return {
+      color,
+      fontWeight: 700,
+      background: color + '18',
+      borderRadius: 4,
+    }
   }
-  const entries = Object.entries(priorities).filter(([, v]) => v > 0)
-  const max = Math.max(...entries.map(([, v]) => v), 1)
 
   return (
-    <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {entries.map(([priority, count]) => {
-        const color = PRIORITY_COLORS[priority] || DS.blue
-        const pct = (count / max) * 100
-        return (
-          <div key={priority}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
-                <span style={{ color: DS.textSec, fontSize: 11 }}>{priority}</span>
-              </div>
-              <span style={{ color: DS.text, fontSize: 12, fontWeight: 600 }}>{count}</span>
-            </div>
-            <div style={{ height: 5, background: DS.border, borderRadius: 2, overflow: 'hidden' }}>
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${pct}%` }}
-                transition={{ duration: 0.7, ease: 'easeOut' }}
-                style={{ height: '100%', background: color, borderRadius: 2 }}
-              />
-            </div>
-          </div>
-        )
-      })}
-      <p style={{ color: DS.textMuted, fontSize: 10, marginTop: 4 }}>
-        Total open bugs: <strong style={{ color: DS.textSec }}>{total}</strong>
-      </p>
+    <div style={{ padding: '4px 0 8px', overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+        <thead>
+          <tr style={{ borderBottom: `1px solid ${DS.border}` }}>
+            <th style={{ padding: '6px 14px 6px 16px', textAlign: 'left', color: DS.textMuted, fontWeight: 600, fontSize: 10, whiteSpace: 'nowrap', minWidth: 160 }}>
+              Module
+            </th>
+            {usedPriorities.map((p, i) => (
+              <th key={p} style={{ padding: '6px 10px', textAlign: 'center', fontWeight: 600, fontSize: 10, whiteSpace: 'nowrap', color: PRIORITY_COLORS[p] ?? paletteColor(i) }}>
+                {p}
+              </th>
+            ))}
+            <th style={{ padding: '6px 16px 6px 10px', textAlign: 'right', color: DS.textMuted, fontWeight: 600, fontSize: 10, whiteSpace: 'nowrap' }}>
+              Total
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {activeItems.map((item, rowIdx) => (
+            <tr
+              key={item.project}
+              style={{ borderBottom: `1px solid ${DS.border}`, background: rowIdx % 2 === 0 ? 'transparent' : `color-mix(in srgb, ${DS.surface} 55%, transparent)` }}
+            >
+              <td style={{ padding: '7px 14px 7px 16px', whiteSpace: 'nowrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: 2, background: item.color, flexShrink: 0 }} />
+                  <span style={{ color: DS.textSec, fontSize: 11, fontWeight: 500 }}>{item.label}</span>
+                </div>
+              </td>
+              {usedPriorities.map((p, i) => {
+                const count = item.priorities[p] ?? 0
+                return (
+                  <td key={p} style={{ padding: '7px 10px', textAlign: 'center' }}>
+                    <span style={{ display: 'inline-block', minWidth: 22, padding: '1px 5px', fontSize: 11, ...cellStyle(count, p, i) }}>
+                      {count === 0 ? '–' : count}
+                    </span>
+                  </td>
+                )
+              })}
+              <td style={{ padding: '7px 16px 7px 10px', textAlign: 'right' }}>
+                <span style={{ color: DS.text, fontSize: 12, fontWeight: 700 }}>{item.total}</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr style={{ borderTop: `1px solid ${DS.border}` }}>
+            <td style={{ padding: '6px 14px 4px 16px', color: DS.textMuted, fontSize: 10, fontWeight: 600 }}>Total open bugs</td>
+            {usedPriorities.map(p => {
+              const colTotal = activeItems.reduce((s, item) => s + (item.priorities[p] ?? 0), 0)
+              return (
+                <td key={p} style={{ padding: '6px 10px 4px', textAlign: 'center', color: DS.textMuted, fontSize: 10, fontWeight: 600 }}>
+                  {colTotal || '–'}
+                </td>
+              )
+            })}
+            <td style={{ padding: '6px 16px 4px 10px', textAlign: 'right', color: DS.text, fontSize: 12, fontWeight: 700 }}>{total}</td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
   )
 }
@@ -868,7 +1186,28 @@ function DealerChip({ name, confirmed }: { name: string; confirmed: boolean }) {
 }
 
 // ── FindingsPanel ─────────────────────────────────────────────────────────────
-function FindingsPanel({ data }: { data: FindingsAnalysis }) {
+function JiraLink({ id, jiraBase }: { id: string; jiraBase: string }) {
+  return (
+    <a
+      href={`${jiraBase}/browse/${id}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        color: 'var(--blue)', fontSize: 9, fontWeight: 700,
+        textDecoration: 'none', borderRadius: 3, padding: '1px 4px',
+        background: 'var(--blue-bg)', border: '1px solid color-mix(in srgb, var(--blue) 30%, transparent)',
+        display: 'inline-flex', alignItems: 'center', gap: 2,
+      }}
+      onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
+      onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+    >
+      {id} <ExternalLink size={7} />
+    </a>
+  )
+}
+
+function FindingsPanel({ data, jiraBase }: { data: FindingsAnalysis; jiraBase?: string }) {
+  const base = jiraBase ?? 'https://projects.cdk.com'
   const [tab, setTab] = useState<'obs' | 'blk'>('obs')
   const [expanded, setExpanded] = useState<string | null>(null)
 
@@ -886,10 +1225,10 @@ function FindingsPanel({ data }: { data: FindingsAnalysis }) {
       {/* ── Summary stat pills ─────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, padding: '10px 14px', borderBottom: `1px solid ${DS.border}` }}>
         {[
-          { label: 'Observations', value: obs.total,         color: DS.accent, bg: DS.accentBg },
-          { label: 'Bugs Logged',  value: obs.stats.bug_logged,  color: pick('#C0330A', '#CC3300'), bg: pick('#C0330A18', '#CC330018') },
-          { label: 'In Progress',  value: obs.stats.in_progress, color: pick('#8A5E10', '#F2B000'), bg: pick('#8A5E1018', '#F2B00018') },
-          { label: 'Blockers',     value: blk.active_count,  color: pick('#A82C18', '#FF5630'), bg: pick('#A82C1818', '#FF563018') },
+          { label: 'Observations', value: obs.total,               color: DS.accent,                          bg: DS.accentBg                           },
+          { label: 'Bugs Logged',  value: obs.stats.bug_logged,   color: pick('#C0330A', '#CC3300'),         bg: pick('#C0330A18', '#CC330018')         },
+          { label: 'In Progress',  value: obs.stats.in_progress,  color: pick('#8A5E10', '#F2B000'),         bg: pick('#8A5E1018', '#F2B00018')         },
+          { label: 'Blockers',     value: blk.active_count,       color: pick('#A82C18', '#FF5630'),         bg: pick('#A82C1818', '#FF563018')         },
         ].map(s => (
           <div key={s.label} style={{ textAlign: 'center', padding: '6px 4px', borderRadius: 8, background: s.bg }}>
             <div style={{ color: s.color, fontSize: 16, fontWeight: 700, lineHeight: 1 }}>{s.value}</div>
@@ -968,9 +1307,9 @@ function FindingsPanel({ data }: { data: FindingsAnalysis }) {
                         <div style={{ flex: 1 }}>
                           <span style={{ color: DS.textSec, fontSize: 10, lineHeight: 1.4 }}>{item.description}</span>
                           {item.jira_ids.length > 0 && (
-                            <div style={{ marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                            <div style={{ marginTop: 3, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                               {item.jira_ids.map(id => (
-                                <span key={id} style={{ color: '#0052CC', fontSize: 9, fontWeight: 600 }}>{id}</span>
+                                <JiraLink key={id} id={id} jiraBase={base} />
                               ))}
                             </div>
                           )}
@@ -996,7 +1335,7 @@ function FindingsPanel({ data }: { data: FindingsAnalysis }) {
           {blk.active.map(item => (
             <div key={item.id} style={{ padding: '8px 14px', borderBottom: `1px solid ${DS.border}` }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 4 }}>
-                <AlertTriangle size={11} style={{ color: '#FF5630', flexShrink: 0, marginTop: 1 }} />
+                <AlertTriangle size={11} style={{ color: 'var(--red)', flexShrink: 0, marginTop: 1 }} />
                 <span style={{ color: DS.text, fontSize: 11, fontWeight: 500, lineHeight: 1.3, flex: 1 }}>{item.description}</span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', paddingLeft: 17 }}>
@@ -1004,7 +1343,7 @@ function FindingsPanel({ data }: { data: FindingsAnalysis }) {
                 <span style={{ color: DS.textHint, fontSize: 9 }}>{item.workflow}</span>
                 {item.confirmed_dealers.map(d => <DealerChip key={d} name={d} confirmed />)}
                 {item.jira_ids.map(id => (
-                  <span key={id} style={{ color: '#0052CC', fontSize: 9, fontWeight: 600 }}>{id}</span>
+                  <JiraLink key={id} id={id} jiraBase={base} />
                 ))}
               </div>
             </div>
@@ -1017,7 +1356,7 @@ function FindingsPanel({ data }: { data: FindingsAnalysis }) {
               </p>
               {blk.resolved.map(item => (
                 <div key={item.id} style={{ display: 'flex', gap: 6, marginBottom: 4, alignItems: 'flex-start' }}>
-                  <CheckCircle2 size={10} style={{ color: '#00875A', flexShrink: 0, marginTop: 1 }} />
+                  <CheckCircle2 size={10} style={{ color: 'var(--accent-cool)', flexShrink: 0, marginTop: 1 }} />
                   <span style={{ color: DS.textMuted, fontSize: 10, lineHeight: 1.3 }}>{item.description}</span>
                 </div>
               ))}
@@ -1048,15 +1387,295 @@ function FindingsPanel({ data }: { data: FindingsAnalysis }) {
   )
 }
 
+// ── AI Insights Panel ─────────────────────────────────────────────────────────
+const GADGET_ICONS: Record<string, React.ElementType> = {
+  bug_distribution: Bug,
+  bug_priority:     ShieldAlert,
+  test_coverage:    TestTube2,
+  execution:        BarChart3,
+  findings:         FileText,
+  overview:         TrendingUp,
+  automation_gap:   Zap,
+  top_risk:         AlertTriangle,
+  quick_win:        Target,
+}
+
+const PRIORITY_BADGE: Record<string, { color: string; bg: string }> = {
+  high:   { color: 'var(--red)',         bg: 'var(--red-bg)'         },
+  medium: { color: 'var(--amber)',       bg: 'var(--amber-bg)'       },
+  low:    { color: 'var(--accent-cool)', bg: 'var(--accent-cool-bg)' },
+}
+
+// True once a payload carries real dashboard data (the dashboard mounts with
+// EMPTY_DASHBOARD — all zeros / empty arrays — until the first fetch lands).
+const hasRealData = (v: unknown): boolean => {
+  if (typeof v === 'number') return v !== 0
+  if (Array.isArray(v)) return v.length > 0
+  if (v && typeof v === 'object') return Object.values(v).some(hasRealData)
+  return false
+}
+
+function AIInsightsPanel({
+  apiPath,
+  payload,
+  label = 'AI Insights',
+}: {
+  apiPath: string
+  payload: Record<string, unknown>
+  label?: string
+}) {
+  const [insights,  setInsights]  = useState<AIInsight[]>([])
+  const [loading,   setLoading]   = useState(false)
+  const [open,      setOpen]      = useState(false)
+  const [error,     setError]     = useState<string | null>(null)
+  const [fetchedAt, setFetchedAt] = useState<string | null>(null)
+  // Signature of the payload last sent for analysis (set at fetch time), so a
+  // re-expand after the dashboard data changed (initial load / 5-min refresh)
+  // triggers a fresh analysis instead of showing stale insights forever.
+  const fetchedSignature = useRef<string | null>(null)
+  const inFlight = useRef(false)
+  const mounted  = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
+
+  const payloadSignature = JSON.stringify(payload)
+  const payloadEmpty = !hasRealData(payload)
+
+  const fetchInsights = useCallback(async () => {
+    if (inFlight.current) return
+    inFlight.current = true
+    fetchedSignature.current = payloadSignature
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetchWithTimeout(getApiUrl(apiPath), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payloadSignature,
+      }, 60000)
+      if (!res.ok) {
+        const raw = await res.text()
+        let msg = raw
+        try {
+          const parsed = JSON.parse(raw)
+          if (parsed && parsed.detail != null) {
+            msg = typeof parsed.detail === 'string' ? parsed.detail : JSON.stringify(parsed.detail)
+          }
+        } catch { /* not JSON — fall through to truncated raw text */ }
+        if (msg.length > 200) msg = msg.slice(0, 200) + '…'
+        throw new Error(msg || `Request failed (HTTP ${res.status})`)
+      }
+      const json = await res.json()
+      if (!mounted.current) return
+      setInsights(json.insights ?? [])
+      setFetchedAt(json.generated_at ?? null)
+    } catch (e) {
+      if (!mounted.current) return
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      inFlight.current = false
+      if (mounted.current) setLoading(false)
+    }
+  }, [apiPath, payloadSignature])
+
+  const handleOpen = () => setOpen(o => !o)
+
+  // Fetch whenever the panel is open with real data whose signature differs from
+  // the last analysed one — covers first expand, dashboard data arriving after
+  // the EMPTY_DASHBOARD placeholder, and the 5-minute auto-refresh.
+  useEffect(() => {
+    if (!open || payloadEmpty || inFlight.current) return
+    if (fetchedSignature.current === payloadSignature) return
+    fetchInsights()
+  }, [open, payloadEmpty, payloadSignature, fetchInsights])
+
+  return (
+    <div style={{ borderTop: `1px solid ${DS.border}` }}>
+      {/* Toggle strip */}
+      <button
+        onClick={handleOpen}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+          padding: '8px 16px', background: 'transparent', border: 'none',
+          cursor: 'pointer', fontFamily: DS.font, textAlign: 'left',
+        }}
+      >
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: 20, height: 20, borderRadius: 6,
+          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+          flexShrink: 0,
+        }}>
+          <Zap size={11} style={{ color: '#fff' }} />
+        </div>
+        <span style={{ color: DS.textSec, fontSize: 11, fontWeight: 600, flex: 1 }}>
+          {label}
+        </span>
+        <span style={{
+          fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
+          background: 'rgba(99,102,241,0.12)', color: pick('#4F46E5', '#A5B4FC'),
+        }}>
+          Falcon Insights
+        </span>
+        {open
+          ? <ChevronDown  size={12} style={{ color: DS.textMuted }} />
+          : <ChevronRight size={12} style={{ color: DS.textMuted }} />
+        }
+      </button>
+
+      {/* Insights content */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '0 12px 12px' }}>
+              {!loading && !error && payloadEmpty && insights.length === 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 4px' }}>
+                  <Info size={12} style={{ color: DS.textMuted, flexShrink: 0 }} />
+                  <span style={{ color: DS.textMuted, fontSize: 10 }}>Waiting for dashboard data…</span>
+                </div>
+              )}
+
+              {loading && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 4px' }}>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                    style={{ width: 14, height: 14, border: `2px solid ${DS.border}`, borderTopColor: '#6366f1', borderRadius: '50%' }}
+                  />
+                  <span style={{ color: DS.textMuted, fontSize: 11 }}>Analysing with Falcon Insights…</span>
+                </div>
+              )}
+
+              {error && !loading && (
+                <div style={{ padding: '8px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertCircle size={12} style={{ color: DS.amber, flexShrink: 0 }} />
+                  <span style={{ color: DS.amber, fontSize: 10 }}>{error}</span>
+                  <button onClick={fetchInsights} style={{ marginLeft: 'auto', color: DS.textMuted, fontSize: 10, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {!loading && insights.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {insights.map((ins, i) => {
+                    const Icon   = GADGET_ICONS[ins.gadget] ?? Activity
+                    const badge  = PRIORITY_BADGE[ins.priority] ?? PRIORITY_BADGE.low
+                    return (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        style={{
+                          background: DS.surface,
+                          border: `1px solid ${DS.border}`,
+                          borderRadius: 8,
+                          padding: '10px 12px',
+                          borderLeft: `3px solid ${badge.color}`,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                          <Icon size={11} style={{ color: badge.color, flexShrink: 0 }} />
+                          <span style={{ color: DS.text, fontSize: 11, fontWeight: 700, flex: 1 }}>{ins.headline}</span>
+                          <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: badge.bg, color: badge.color, flexShrink: 0, textTransform: 'capitalize' }}>
+                            {ins.priority}
+                          </span>
+                        </div>
+                        <p style={{ color: DS.textSec, fontSize: 10, lineHeight: 1.5, margin: 0, marginBottom: 4 }}>{ins.insight}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ color: DS.textHint, fontSize: 9 }}>→</span>
+                          <span style={{ color: DS.textMuted, fontSize: 9, fontWeight: 600, fontStyle: 'italic' }}>{ins.action}</span>
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                  {fetchedAt && (
+                    <p style={{ color: DS.textHint, fontSize: 9, textAlign: 'right', margin: 0 }}>
+                      Generated {new Date(fetchedAt).toLocaleTimeString()}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// ── Section divider label ────────────────────────────────────────────────────
+function SectionLabel({ label, icon: Icon }: { label: string; icon?: React.ElementType }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 -4px' }}>
+      {Icon && <Icon size={12} style={{ color: DS.textMuted }} />}
+      <span style={{
+        color: DS.textMuted, fontSize: 10, fontWeight: 700,
+        textTransform: 'uppercase', letterSpacing: '0.12em', whiteSpace: 'nowrap',
+      }}>
+        {label}
+      </span>
+      <div style={{ flex: 1, height: 1, background: DS.border }} />
+    </div>
+  )
+}
+
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
 const AUTO_REFRESH_SECS = 300 // 5 minutes
+
+const EMPTY_DASHBOARD: DashboardData = {
+  focused_test_suite: { total: 0, manual: 0, automated: 0, by_area: [], columns: [] },
+  comprehensive_test_suite: { total: 0, manual: 0, automated: 0, by_area: [], columns: [] },
+  bugs_distribution: [],
+  bug_priority_by_project: [],
+  bug_priorities: {},
+  priority_order: [],
+  bugs_total: 0,
+  execution_summary: [],
+  execution_chart_summary: [],
+  version: '',
+  project: '',
+  jira_base_url: 'https://projects.cdk.com',
+  findings: {
+    observations_url: 'https://confluence.cdk.com/pages/viewpage.action?pageId=502140070',
+    blockers_url: 'https://confluence.cdk.com/pages/viewpage.action?pageId=502140072',
+  },
+  last_updated: '',
+}
+
+const EMPTY_FINDINGS: FindingsAnalysis = {
+  obs_url: 'https://confluence.cdk.com/pages/viewpage.action?pageId=502140070',
+  blk_url: 'https://confluence.cdk.com/pages/viewpage.action?pageId=502140072',
+  last_fetched: '',
+  observations: {
+    total: 0,
+    stats: { bug_logged: 0, resolved: 0, in_progress: 0, pending: 0 },
+    by_workflow: [],
+  },
+  blockers: {
+    total: 0,
+    active_count: 0,
+    resolved_count: 0,
+    active: [],
+    resolved: [],
+  },
+}
 
 export function ServicesDashboard() {
   // Subscribe to theme changes so the theme-aware accent getters (DS / STATUS /
   // STATUS_STYLE) re-resolve and the dashboard repaints when light/dark toggles.
   useTheme()
-  const [data, setData]         = useState<DashboardData>(SEED)
-  const [findings, setFindings] = useState<FindingsAnalysis>(SEED_FINDINGS)
+  const [data, setData]         = useState<DashboardData>(EMPTY_DASHBOARD)
+  const [findings, setFindings] = useState<FindingsAnalysis>(EMPTY_FINDINGS)
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState<string | null>(null)
   const [lastFetched, setLastFetched] = useState<Date | null>(null)
@@ -1084,7 +1703,7 @@ export function ServicesDashboard() {
       countdownRef.current = AUTO_REFRESH_SECS
       setCountdown(AUTO_REFRESH_SECS)
     } catch {
-      setError('Could not reach the backend — showing last known snapshot.')
+      setError('Could not reach the live dashboard data source.')
     } finally {
       setLoading(false)
     }
@@ -1216,7 +1835,7 @@ export function ServicesDashboard() {
               key={kpi.label}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.1 + i * 0.06 }}
-              whileHover={{ y: -3, boxShadow: `0 8px 28px ${kpi.color}28` }}
+              whileHover={{ y: -2, boxShadow: 'var(--shadow-medium)' }}
               style={{
                 background: DS.card, border: `1px solid ${DS.border}`,
                 borderRadius: 14, padding: '16px 18px',
@@ -1225,7 +1844,7 @@ export function ServicesDashboard() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <span style={{ display: 'flex', alignItems: 'center', color: DS.textMuted, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
                   {kpi.label}
-                  <InfoTooltip text={kpi.info} accent={kpi.color} size={14} />
+                  <InfoTooltip text={kpi.info ?? ''} accent={kpi.color} size={14} />
                 </span>
                 <div style={{ width: 32, height: 32, borderRadius: 10, background: `${kpi.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <kpi.Icon size={15} style={{ color: kpi.color }} />
@@ -1246,64 +1865,159 @@ export function ServicesDashboard() {
           ))}
         </motion.div>
 
-        {/* ── Row 1: Test Suites + Bug Distribution ────────────────────────── */}
+        {/* ── Section: Test Coverage ───────────────────────────────────────── */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.16 }}>
+          <SectionLabel label="Test Coverage" icon={TestTube2} />
+        </motion.div>
+
         <motion.div
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.18 }}
-          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}
+          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.18 }}
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14, alignItems: 'stretch' }}
         >
           <Card>
-            <CardHeader icon={TestTube2} title="Focused Test Suite" subtitle="High-priority GL, AP, AR, and 1099 regression coverage" accent={DS.accent}
-              info="High-priority regression coverage for the most critical GL, AP, AR and 1099 workflows. Broken down by accounting component area, with the manual vs automated split shown below." />
+            <CardHeader
+              icon={Zap}
+              title={data.focused_test_suite.chart_title || 'Focused Test Suite'}
+              subtitle="High-priority regression — GL, AP, AR, 1099 (version-scoped)"
+              accent={DS.accent}
+              info="High-priority regression coverage for the most critical GL, AP, AR and 1099 workflows. Broken down by accounting component area, with the manual vs automated split shown below."
+            />
             <TestSuiteBreakdown {...data.focused_test_suite} />
           </Card>
 
           <Card>
-            <CardHeader icon={Layers} title="Comprehensive Test Suite" subtitle="Full test coverage across all MODDWTC components" accent={DS.accent}
-              info="Full end-to-end test coverage across every MODDWTC (Modern Accounting) component. Broken down by component area, with the manual vs automated split shown below." />
+            <CardHeader
+              icon={Layers}
+              title={data.comprehensive_test_suite.chart_title || 'Comprehensive Test Suite'}
+              subtitle="Full coverage across all MODDWTC components (all versions)"
+              accent={DS.accent}
+              info="Full end-to-end test coverage across every MODDWTC (Modern Accounting) component. Broken down by component area, with the manual vs automated split shown below."
+            />
             <TestSuiteBreakdown {...data.comprehensive_test_suite} />
           </Card>
 
-          <Card>
-            <CardHeader icon={Bug} title="Bug Distribution by Module" subtitle={`${data.bugs_total} total open bugs across T&L scope`} accent={DS.red}
-              info="Open defects grouped by Jira project / accounting module, highlighting which functional areas carry the most defects. Each bar's length is relative to the highest-count module." />
-            <BugDistributionChart bugs={data.bugs_distribution} />
-          </Card>
+          {data.test_cases_distribution && (
+            <Card>
+              <CardHeader
+                icon={PieChart}
+                title={data.test_cases_distribution.chart_title || 'Test Cases Distribution'}
+                subtitle="Test case spread across functional components · click a slice to open in Jira"
+                accent={DS.amber}
+              />
+              <TestCasesDonutChart data={data.test_cases_distribution} jiraBase={data.jira_base_url} />
+            </Card>
+          )}
         </motion.div>
 
-        {/* ── Row 2: Execution Summary Table + Findings + Priority ──────────── */}
+        {/* ── Section: Bug Intelligence ────────────────────────────────────── */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.24 }}>
+          <SectionLabel label="Bug Intelligence" icon={Bug} />
+        </motion.div>
+
         <motion.div
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.28 }}
-          style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14 }}
+          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.26 }}
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'start' }}
         >
-          <Card>
-            <CardHeader icon={BarChart3} title="Execution Summary — All T&L Dealers" subtitle={`Version: ${data.version} · ${data.project}`} accent={DS.accent}
-              info="Per-dealer test execution results for the current version. Columns: Pass (passed), Fail (failed), WIP (in progress), Blocked (blocked by an issue), Not Run (not yet executed), plus each cycle's pass rate. The TOTAL row aggregates all dealers." />
-            <ExecutionTable rows={data.execution_summary} />
-          </Card>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <Card>
-              <CardHeader icon={FileText} title="Findings" subtitle="Live analysis · Confluence T&L pages" accent={DS.accent}
-                info="Live analysis of QA observations and blockers pulled from the Confluence T&L pages. Observations are grouped by workflow; blockers are split into active and resolved. Dealer chips show which dealers confirmed (green) or are pending (amber) each item." />
-              <FindingsPanel data={findings} />
+              <CardHeader
+                icon={Bug}
+                title="Bugs distribution across T&L boxes"
+                subtitle="Click any row to open in Jira"
+                accent={DS.red}
+              />
+              <BugDistributionChart
+                bugs={data.bugs_distribution ?? []}
+                total={data.bugs_distribution_total ?? data.bugs_total}
+                sourceJql={data.bugs_source_jql}
+                jiraBase={data.jira_base_url}
+              />
             </Card>
+            <AIInsightsPanel
+              apiPath="/api/mercury-dashboard/ai-insights"
+              payload={{
+                bugs_distribution: data.bugs_distribution,
+                bugs_total: data.bugs_distribution_total ?? data.bugs_total,
+                bugs_source_jql: data.bugs_source_jql,
+              }}
+              label="AI: Bug Distribution Insight"
+            />
+          </div>
 
-            <Card style={{ flex: 1 }}>
-              <CardHeader icon={ShieldAlert} title="Bug Priority Breakdown" subtitle="Open bugs by severity across all T&L modules" accent={DS.amber}
-                info="Open bugs grouped by severity — Blocker, High, Medium, Low and Minor — across all T&L modules. Each bar's length is relative to the highest-count priority." />
-              <BugPriorityChart priorities={data.bug_priorities} total={data.bugs_total} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <Card>
+              <CardHeader
+                icon={ShieldAlert}
+                title="Bug Priority — by Module"
+                subtitle="Open bugs per module with severity breakdown"
+                accent={DS.amber}
+              />
+              <BugPriorityByProjectChart items={data.bug_priority_by_project} total={data.bugs_total} priorityOrder={data.priority_order} />
             </Card>
+            <AIInsightsPanel
+              apiPath="/api/mercury-dashboard/ai-insights"
+              payload={{
+                bug_priority_by_project: data.bug_priority_by_project,
+                bug_priorities: data.bug_priorities,
+                priority_order: data.priority_order,
+                bugs_total: data.bugs_total,
+              }}
+              label="AI: Priority Risk Analysis"
+            />
           </div>
         </motion.div>
 
-        {/* ── Row 3: Zephyr Execution Chart per cycle ──────────────────────── */}
+        {/* ── Section: Execution Performance ──────────────────────────────── */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.32 }}>
+          <SectionLabel label="Execution Performance" icon={BarChart3} />
+        </motion.div>
+
         <motion.div
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.38 }}
+          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.34 }}
+          style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
         >
           <Card>
-            <CardHeader icon={TrendingUp} title="Zephyr Test Execution — by Cycle" subtitle={`Version: ${data.version} · test execution results grouped by dealer cycle`} accent={DS.accent}
-              info="Stacked execution breakdown per dealer cycle, visualising the proportion of Pass / Fail / Blocked / WIP / Not Run for each. Sourced from Zephyr Scale for the current version. Hover a segment for its exact count." />
+            <CardHeader
+              icon={BarChart3}
+              title="Test Execution Summary — All T&L Dealers"
+              subtitle={`${data.version} · ${data.project} · Pass / Fail / WIP / Blocked / Not Run per dealer cycle`}
+              accent={DS.accent}
+            />
+            <ExecutionTable rows={data.execution_summary} jiraBase={data.jira_base_url} project={data.project} />
+          </Card>
+          <AIInsightsPanel
+            apiPath="/api/mercury-dashboard/ai-insights"
+            payload={{
+              execution_summary: data.execution_summary,
+              version: data.version,
+              project: data.project,
+            }}
+            label="AI: Execution Performance Insight"
+          />
+        </motion.div>
+
+        {/* ── Section: Insights & Execution Trends ────────────────────────── */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3, delay: 0.40 }}>
+          <SectionLabel label="Insights & Execution Trends" icon={TrendingUp} />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.42 }}
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'stretch' }}
+        >
+          <Card>
+            <CardHeader
+              icon={TrendingUp}
+              title="Zephyr Test Execution Chart"
+              subtitle="All active test cycles · sorted by cycle order"
+              accent={DS.blue}
+            />
             <ExecutionBarsChart rows={data.execution_summary} />
+          </Card>
+
+          <Card>
+            <CardHeader icon={FileText} title="Findings — Observations & Blockers" subtitle="Click Jira IDs to open tickets · Confluence links below" accent="var(--amber)" />
+            <FindingsPanel data={findings} jiraBase={data.jira_base_url} />
           </Card>
         </motion.div>
 
