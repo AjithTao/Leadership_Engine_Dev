@@ -16,11 +16,12 @@ import { GitHubInsightsDashboard } from '../GitHubInsightsDashboard'
 import { SalesforceInsightsDashboard } from '../SalesforceInsightsDashboard'
 import { TableauInsightsDashboard } from '../TableauInsightsDashboard'
 import { ServicesDashboard } from '../ServicesDashboard'
+import { ServicesModDashboard } from '../ServicesModDashboard'
 import { useTheme } from '../../contexts/ThemeContext'
 import { SettingsProvider } from '../../contexts/SettingsContext'
 import { getApiUrl } from '../../../lib/api-config'
 
-export type ActiveView = 'copilot' | 'insights' | 'github-insights' | 'tableau-insights' | 'leadership' | 'tcoe-report' | 'tcoe-dashboard' | 'qa-metrics' | 'kpi-metrics' | 'salesforce-insights' | 'services-dashboard' | 'services-modern'
+export type ActiveView = 'copilot' | 'insights' | 'github-insights' | 'tableau-insights' | 'leadership' | 'tcoe-report' | 'tcoe-dashboard' | 'qa-metrics' | 'kpi-metrics' | 'salesforce-insights' | 'services-dashboard' | 'services-mod-dashboard' | 'services-modern'
 export type Theme = 'light' | 'dark'
 
 export interface Connection {
@@ -213,6 +214,8 @@ function NewFigmaAppContent() {
         return <FigmaDashboard hasActiveConnections={hasActiveConnections} theme={isDarkMode ? 'dark' : 'light'} />
       case 'services-dashboard':
         return <ServicesDashboard />
+      case 'services-mod-dashboard':
+        return <ServicesModDashboard />
       case 'services-modern':
         return (
           <div className="h-full flex flex-col items-center justify-center gap-5">

@@ -22,6 +22,22 @@ Dates in this CHANGELOG follow the [ISO 8601 date format](https://www.w3.org/QA/
 
 ## [Unreleased]
 ### Added
+- **Services MOD Dashboard** (Project Mercury → Module Test Status): module-level
+  test automation coverage — 7 modules × 4 categories from live Jira JQL, stacked
+  bars with expandable per-category breakdowns, Jira deep-links, TK test-case
+  categorisation gadget, and an AI insights panel. New endpoints:
+  `GET /api/services-mod-dashboard`, `GET /api/services-mod-dashboard/tk-categories`,
+  `POST /api/services-mod-dashboard/ai-insights`.
+- **Mercury dashboard rebuild**: `GET /api/mercury-dashboard` now reconstructs the
+  live Jira dashboard 39900 (gadget discovery + Custom Charts prefs decoding +
+  JQL/Zephyr queries); previous implementation preserved at
+  `GET /api/mercury-dashboard/legacy` with reworked per-dealer/per-module JQL.
+  Frontend gains AI insight panels (backend-proxied Databricks — fixes
+  "Databricks AI service not configured"), a bug priority×project matrix, a test
+  cases donut, and JQL deep-links throughout. Findings endpoint hardened (502 on
+  Confluence errors, lxml parsing).
+- **start.bat**: pip/npm installs now skipped via hash checks when
+  requirements.txt/package.json are unchanged (with retry on failed installs).
 - **Tableau integration (backend)**: new `backend/services/tableau.py` client for
   on-prem Tableau Server (PAT sign-in via REST API, view listing with a 5-minute
   cache, view data export as parsed CSV rows, session re-auth on expiry).

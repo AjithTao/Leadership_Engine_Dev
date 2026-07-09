@@ -57,35 +57,67 @@ if not exist "requirements.txt" (
     popd >nul
     goto :end
 )
-call :say "Found requirements.txt, proceeding with installation..."
 
 call venv\Scripts\activate.bat
 set PYTHONUNBUFFERED=1
-call :say "Installing backend requirements... hang tight."
-
-REM Use absolute path to be sure
 set "REQ_FILE=%PROJECT_ROOT%\backend\requirements.txt"
-if not exist "%REQ_FILE%" (
-    call :oops "requirements.txt not found at: %REQ_FILE%"
-    call venv\Scripts\deactivate.bat >nul 2>&1
-    popd >nul
-    goto :end
-)
+set "HASH_FILE=%PROJECT_ROOT%\backend\venv\.req_hash"
 
-pip install -r "%REQ_FILE%" || (
-    call :oops "Failed to install requirements from: %REQ_FILE%"
-    call venv\Scripts\deactivate.bat >nul 2>&1
-    popd >nul
-    goto :end
+REM -- Hash-check: only pip install when requirements.txt has changed ----------
+certutil -hashfile "%REQ_FILE%" MD5 2>nul | findstr /v "CertUtil" | findstr /v "^$" > "%TEMP%\.falconx_req_hash" 2>nul
+set "DO_INSTALL=1"
+if exist "%HASH_FILE%" (
+    fc /b "%HASH_FILE%" "%TEMP%\.falconx_req_hash" >nul 2>&1
+    if not errorlevel 1 set "DO_INSTALL=0"
 )
+if "%DO_INSTALL%"=="1" (
+    call :say "requirements.txt changed (or first run) — installing packages..."
+    pip install -q -r "%REQ_FILE%" || (
+        call :oops "Failed to install requirements from: %REQ_FILE%"
+        call venv\Scripts\deactivate.bat >nul 2>&1
+        del "%TEMP%\.falconx_req_hash" >nul 2>&1
+        popd >nul
+        goto :end
+    )
+    copy "%TEMP%\.falconx_req_hash" "%HASH_FILE%" >nul 2>&1
+    call :say "Packages installed and hash saved."
+) else (
+    call :say "Packages already up to date — skipping install."
+)
+del "%TEMP%\.falconx_req_hash" >nul 2>&1
+REM ---------------------------------------------------------------------------
+
 call venv\Scripts\deactivate.bat >nul 2>&1
 popd >nul
 call :say "Backend workspace is good."
 
 call :say "Step 5: Starting the frontend quietly so backend logs stay clean."
 pushd frontend >nul
-call :say "Checking npm packages..."
-call npm install
+
+REM -- Hash-check: only npm install when package.json has changed --------------
+set "PKG_FILE=%PROJECT_ROOT%\frontend\package.json"
+set "NPM_HASH=%PROJECT_ROOT%\frontend\node_modules\.pkg_hash"
+certutil -hashfile "%PKG_FILE%" MD5 2>nul | findstr /v "CertUtil" | findstr /v "^$" > "%TEMP%\.falconx_pkg_hash" 2>nul
+set "DO_NPM=1"
+if exist "%NPM_HASH%" (
+    fc /b "%NPM_HASH%" "%TEMP%\.falconx_pkg_hash" >nul 2>&1
+    if not errorlevel 1 set "DO_NPM=0"
+)
+if "%DO_NPM%"=="1" (
+    call :say "package.json changed (or first run) — running npm install..."
+    call npm install --prefer-offline || (
+        call :oops "npm install failed — will retry on next start."
+        del "%TEMP%\.falconx_pkg_hash" >nul 2>&1
+        goto :npm_done
+    )
+    copy "%TEMP%\.falconx_pkg_hash" "%NPM_HASH%" >nul 2>&1
+) else (
+    call :say "npm packages already up to date — skipping install."
+)
+:npm_done
+del "%TEMP%\.falconx_pkg_hash" >nul 2>&1
+REM ---------------------------------------------------------------------------
+
 if exist "%FRONTEND_LOG%" del "%FRONTEND_LOG%" >nul 2>&1
 start "frontend-dev" /B cmd /c "cd /d ""%PROJECT_ROOT%\frontend"" && set NODE_OPTIONS=--max-old-space-size=4096 && for /L %%i in (0,0,1) do (echo [%%DATE%% %%TIME%%] frontend runner start >> ""%FRONTEND_LOG%"" && call npm run dev >> ""%FRONTEND_LOG%"" 2>&1 && echo [%%DATE%% %%TIME%%] frontend exited, restarting in 2s >> ""%FRONTEND_LOG%"" && timeout /t 2 /nobreak >nul)"
 call :say "Frontend is warming up on http://localhost:3000 (logs: %FRONTEND_LOG%)."
