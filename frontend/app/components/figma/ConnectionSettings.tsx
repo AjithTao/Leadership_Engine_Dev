@@ -12,6 +12,7 @@ import { Separator } from '../ui/separator'
 import { SimpleJiraConnect } from '../SimpleJiraConnect'
 import { SimpleConfluenceConnect } from '../SimpleConfluenceConnect'
 import { SimpleGithubConnect } from '../SimpleGithubConnect'
+import { SimpleTableauConnect } from '../SimpleTableauConnect'
 import { useTheme } from '../../contexts/ThemeContext'
 import { getApiUrl } from '../../../lib/api-config'
 import { 
@@ -33,30 +34,31 @@ import {
   Target,
   Github,
   Database,
-  FileText
+  FileText,
+  BarChart3
 } from 'lucide-react'
 
 interface Connection {
   name: string
   status: 'connected' | 'disconnected'
-  type: 'atlassian' | 'github' | 'slack'
+  type: 'atlassian' | 'github' | 'slack' | 'tableau'
 }
 
 interface FigmaConnectionSettingsProps {
   connections: Connection[]
   setConnections: (connections: Connection[]) => void
   onClose: () => void
-  initialTab?: 'jira' | 'confluence' | 'github' | 'slack'
+  initialTab?: 'jira' | 'confluence' | 'github' | 'slack' | 'tableau'
 }
 
-export function FigmaConnectionSettings({ 
-  connections, 
-  setConnections, 
-  onClose, 
-  initialTab 
+export function FigmaConnectionSettings({
+  connections,
+  setConnections,
+  onClose,
+  initialTab
 }: FigmaConnectionSettingsProps) {
   const { currentTheme, isDarkMode } = useTheme()
-  const [activeTab, setActiveTab] = useState<'jira' | 'confluence' | 'github' | 'slack'>(initialTab || 'jira')
+  const [activeTab, setActiveTab] = useState<'jira' | 'confluence' | 'github' | 'slack' | 'tableau'>(initialTab || 'jira')
   const [isTesting, setIsTesting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [testResults, setTestResults] = useState<Record<string, 'success' | 'error' | null>>({})
@@ -139,25 +141,29 @@ export function FigmaConnectionSettings({
 
   const checkConnectionStatus = async () => {
     try {
-      const [jiraRes, confRes, ghRes] = await Promise.all([
+      const [jiraRes, confRes, ghRes, tabRes] = await Promise.all([
         fetch(getApiUrl('/api/jira/status')),
         fetch(getApiUrl('/api/confluence/status')),
         fetch(getApiUrl('/api/github/status')),
+        fetch(getApiUrl('/api/tableau/status')),
       ])
       const jira = await jiraRes.json().catch(() => ({}))
       const conf = await confRes.json().catch(() => ({}))
       const gh   = await ghRes.json().catch(() => ({}))
+      const tab  = await tabRes.json().catch(() => ({}))
       setConnectionStatus(prev => ({
         ...prev,
         jira:      jira.configured  ? 'connected' : 'disconnected',
         confluence: conf.configured ? 'connected' : 'disconnected',
         github:    gh.connected     ? 'connected' : 'disconnected',
+        tableau:   tab.configured   ? 'connected' : 'disconnected',
       }))
       // Reflect github status into parent connections
       const newConns = connections.map(c => {
         if (c.name === 'Jira')       return { ...c, status: (jira.configured ? 'connected' : 'disconnected') as 'connected' | 'disconnected' }
         if (c.name === 'Confluence') return { ...c, status: (conf.configured ? 'connected' : 'disconnected') as 'connected' | 'disconnected' }
         if (c.name === 'GitHub')     return { ...c, status: (gh.connected    ? 'connected' : 'disconnected') as 'connected' | 'disconnected' }
+        if (c.name === 'Tableau')    return { ...c, status: (tab.configured  ? 'connected' : 'disconnected') as 'connected' | 'disconnected' }
         return c
       })
       setConnections(newConns)
@@ -219,7 +225,8 @@ export function FigmaConnectionSettings({
   const tabs = [
     { id: 'jira', label: 'Jira', icon: Database, color: 'text-[var(--accent-primary)]' },
     { id: 'confluence', label: 'Confluence', icon: FileText, color: 'text-[var(--accent-primary)]' },
-    { id: 'github', label: 'GitHub', icon: Github, color: 'text-[var(--accent-primary)]' }
+    { id: 'github', label: 'GitHub', icon: Github, color: 'text-[var(--accent-primary)]' },
+    { id: 'tableau', label: 'Tableau', icon: BarChart3, color: 'text-[var(--accent-primary)]' }
   ]
 
   return (
@@ -680,6 +687,19 @@ export function FigmaConnectionSettings({
                     >
                       <h3 className={`text-lg font-semibold`} style={{ color: currentTheme.colors.text }}>GitHub Integration</h3>
                       <SimpleGithubConnect />
+                    </motion.div>
+                  )}
+                  {activeTab === 'tableau' && (
+                    <motion.div
+                      key="tableau"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-6"
+                    >
+                      <h3 className={`text-lg font-semibold`} style={{ color: currentTheme.colors.text }}>Tableau Integration</h3>
+                      <SimpleTableauConnect />
                     </motion.div>
                   )}
                 </AnimatePresence>

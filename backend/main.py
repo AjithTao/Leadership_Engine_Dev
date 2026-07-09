@@ -54,6 +54,7 @@ from services.rag_handler import get_handler, LeadershipRAGHandler
 from services.github import GitHubClient, GitHubConfig
 from services.salesforce import SalesforceClient, SalesforceConfig
 from services.salesforce_classifier import batch_classify, classify_and_solve, get_categories, get_category_colors
+from services.tableau import TableauClient, TableauConfig
 import re
 
 # Configure logging
@@ -72,6 +73,9 @@ class AppState:
         self.confluence_config = None
         self.github_client = GitHubClient() # Initialize GitHub client
         self.salesforce_client = SalesforceClient()  # Initialize Salesforce client
+        self.tableau_configured = False
+        self.tableau_client = None
+        self.tableau_config = None
         self._salesforce_classified_cache: list = []  # In-memory cache of classified cases
         self.messages = []
         self.export_files = {}
@@ -1491,10 +1495,14 @@ async def auto_connect_integrations():
 
         github_token_encrypted = os.environ.get('GITHUB_SERVICE_TOKEN')
 
+        tableau_server_url = os.environ.get('TABLEAU_SERVER_URL')
+        tableau_pat_secret_encrypted = os.environ.get('TABLEAU_PAT_SECRET')
+
         results = {
             "jira": {"success": False, "message": ""},
             "confluence": {"success": False, "message": ""},
-            "github": {"success": False, "message": ""}
+            "github": {"success": False, "message": ""},
+            "tableau": {"success": False, "message": ""}
         }
         
         # Connect Jira
@@ -1637,6 +1645,67 @@ async def auto_connect_integrations():
             results["github"] = {
                 "success": False,
                 "message": "GitHub service credentials not configured"
+            }
+
+        # Connect Tableau
+        if tableau_server_url and tableau_pat_secret_encrypted:
+            try:
+                # Decrypt PAT secret (stored encrypted in .env)
+                tableau_pat_secret = get_encrypted_env('TABLEAU_PAT_SECRET')
+                if not tableau_pat_secret:
+                    raise RuntimeError("Tableau PAT secret could not be decrypted")
+
+                tableau_config = TableauConfig(
+                    server_url=tableau_server_url,
+                    site_id=os.environ.get('TABLEAU_SITE_ID', ''),
+                    pat_name=os.environ.get('TABLEAU_PAT_NAME', ''),
+                    pat_secret=tableau_pat_secret
+                )
+                tableau_client = TableauClient(tableau_config)
+                await tableau_client.initialize()
+
+                validation = await tableau_client.validate_connection()
+                if not validation.get("success"):
+                    await tableau_client.close()
+                    raise RuntimeError(validation.get("message", "Tableau connection validation failed"))
+
+                if app_state.tableau_client and app_state.tableau_client is not tableau_client:
+                    try:
+                        await app_state.tableau_client.close()
+                    except Exception:
+                        pass
+                app_state.tableau_configured = True
+                app_state.tableau_client = tableau_client
+                app_state.tableau_config = tableau_config
+
+                results["tableau"] = {
+                    "success": True,
+                    "message": (
+                        f"Connected to site '{tableau_config.site_id or 'default'}'. "
+                        f"{validation.get('views', 0)} views visible."
+                    )
+                }
+                logger.info(
+                    "Tableau auto-connected to site '%s'; %s views visible",
+                    tableau_config.site_id or "default",
+                    validation.get("views", 0),
+                )
+
+                # Clear secret from memory
+                del tableau_pat_secret
+            except Exception as e:
+                app_state.tableau_configured = False
+                app_state.tableau_client = None
+                app_state.tableau_config = None
+                results["tableau"] = {
+                    "success": False,
+                    "message": f"Failed to connect: {str(e)}"
+                }
+                logger.error(f"Tableau auto-connect failed: {e}")
+        else:
+            results["tableau"] = {
+                "success": False,
+                "message": "Tableau service credentials not configured"
             }
 
         # Start indexing scheduler if clients are available
@@ -2394,7 +2463,40 @@ async def chat_endpoint(request: ChatRequest, x_workbuddy_theme: str = Header(No
         logger.info(f"   - Jira Client Exists: {app_state.jira_client is not None}")
         logger.info(f"   - AI Engine Initialized: {app_state.ai_engine is not None}")
         logger.info("=" * 80)
-        
+
+        # TABLEAU CHAT ROUTING (additive early-exit) — handled before the
+        # existing pipeline; when the guard doesn't match, every line below
+        # runs unchanged. Matches only source=='tableau' (Tableau checkbox)
+        # or auto-mode messages that explicitly mention Tableau.
+        try:
+            from services.tableau_chat import get_tableau_chat_handler
+            _tableau_chat = get_tableau_chat_handler()
+            if _tableau_chat.should_handle(request.source, request.integrations or [], message):
+                logger.info("📊 Routing to Tableau chat handler")
+                if not (app_state.tableau_configured and app_state.tableau_client):
+                    return {
+                        "response": (
+                            "**Tableau is not connected.** It connects automatically "
+                            "at login when Tableau service credentials are configured "
+                            "in the backend — or it can be connected via Connection Settings."
+                        ),
+                        "source": "tableau",
+                    }
+                tableau_result = await _tableau_chat.handle_query(message, app_state.tableau_client)
+                return {
+                    "response": tableau_result.get("response", "No response from the Tableau handler."),
+                    "source": "tableau",
+                    "intent": tableau_result.get("intent"),
+                }
+        except Exception as tableau_chat_error:
+            logger.error(f"❌ Tableau chat routing failed: {tableau_chat_error}")
+            if (request.source or "").lower() == "tableau":
+                return {
+                    "response": f"Sorry — the Tableau lookup failed: {tableau_chat_error}",
+                    "source": "tableau",
+                }
+            # Auto mode: fall through to the existing pipeline unchanged
+
         # UNIFIED RAG ROUTING (replaces keyword-based checks)
         # Get unified RAG handler
         from services.unified_rag_handler import get_unified_rag_handler, SourceType
@@ -7952,6 +8054,156 @@ async def salesforce_metrics():
     except Exception as e:
         logger.error(f"❌ Salesforce metrics error: {e}")
         return create_error_response("Failed to fetch metrics", str(e))
+
+
+# ============== TABLEAU INTEGRATION ==============
+
+class TableauConfigRequest(BaseModel):
+    server_url: str
+    site_id: str = ""
+    pat_name: str
+    pat_secret: str
+
+
+@app.get("/api/tableau/status", tags=["Tableau"], summary="Get Tableau Connection Status")
+async def get_tableau_status():
+    """Get Tableau connection status (in-memory read, no network call)"""
+    return {
+        "configured": app_state.tableau_configured,
+        "config": {
+            "server_url": app_state.tableau_config.server_url,
+            "site": app_state.tableau_config.site_id or "default",
+        } if app_state.tableau_config else None
+    }
+
+
+@app.post("/api/tableau/configure", tags=["Tableau"], summary="Configure Tableau Connection")
+async def configure_tableau(config: TableauConfigRequest):
+    """Configure Tableau connection with a Personal Access Token"""
+    try:
+        url = config.server_url.strip()
+        if not url.startswith(('http://', 'https://')):
+            url = f"https://{url}"
+
+        tableau_config = TableauConfig(
+            server_url=url,
+            site_id=config.site_id.strip(),
+            pat_name=config.pat_name.strip(),
+            pat_secret=config.pat_secret.strip(),
+        )
+        tableau_client = TableauClient(tableau_config)
+        await tableau_client.initialize()
+
+        # Validate first and refuse to touch the existing client on failure
+        validation = await tableau_client.validate_connection()
+        if not validation.get("success"):
+            await tableau_client.close()
+            logger.warning(f"Rejected /api/tableau/configure: {validation.get('message')}")
+            raise HTTPException(
+                status_code=400,
+                detail=validation.get("message", "Tableau credential validation failed"),
+            )
+
+        # Store configuration, closing the previous client to avoid leaking connections
+        if app_state.tableau_client and app_state.tableau_client is not tableau_client:
+            try:
+                await app_state.tableau_client.close()
+            except Exception:
+                pass
+        app_state.tableau_configured = True
+        app_state.tableau_client = tableau_client
+        app_state.tableau_config = tableau_config
+
+        return {
+            "success": True,
+            "message": "Tableau configured successfully",
+            "views": validation.get("views", 0),
+            "config": {
+                "server_url": url,
+                "site": tableau_config.site_id or "default",
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Tableau configuration failed: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/tableau/disconnect", tags=["Tableau"], summary="Disconnect Tableau")
+async def disconnect_tableau():
+    """Disconnect Tableau connection"""
+    try:
+        if app_state.tableau_client:
+            await app_state.tableau_client.close()
+        app_state.tableau_configured = False
+        app_state.tableau_client = None
+        app_state.tableau_config = None
+        return {"success": True, "message": "Tableau disconnected successfully"}
+    except Exception as e:
+        logger.error(f"Tableau disconnection failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/tableau/views", tags=["Tableau"], summary="List Tableau Views")
+async def get_tableau_views():
+    """List all views visible to the service token, with workbook names"""
+    if not app_state.tableau_configured or not app_state.tableau_client:
+        return create_error_response("Tableau not configured", status_code=400)
+    try:
+        views = await app_state.tableau_client.get_views()
+        return create_success_response({"views": views, "count": len(views)})
+    except Exception as e:
+        logger.error(f"❌ Tableau views error: {e}")
+        return create_error_response("Failed to list views", str(e))
+
+
+@app.get("/api/tableau/view-data", tags=["Tableau"], summary="Export Tableau View Data")
+async def get_tableau_view_data(
+    view_id: Optional[str] = None,
+    url: Optional[str] = None,
+    workbook: Optional[str] = None,
+    view: Optional[str] = None,
+    max_age: Optional[int] = None,
+):
+    """
+    Export a view's summary data as parsed rows. Identify the view by
+    view_id, by a browser url (…/#/site/x/views/<workbook>/<view>), or by
+    workbook + view content-url segments.
+    """
+    if not app_state.tableau_configured or not app_state.tableau_client:
+        return create_error_response("Tableau not configured", status_code=400)
+    try:
+        client = app_state.tableau_client
+        resolved = None
+        if not view_id and url:
+            parsed = TableauClient.parse_view_url(url)
+            if not parsed:
+                return create_error_response(
+                    "Could not parse workbook/view from url", status_code=400
+                )
+            workbook, view = parsed["workbook"], parsed["view"]
+        if not view_id and workbook and view:
+            resolved = await client.find_view(workbook, view)
+            if not resolved:
+                return create_error_response(
+                    f"View '{workbook}/{view}' not found on site", status_code=404
+                )
+            view_id = resolved["id"]
+        if not view_id:
+            return create_error_response(
+                "Provide view_id, url, or workbook + view", status_code=400
+            )
+
+        data = await client.get_view_data(view_id, max_age_minutes=max_age)
+        return create_success_response({
+            "view_id": view_id,
+            "view": resolved,
+            **data,
+        })
+    except Exception as e:
+        logger.error(f"❌ Tableau view data error: {e}")
+        return create_error_response("Failed to export view data", str(e))
 
 
 @app.get("/api/mercury-dashboard", tags=["Mercury Dashboard"], summary="PROJECT MERCURY - STATUS SUMMARY")

@@ -14,18 +14,19 @@ import { QAMetricsDashboard } from '../QAMetricsDashboard'
 import { KPIMetricsDashboard } from '../KPIMetricsDashboard'
 import { GitHubInsightsDashboard } from '../GitHubInsightsDashboard'
 import { SalesforceInsightsDashboard } from '../SalesforceInsightsDashboard'
+import { TableauInsightsDashboard } from '../TableauInsightsDashboard'
 import { ServicesDashboard } from '../ServicesDashboard'
 import { useTheme } from '../../contexts/ThemeContext'
 import { SettingsProvider } from '../../contexts/SettingsContext'
 import { getApiUrl } from '../../../lib/api-config'
 
-export type ActiveView = 'copilot' | 'insights' | 'github-insights' | 'leadership' | 'tcoe-report' | 'tcoe-dashboard' | 'qa-metrics' | 'kpi-metrics' | 'salesforce-insights' | 'services-dashboard' | 'services-modern'
+export type ActiveView = 'copilot' | 'insights' | 'github-insights' | 'tableau-insights' | 'leadership' | 'tcoe-report' | 'tcoe-dashboard' | 'qa-metrics' | 'kpi-metrics' | 'salesforce-insights' | 'services-dashboard' | 'services-modern'
 export type Theme = 'light' | 'dark'
 
 export interface Connection {
   name: string
   status: 'connected' | 'disconnected'
-  type: 'atlassian' | 'github' | 'slack'
+  type: 'atlassian' | 'github' | 'slack' | 'tableau'
 }
 
 export default function NewFigmaApp() {
@@ -52,6 +53,7 @@ function NewFigmaAppContent() {
     { name: 'Jira', status: 'disconnected', type: 'atlassian' },
     { name: 'Confluence', status: 'disconnected', type: 'atlassian' },
     { name: 'GitHub', status: 'disconnected', type: 'github' },
+    { name: 'Tableau', status: 'disconnected', type: 'tableau' },
   ])
 
   const toggleConnection = (index: number) => {
@@ -132,6 +134,7 @@ function NewFigmaAppContent() {
         const jiraRes = await fetch(getApiUrl(`/api/jira/status`)).then(r => r.json()).catch(() => null)
         const confRes = await fetch(getApiUrl(`/api/confluence/status`)).then(r => r.json()).catch(() => null)
         const githubRes = await fetch(getApiUrl(`/api/github/status`)).then(r => r.json()).catch(() => null)
+        const tableauRes = await fetch(getApiUrl(`/api/tableau/status`)).then(r => r.json()).catch(() => null)
 
         if (!mounted) return
 
@@ -144,6 +147,9 @@ function NewFigmaAppContent() {
           }
           if (c.name === 'GitHub') {
             return { ...c, status: githubRes && githubRes.connected ? 'connected' as const : 'disconnected' as const }
+          }
+          if (c.name === 'Tableau') {
+            return { ...c, status: tableauRes && tableauRes.configured ? 'connected' as const : 'disconnected' as const }
           }
           return c
         }))
@@ -199,6 +205,8 @@ function NewFigmaAppContent() {
         return <InsightsDashboard />
       case 'github-insights':
         return <GitHubInsightsDashboard />
+      case 'tableau-insights':
+        return <TableauInsightsDashboard />
       case 'salesforce-insights':
         return <SalesforceInsightsDashboard />
       case 'leadership':

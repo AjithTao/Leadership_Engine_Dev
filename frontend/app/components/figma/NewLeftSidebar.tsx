@@ -49,7 +49,7 @@ import type { ActiveView } from './NewFigmaApp'
 interface Connection {
   name: string
   status: 'connected' | 'disconnected'
-  type: 'atlassian' | 'github' | 'slack'
+  type: 'atlassian' | 'github' | 'slack' | 'tableau'
 }
 
 interface NewLeftSidebarProps {
@@ -334,6 +334,15 @@ export function NewLeftSidebar({
                           </SubNavButton>
 
                           <SubNavButton
+                            active={activeView === 'tableau-insights'}
+                            onClick={() => setActiveView('tableau-insights')}
+                            primary={primary}
+                          >
+                            <BarChart3 className="w-3.5 h-3.5 flex-shrink-0" />
+                            Tableau
+                          </SubNavButton>
+
+                          <SubNavButton
                             active={activeView === 'tcoe-dashboard'}
                             onClick={() => setActiveView('tcoe-dashboard')}
                             primary={primary}
@@ -493,6 +502,7 @@ export function NewLeftSidebar({
                     { name: 'Jira',       label: 'Project Management', icon: Database,  coming: false },
                     { name: 'Confluence', label: 'Documentation',       icon: FileText,  coming: false },
                     { name: 'GitHub',     label: 'Code & CI/CD',        icon: Github,    coming: false },
+                    { name: 'Tableau',    label: 'BI & Analytics',      icon: BarChart3, coming: false },
                   ].map(({ name, label, icon: Icon, coming }) => {
                     const conn = connections.find(c => c.name === name)
                     const isConnected = conn?.status === 'connected'
