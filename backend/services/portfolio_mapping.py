@@ -10,36 +10,32 @@ Created: 2026-05-05
 
 from typing import Dict, List
 
-# Active QCOE/TCOE reporting scope imported from Updated Project.xlsx.
-# Invalid CVR project keys are intentionally skipped so dashboard JQL stays valid.
+# Active QCOE/TCOE reporting scope synced from TAC Bar Chart.csv.
+# Source file is UTF-16 LE + tab-delimited and has one row per automation status.
 PORTFOLIO_PROJECTS: Dict[str, List[str]] = {
     'Data Platform': [
-        'MDSICAP', 'MDSIA', 'OIP', 'MPSMOD', 'MPSUPDATES', 'AAP', 'AIVAPL', 'AIVA',
-        'ASYNCAPI', 'DNAST', 'DNASYND', 'EDPOEMI', 'MDSEDP', 'MDSMIG', 'OEMBD', 'TDI',
+        'MDSICAP', 'MDSIA', 'OIP', 'MPSMOD', 'MPSUPDATES', 'OEMBD', 'AAP', 'AIVAPL',
+        'AIVA', 'ASYNCAPI', 'DNAST', 'DNASYND', 'EDPOEMI', 'MDSEDP', 'MDSMIG', 'TDI',
         'TDO', 'TDOPS', 'TDP', 'TOB', 'TST', 'UDC', 'UDI',
     ],
 
     'Data Solutions': [
-        'NDP', 'SSBYOD', 'DNACS', 'NPS', 'DNADEDGE', 'DNADDX', 'APITRON', 'DET',
-        'WRP',
+        'NDP', 'SSBYOD', 'DNACS', 'NPS', 'DNADEDGE', 'DNALPS', 'DNADDX', 'APITRON',
+        'DET', 'WRP',
     ],
 
     'DMS': [
-        'APMODACC', 'ARMODACC', 'FSMODACC', 'MDWP', 'MODBETC', 'MODDWTC', 'MODPLAT', 'MODSRCH',
-        'MODTOOL', 'POMODACC', 'BRMODACC', 'ACC', 'FSACC', 'DRV', 'QTCLOUD', 'TRKMOD',
-        'TRKMISC', 'MODOEM', 'OEMI', 'PSRD',
-    ],
-
-    'Engineering Excellence': [
-        'REP', 'EQAP', 'QUEN', 'RMD',
+        'APMODACC', 'ARMODACC', 'FSMODACC', 'MDWP', 'MODACCRPTS', 'MODBETC', 'MODDWTC', 'MODPLAT',
+        'MODSRCH', 'MODTOOL', 'POMODACC', 'BRMODACC', 'ACC', 'FSACC', 'DE', 'DRV',
+        'QTCLOUD', 'TRKMOD', 'TRKMISC', 'MODOEM', 'OEMI', 'PSRD',
     ],
 
     'Fixed Ops': [
         'FIX', 'FIXPRTSMKT', 'FIXPRTSORD', 'FXOPKIT', 'MODPRT', 'MPDS', 'SER', 'CDKSRVAPL',
-        'CDKSRVDAT', 'CDKSRVPLT', 'FXDOPSHT', 'FXDPSCN', 'PPR', 'CDKSRVAN', 'CDKSRVFRD', 'CDKSRVOEM',
-        'CSFM', 'FPE', 'FXDOPSDLM', 'FXDOPSQMS', 'FXOPSSRE', 'CDKSRVAPT', 'FXDOPSTOY', 'EUM',
-        'ADMSE', 'CDKSRVACC', 'FXDOPSAPT', 'FXDOPSINSP', 'ROS', 'CDKSRVLNI', 'PARTSDEV', 'SVEDRVE',
-        'ELESRV',
+        'CDKSRVDAT', 'CDKSRVPLT', 'FXDOPSHT', 'FXDPSCN', 'PPR', 'FXDOPSHTT', 'CDKSRVAN', 'CDKSRVFRD',
+        'CDKSRVOEM', 'CSFM', 'FPE', 'FXDOPSDLM', 'FXDOPSQMS', 'FXOPSSRE', 'CDKSRVAPT', 'FXDOPSTOY',
+        'EUM', 'ADMSE', 'CDKSRVACC', 'FXDOPSAPT', 'FXDOPSINSP', 'ROS', 'CDKSRVLNI', 'PARTSDEV',
+        'SVEDRVE', 'ELESRV',
     ],
 
     'Fortellis': [
@@ -53,17 +49,13 @@ PORTFOLIO_PROJECTS: Dict[str, List[str]] = {
     'Modern Retail': [
         'CCEL', 'CRMMYDAY', 'CRMP4S', 'EKC', 'ELCRMHE', 'ELCRMHT', 'ELDBD', 'ELEMRS',
         'ELMOB', 'ELQAA', 'ELRPT', 'ELSCRM', 'ELSMOD', 'ELSRE', 'ELSTCAP', 'ELSUPPORT',
-        'ELSWEM', 'MRSSO', 'RM', 'ELDMSI', 'ELLRT', 'ELTPI', 'CRMAI', 'CDCDEB',
-        'ELDBAPR', 'ELDBCR', 'ELDBP', 'ELDBS', 'ELETL', 'CRMCM', 'DESKEL', 'MOD2SC',
-        'ELCOMT', 'ELDM', 'FRMSMOD', 'MRIX', 'OEDARWIN', 'OEGRDTETON', 'OEHIMALAYA', 'OEK2',
-        'OEKIRKJUFE', 'OET', 'OETWINMOU', 'OLYMPUS', 'CDESK', 'CREDIT', 'LDET', 'DC',
+        'ELSWEM', 'MRC1', 'MRSSO', 'RM', 'ELDMSI', 'ELLRT', 'ELTPI', 'CRMAI',
+        'CDCDEB', 'ELDBAPR', 'ELDBCR', 'ELDBP', 'ELDBS', 'ELETL', 'CRMCM', 'DESKEL',
+        'MOD2SC', 'ELCOMT', 'ELDM', 'FRMSMOD', 'MRIX', 'OEDARWIN', 'OEGRDTETON', 'OEHIMALAYA',
+        'OEK2', 'OEKIRKJUFE', 'OET', 'OETWINMOU', 'OLYMPUS', 'CREDIT', 'LDET', 'DC',
         'MODTAI', 'MR', 'MRDRT', 'CSP', 'HW', 'EFORM', 'GCMT', 'FI',
         'KEYSTONE', 'MODSFI', 'LIEN', 'MODTAO', 'CSMSGISSUE', 'CCPADMIN', 'CCPAPPS', 'CCPBKND',
         'CCPDATA', 'CCPTXT', 'MRC2', 'CC',
-    ],
-
-    'Network & Communication Services': [
-        'NEUTRON', 'PROTON', 'COLLAB', 'VCI',
     ],
 
     'Payments': [
@@ -76,8 +68,10 @@ PORTFOLIO_PROJECTS: Dict[str, List[str]] = {
     ],
 
     'Title & Registration-CVR': [
-        'CVRHOST', 'CVRRC', 'CVRFL', 'CVRIL', 'CVRCH', 'CVRCLA', 'CVRDAESIGN', 'CVRMIWEB',
-        'CVRNCC', 'CVRNY', 'CVRPAC',
+        'CVRS', 'CVRCACONV', 'CVRCBE', 'CVRIN', 'CVRNC', 'CVRAL', 'CVRMA', 'CVRMD',
+        'CVRPA', 'CVRSC', 'CVRVA', 'CVRWV', 'CVRHOST', 'CVRFL', 'CVRGA', 'CVRIL',
+        'CVRILSUP', 'CVRCH', 'CVRCIS', 'CVRCLA', 'CVRDAESIGN', 'CVRDOCIMG', 'CVRJE', 'CVRNMVTI',
+        'CVRRC', 'CVRMIWEB', 'CVRNCC', 'CVRNJ', 'CVRNY', 'CVRPAC', 'WICON',
     ],
 
 }
@@ -90,9 +84,6 @@ for portfolio, projects in PORTFOLIO_PROJECTS.items():
 
 PORTFOLIO_ALIASES: Dict[str, str] = {
     "data platforms": "Data Platform",
-    "network and communication services": "Network & Communication Services",
-    "network communication services": "Network & Communication Services",
-    "ncs": "Network & Communication Services",
     "inventory management solution": "Inventory Management Solutions",
     "inventory management solutions": "Inventory Management Solutions",
     "ims": "Inventory Management Solutions",

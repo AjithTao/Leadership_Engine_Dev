@@ -994,8 +994,8 @@ const UPDATED_TCOE_PORTFOLIO_STRUCTURE_UNUSED: Record<string, { products: Record
 };
 void UPDATED_TCOE_PORTFOLIO_STRUCTURE_UNUSED;
 
-// Active QCOE/TCOE scope imported from Updated Project.xlsx.
-// Invalid CVR project keys are intentionally skipped so dashboard JQL stays valid.
+// Active QCOE/TCOE scope synced from TAC Bar Chart.csv.
+// Source file is UTF-16 LE + tab-delimited and has one row per automation status.
 const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string, { name: string; key: string }[]> }> = {
   "Data Platform": {
     products: {
@@ -1010,63 +1010,35 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       ],
       "Manufacturer Data Updates (Media Pubs)": [
         { "name": "Manufacturer Data Updates (Media Pubs)", "key": "MPSMOD" },
+        { "name": "Manufacturer Data Updates (Media Pubs) (MPSUPDATES)", "key": "MPSUPDATES" },
       ],
-      "MPSUPDATES": [
-        { "name": "MPSUPDATES", "key": "MPSUPDATES" },
+      "Advanced Vehicle Lookup (AVL)": [
+        { "name": "Advanced Vehicle Lookup (AVL)", "key": "OEMBD" },
       ],
       "AI Acceleration Program": [
         { "name": "AI Acceleration Program", "key": "AAP" },
-      ],
-      "AIVAPL": [
-        { "name": "AIVAPL", "key": "AIVAPL" },
+        { "name": "AI Acceleration Program (AIVAPL)", "key": "AIVAPL" },
       ],
       "Conversational AI": [
         { "name": "Conversational AI", "key": "AIVA" },
       ],
       "Enterprise Data Pipeline (EDP)": [
         { "name": "Enterprise Data Pipeline (EDP)", "key": "ASYNCAPI" },
-      ],
-      "DNAST": [
-        { "name": "DNAST", "key": "DNAST" },
-      ],
-      "DNASYND": [
-        { "name": "DNASYND", "key": "DNASYND" },
-      ],
-      "EDPOEMI": [
-        { "name": "EDPOEMI", "key": "EDPOEMI" },
-      ],
-      "MDSEDP": [
-        { "name": "MDSEDP", "key": "MDSEDP" },
-      ],
-      "MDSMIG": [
-        { "name": "MDSMIG", "key": "MDSMIG" },
-      ],
-      "Retired Products / Advanced Vehicle Lookup (AVL)": [
-        { "name": "Retired Products / Advanced Vehicle Lookup (AVL)", "key": "OEMBD" },
+        { "name": "Enterprise Data Pipeline (EDP) (DNAST)", "key": "DNAST" },
+        { "name": "Enterprise Data Pipeline (EDP) (DNASYND)", "key": "DNASYND" },
+        { "name": "Enterprise Data Pipeline (EDP) (EDPOEMI)", "key": "EDPOEMI" },
+        { "name": "Enterprise Data Pipeline (EDP) (MDSEDP)", "key": "MDSEDP" },
+        { "name": "Enterprise Data Pipeline (EDP) (MDSMIG)", "key": "MDSMIG" },
       ],
       "Titan - Data Lake": [
         { "name": "Titan - Data Lake", "key": "TDI" },
-      ],
-      "TDO": [
-        { "name": "TDO", "key": "TDO" },
-      ],
-      "TDOPS": [
-        { "name": "TDOPS", "key": "TDOPS" },
-      ],
-      "TDP": [
-        { "name": "TDP", "key": "TDP" },
-      ],
-      "TOB": [
-        { "name": "TOB", "key": "TOB" },
-      ],
-      "TST": [
-        { "name": "TST", "key": "TST" },
-      ],
-      "UDC": [
-        { "name": "UDC", "key": "UDC" },
-      ],
-      "UDI": [
-        { "name": "UDI", "key": "UDI" },
+        { "name": "Titan - Data Lake (TDO)", "key": "TDO" },
+        { "name": "Titan - Data Lake (TDOPS)", "key": "TDOPS" },
+        { "name": "Titan - Data Lake (TDP)", "key": "TDP" },
+        { "name": "Titan - Data Lake (TOB)", "key": "TOB" },
+        { "name": "Titan - Data Lake (TST)", "key": "TST" },
+        { "name": "Titan - Data Lake (UDC)", "key": "UDC" },
+        { "name": "Titan - Data Lake (UDI)", "key": "UDI" },
       ],
     },
   },
@@ -1074,9 +1046,7 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
     products: {
       "CDK Intelligence Suite": [
         { "name": "CDK Intelligence Suite", "key": "NDP" },
-      ],
-      "SSBYOD": [
-        { "name": "SSBYOD", "key": "SSBYOD" },
+        { "name": "CDK Intelligence Suite (SSBYOD)", "key": "SSBYOD" },
       ],
       "CS Performance Dashboard": [
         { "name": "CS Performance Dashboard", "key": "DNACS" },
@@ -1086,6 +1056,9 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       ],
       "Managed Bi-Directional (MBD)": [
         { "name": "Managed Bi-Directional (MBD)", "key": "DNADEDGE" },
+      ],
+      "Data Access Bulk Extract (DABE)": [
+        { "name": "Data Access Bulk Extract (DABE)", "key": "DNALPS" },
       ],
       "Dealer Data Exchange (DDX)": [
         { "name": "Dealer Data Exchange (DDX)", "key": "DNADDX" },
@@ -1105,48 +1078,28 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
     products: {
       "DMS Accounting (Modern)": [
         { "name": "DMS Accounting (Modern)", "key": "APMODACC" },
-      ],
-      "ARMODACC": [
-        { "name": "ARMODACC", "key": "ARMODACC" },
-      ],
-      "FSMODACC": [
-        { "name": "FSMODACC", "key": "FSMODACC" },
-      ],
-      "MDWP": [
-        { "name": "MDWP", "key": "MDWP" },
-      ],
-      "MODBETC": [
-        { "name": "MODBETC", "key": "MODBETC" },
-      ],
-      "MODDWTC": [
-        { "name": "MODDWTC", "key": "MODDWTC" },
-      ],
-      "MODPLAT": [
-        { "name": "MODPLAT", "key": "MODPLAT" },
-      ],
-      "MODSRCH": [
-        { "name": "MODSRCH", "key": "MODSRCH" },
-      ],
-      "MODTOOL": [
-        { "name": "MODTOOL", "key": "MODTOOL" },
-      ],
-      "POMODACC": [
-        { "name": "POMODACC", "key": "POMODACC" },
+        { "name": "DMS Accounting (Modern) (ARMODACC)", "key": "ARMODACC" },
+        { "name": "DMS Accounting (Modern) (FSMODACC)", "key": "FSMODACC" },
+        { "name": "DMS Accounting (Modern) (MDWP)", "key": "MDWP" },
+        { "name": "DMS Accounting (Modern) (MODACCRPTS)", "key": "MODACCRPTS" },
+        { "name": "DMS Accounting (Modern) (MODBETC)", "key": "MODBETC" },
+        { "name": "DMS Accounting (Modern) (MODDWTC)", "key": "MODDWTC" },
+        { "name": "DMS Accounting (Modern) (MODPLAT)", "key": "MODPLAT" },
+        { "name": "DMS Accounting (Modern) (MODSRCH)", "key": "MODSRCH" },
+        { "name": "DMS Accounting (Modern) (MODTOOL)", "key": "MODTOOL" },
+        { "name": "DMS Accounting (Modern) (POMODACC)", "key": "POMODACC" },
       ],
       "DMS Accounting (Modern) / Drive SaaS - UI": [
         { "name": "DMS Accounting (Modern) / Drive SaaS - UI", "key": "BRMODACC" },
       ],
       "Drive Accounting (Legacy)": [
         { "name": "Drive Accounting (Legacy)", "key": "ACC" },
-      ],
-      "FSACC": [
-        { "name": "FSACC", "key": "FSACC" },
+        { "name": "Drive Accounting (Legacy) (FSACC)", "key": "FSACC" },
       ],
       "Drive Platform (Legacy)": [
-        { "name": "Drive Platform (Legacy)", "key": "DRV" },
-      ],
-      "QTCLOUD": [
-        { "name": "QTCLOUD", "key": "QTCLOUD" },
+        { "name": "Drive Platform (Legacy)", "key": "DE" },
+        { "name": "Drive Platform (Legacy) (DRV)", "key": "DRV" },
+        { "name": "Drive Platform (Legacy) (QTCLOUD)", "key": "QTCLOUD" },
       ],
       "Heavy Truck (Legacy)": [
         { "name": "Heavy Truck (Legacy)", "key": "TRKMOD" },
@@ -1156,28 +1109,8 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       ],
       "Drive OEM Integrations (Modern)": [
         { "name": "Drive OEM Integrations (Modern)", "key": "MODOEM" },
-      ],
-      "OEMI": [
-        { "name": "OEMI", "key": "OEMI" },
-      ],
-      "PSRD": [
-        { "name": "PSRD", "key": "PSRD" },
-      ],
-    },
-  },
-  "Engineering Excellence": {
-    products: {
-      "Intelligent Automation and Reporting Ecosystem": [
-        { "name": "Intelligent Automation and Reporting Ecosystem", "key": "REP" },
-      ],
-      "Quality Intelligence": [
-        { "name": "Quality Intelligence", "key": "EQAP" },
-      ],
-      "QUEN": [
-        { "name": "QUEN", "key": "QUEN" },
-      ],
-      "RM Portal": [
-        { "name": "RM Portal", "key": "RMD" },
+        { "name": "Drive OEM Integrations (Modern) (OEMI)", "key": "OEMI" },
+        { "name": "Drive OEM Integrations (Modern) (PSRD)", "key": "PSRD" },
       ],
     },
   },
@@ -1185,66 +1118,33 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
     products: {
       "Parts (Modernized)": [
         { "name": "Parts (Modernized)", "key": "FIX" },
-      ],
-      "FIXPRTSMKT": [
-        { "name": "FIXPRTSMKT", "key": "FIXPRTSMKT" },
-      ],
-      "FIXPRTSORD": [
-        { "name": "FIXPRTSORD", "key": "FIXPRTSORD" },
-      ],
-      "FXOPKIT": [
-        { "name": "FXOPKIT", "key": "FXOPKIT" },
-      ],
-      "MODPRT": [
-        { "name": "MODPRT", "key": "MODPRT" },
-      ],
-      "MPDS": [
-        { "name": "MPDS", "key": "MPDS" },
-      ],
-      "SER": [
-        { "name": "SER", "key": "SER" },
+        { "name": "Parts (Modernized) (FIXPRTSMKT)", "key": "FIXPRTSMKT" },
+        { "name": "Parts (Modernized) (FIXPRTSORD)", "key": "FIXPRTSORD" },
+        { "name": "Parts (Modernized) (FXOPKIT)", "key": "FXOPKIT" },
+        { "name": "Parts (Modernized) (MODPRT)", "key": "MODPRT" },
+        { "name": "Parts (Modernized) (MPDS)", "key": "MPDS" },
+        { "name": "Parts (Modernized) (SER)", "key": "SER" },
       ],
       "CDK Service (Classic)": [
         { "name": "CDK Service (Classic)", "key": "CDKSRVAPL" },
+        { "name": "CDK Service (Classic) (CDKSRVDAT)", "key": "CDKSRVDAT" },
+        { "name": "CDK Service (Classic) (CDKSRVPLT)", "key": "CDKSRVPLT" },
+        { "name": "CDK Service (Classic) (FXDOPSHT)", "key": "FXDOPSHT" },
+        { "name": "CDK Service (Classic) (FXDPSCN)", "key": "FXDPSCN" },
+        { "name": "CDK Service (Classic) (PPR)", "key": "PPR" },
       ],
-      "CDKSRVDAT": [
-        { "name": "CDKSRVDAT", "key": "CDKSRVDAT" },
-      ],
-      "CDKSRVPLT": [
-        { "name": "CDKSRVPLT", "key": "CDKSRVPLT" },
-      ],
-      "FXDOPSHT": [
-        { "name": "FXDOPSHT", "key": "FXDOPSHT" },
-      ],
-      "FXDPSCN": [
-        { "name": "FXDPSCN", "key": "FXDPSCN" },
-      ],
-      "PPR": [
-        { "name": "PPR", "key": "PPR" },
+      "CDK Service (Modern)": [
+        { "name": "CDK Service (Modern)", "key": "FXDOPSHTT" },
       ],
       "CDK Service (Modern) / Modern Foundations": [
         { "name": "CDK Service (Modern) / Modern Foundations", "key": "CDKSRVAN" },
-      ],
-      "CDKSRVFRD": [
-        { "name": "CDKSRVFRD", "key": "CDKSRVFRD" },
-      ],
-      "CDKSRVOEM": [
-        { "name": "CDKSRVOEM", "key": "CDKSRVOEM" },
-      ],
-      "CSFM": [
-        { "name": "CSFM", "key": "CSFM" },
-      ],
-      "FPE": [
-        { "name": "FPE", "key": "FPE" },
-      ],
-      "FXDOPSDLM": [
-        { "name": "FXDOPSDLM", "key": "FXDOPSDLM" },
-      ],
-      "FXDOPSQMS": [
-        { "name": "FXDOPSQMS", "key": "FXDOPSQMS" },
-      ],
-      "FXOPSSRE": [
-        { "name": "FXOPSSRE", "key": "FXOPSSRE" },
+        { "name": "CDK Service (Modern) / Modern Foundations (CDKSRVFRD)", "key": "CDKSRVFRD" },
+        { "name": "CDK Service (Modern) / Modern Foundations (CDKSRVOEM)", "key": "CDKSRVOEM" },
+        { "name": "CDK Service (Modern) / Modern Foundations (CSFM)", "key": "CSFM" },
+        { "name": "CDK Service (Modern) / Modern Foundations (FPE)", "key": "FPE" },
+        { "name": "CDK Service (Modern) / Modern Foundations (FXDOPSDLM)", "key": "FXDOPSDLM" },
+        { "name": "CDK Service (Modern) / Modern Foundations (FXDOPSQMS)", "key": "FXDOPSQMS" },
+        { "name": "CDK Service (Modern) / Modern Foundations (FXOPSSRE)", "key": "FXOPSSRE" },
       ],
       "CDK Service Appointment (Classic)": [
         { "name": "CDK Service Appointment (Classic)", "key": "CDKSRVAPT" },
@@ -1257,18 +1157,10 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       ],
       "CDK Service Inspect (Modern)": [
         { "name": "CDK Service Inspect (Modern)", "key": "ADMSE" },
-      ],
-      "CDKSRVACC": [
-        { "name": "CDKSRVACC", "key": "CDKSRVACC" },
-      ],
-      "FXDOPSAPT": [
-        { "name": "FXDOPSAPT", "key": "FXDOPSAPT" },
-      ],
-      "FXDOPSINSP": [
-        { "name": "FXDOPSINSP", "key": "FXDOPSINSP" },
-      ],
-      "ROS": [
-        { "name": "ROS", "key": "ROS" },
+        { "name": "CDK Service Inspect (Modern) (CDKSRVACC)", "key": "CDKSRVACC" },
+        { "name": "CDK Service Inspect (Modern) (FXDOPSAPT)", "key": "FXDOPSAPT" },
+        { "name": "CDK Service Inspect (Modern) (FXDOPSINSP)", "key": "FXDOPSINSP" },
+        { "name": "CDK Service Inspect (Modern) (ROS)", "key": "ROS" },
       ],
       "CDK Service Lane (Classic)": [
         { "name": "CDK Service Lane (Classic)", "key": "CDKSRVLNI" },
@@ -1288,12 +1180,8 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
     products: {
       "Fortellis Platform": [
         { "name": "Fortellis Platform", "key": "FORT" },
-      ],
-      "FORTAPPAPI": [
-        { "name": "FORTAPPAPI", "key": "FORTAPPAPI" },
-      ],
-      "FORTQA": [
-        { "name": "FORTQA", "key": "FORTQA" },
+        { "name": "Fortellis Platform (FORTAPPAPI)", "key": "FORTAPPAPI" },
+        { "name": "Fortellis Platform (FORTQA)", "key": "FORTQA" },
       ],
       "Fortellis Developer Community": [
         { "name": "Fortellis Developer Community", "key": "FORTCORE" },
@@ -1319,9 +1207,7 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       ],
       "Vehicle Cloud": [
         { "name": "Vehicle Cloud", "key": "CVC" },
-      ],
-      "MODVHCL": [
-        { "name": "MODVHCL", "key": "MODVHCL" },
+        { "name": "Vehicle Cloud (MODVHCL)", "key": "MODVHCL" },
       ],
     },
   },
@@ -1329,156 +1215,76 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
     products: {
       "CRM": [
         { "name": "CRM", "key": "CCEL" },
-      ],
-      "CRMMYDAY": [
-        { "name": "CRMMYDAY", "key": "CRMMYDAY" },
-      ],
-      "CRMP4S": [
-        { "name": "CRMP4S", "key": "CRMP4S" },
-      ],
-      "EKC": [
-        { "name": "EKC", "key": "EKC" },
-      ],
-      "ELCRMHE": [
-        { "name": "ELCRMHE", "key": "ELCRMHE" },
-      ],
-      "ELCRMHT": [
-        { "name": "ELCRMHT", "key": "ELCRMHT" },
-      ],
-      "ELDBD": [
-        { "name": "ELDBD", "key": "ELDBD" },
-      ],
-      "ELEMRS": [
-        { "name": "ELEMRS", "key": "ELEMRS" },
-      ],
-      "ELMOB": [
-        { "name": "ELMOB", "key": "ELMOB" },
-      ],
-      "ELQAA": [
-        { "name": "ELQAA", "key": "ELQAA" },
-      ],
-      "ELRPT": [
-        { "name": "ELRPT", "key": "ELRPT" },
-      ],
-      "ELSCRM": [
-        { "name": "ELSCRM", "key": "ELSCRM" },
-      ],
-      "ELSMOD": [
-        { "name": "ELSMOD", "key": "ELSMOD" },
-      ],
-      "ELSRE": [
-        { "name": "ELSRE", "key": "ELSRE" },
-      ],
-      "ELSTCAP": [
-        { "name": "ELSTCAP", "key": "ELSTCAP" },
-      ],
-      "ELSUPPORT": [
-        { "name": "ELSUPPORT", "key": "ELSUPPORT" },
-      ],
-      "ELSWEM": [
-        { "name": "ELSWEM", "key": "ELSWEM" },
-      ],
-      "MRSSO": [
-        { "name": "MRSSO", "key": "MRSSO" },
-      ],
-      "RM": [
-        { "name": "RM", "key": "RM" },
+        { "name": "CRM (CRMMYDAY)", "key": "CRMMYDAY" },
+        { "name": "CRM (CRMP4S)", "key": "CRMP4S" },
+        { "name": "CRM (EKC)", "key": "EKC" },
+        { "name": "CRM (ELCRMHE)", "key": "ELCRMHE" },
+        { "name": "CRM (ELCRMHT)", "key": "ELCRMHT" },
+        { "name": "CRM (ELDBD)", "key": "ELDBD" },
+        { "name": "CRM (ELEMRS)", "key": "ELEMRS" },
+        { "name": "CRM (ELMOB)", "key": "ELMOB" },
+        { "name": "CRM (ELQAA)", "key": "ELQAA" },
+        { "name": "CRM (ELRPT)", "key": "ELRPT" },
+        { "name": "CRM (ELSCRM)", "key": "ELSCRM" },
+        { "name": "CRM (ELSMOD)", "key": "ELSMOD" },
+        { "name": "CRM (ELSRE)", "key": "ELSRE" },
+        { "name": "CRM (ELSTCAP)", "key": "ELSTCAP" },
+        { "name": "CRM (ELSUPPORT)", "key": "ELSUPPORT" },
+        { "name": "CRM (ELSWEM)", "key": "ELSWEM" },
+        { "name": "CRM (MRC1)", "key": "MRC1" },
+        { "name": "CRM (MRSSO)", "key": "MRSSO" },
+        { "name": "CRM (RM)", "key": "RM" },
       ],
       "CRM / CRM Shared Capabilities": [
         { "name": "CRM / CRM Shared Capabilities", "key": "ELDMSI" },
-      ],
-      "ELLRT": [
-        { "name": "ELLRT", "key": "ELLRT" },
-      ],
-      "ELTPI": [
-        { "name": "ELTPI", "key": "ELTPI" },
+        { "name": "CRM / CRM Shared Capabilities (ELLRT)", "key": "ELLRT" },
+        { "name": "CRM / CRM Shared Capabilities (ELTPI)", "key": "ELTPI" },
       ],
       "CRM AI": [
         { "name": "CRM AI", "key": "CRMAI" },
       ],
       "CRM DBA & ETL": [
         { "name": "CRM DBA & ETL", "key": "CDCDEB" },
-      ],
-      "ELDBAPR": [
-        { "name": "ELDBAPR", "key": "ELDBAPR" },
-      ],
-      "ELDBCR": [
-        { "name": "ELDBCR", "key": "ELDBCR" },
-      ],
-      "ELDBP": [
-        { "name": "ELDBP", "key": "ELDBP" },
-      ],
-      "ELDBS": [
-        { "name": "ELDBS", "key": "ELDBS" },
-      ],
-      "ELETL": [
-        { "name": "ELETL", "key": "ELETL" },
+        { "name": "CRM DBA & ETL (ELDBAPR)", "key": "ELDBAPR" },
+        { "name": "CRM DBA & ETL (ELDBCR)", "key": "ELDBCR" },
+        { "name": "CRM DBA & ETL (ELDBP)", "key": "ELDBP" },
+        { "name": "CRM DBA & ETL (ELDBS)", "key": "ELDBS" },
+        { "name": "CRM DBA & ETL (ELETL)", "key": "ELETL" },
       ],
       "CRM Desking": [
         { "name": "CRM Desking", "key": "CRMCM" },
-      ],
-      "DESKEL": [
-        { "name": "DESKEL", "key": "DESKEL" },
-      ],
-      "MOD2SC": [
-        { "name": "MOD2SC", "key": "MOD2SC" },
+        { "name": "CRM Desking (DESKEL)", "key": "DESKEL" },
+        { "name": "CRM Desking (MOD2SC)", "key": "MOD2SC" },
       ],
       "CRM Marketing": [
         { "name": "CRM Marketing", "key": "ELCOMT" },
-      ],
-      "ELDM": [
-        { "name": "ELDM", "key": "ELDM" },
+        { "name": "CRM Marketing (ELDM)", "key": "ELDM" },
       ],
       "Modern Retail Integrated Experience": [
         { "name": "Modern Retail Integrated Experience", "key": "FRMSMOD" },
-      ],
-      "MRIX": [
-        { "name": "MRIX", "key": "MRIX" },
+        { "name": "Modern Retail Integrated Experience (MRIX)", "key": "MRIX" },
       ],
       "One-Eighty (180)": [
         { "name": "One-Eighty (180)", "key": "OEDARWIN" },
-      ],
-      "OEGRDTETON": [
-        { "name": "OEGRDTETON", "key": "OEGRDTETON" },
-      ],
-      "OEHIMALAYA": [
-        { "name": "OEHIMALAYA", "key": "OEHIMALAYA" },
-      ],
-      "OEK2": [
-        { "name": "OEK2", "key": "OEK2" },
-      ],
-      "OEKIRKJUFE": [
-        { "name": "OEKIRKJUFE", "key": "OEKIRKJUFE" },
-      ],
-      "OET": [
-        { "name": "OET", "key": "OET" },
-      ],
-      "OETWINMOU": [
-        { "name": "OETWINMOU", "key": "OETWINMOU" },
-      ],
-      "OLYMPUS": [
-        { "name": "OLYMPUS", "key": "OLYMPUS" },
-      ],
-      "CDK Desking": [
-        { "name": "CDK Desking", "key": "CDESK" },
+        { "name": "One-Eighty (180) (OEGRDTETON)", "key": "OEGRDTETON" },
+        { "name": "One-Eighty (180) (OEHIMALAYA)", "key": "OEHIMALAYA" },
+        { "name": "One-Eighty (180) (OEK2)", "key": "OEK2" },
+        { "name": "One-Eighty (180) (OEKIRKJUFE)", "key": "OEKIRKJUFE" },
+        { "name": "One-Eighty (180) (OET)", "key": "OET" },
+        { "name": "One-Eighty (180) (OETWINMOU)", "key": "OETWINMOU" },
+        { "name": "One-Eighty (180) (OLYMPUS)", "key": "OLYMPUS" },
       ],
       "Credit Services": [
         { "name": "Credit Services", "key": "CREDIT" },
-      ],
-      "LDET": [
-        { "name": "LDET", "key": "LDET" },
+        { "name": "Credit Services (LDET)", "key": "LDET" },
       ],
       "Digital Contracting": [
         { "name": "Digital Contracting", "key": "DC" },
-      ],
-      "MODTAI": [
-        { "name": "MODTAI", "key": "MODTAI" },
+        { "name": "Digital Contracting (MODTAI)", "key": "MODTAI" },
       ],
       "Storefront": [
         { "name": "Storefront", "key": "MR" },
-      ],
-      "MRDRT": [
-        { "name": "MRDRT", "key": "MRDRT" },
+        { "name": "Storefront (MRDRT)", "key": "MRDRT" },
       ],
       "CDK Sign Platform": [
         { "name": "CDK Sign Platform", "key": "CSP" },
@@ -1494,58 +1300,26 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       ],
       "Drive Sales F&I": [
         { "name": "Drive Sales F&I", "key": "FI" },
-      ],
-      "KEYSTONE": [
-        { "name": "KEYSTONE", "key": "KEYSTONE" },
-      ],
-      "MODSFI": [
-        { "name": "MODSFI", "key": "MODSFI" },
+        { "name": "Drive Sales F&I (KEYSTONE)", "key": "KEYSTONE" },
+        { "name": "Drive Sales F&I (MODSFI)", "key": "MODSFI" },
       ],
       "Modern F&I": [
         { "name": "Modern F&I", "key": "LIEN" },
-      ],
-      "MODTAO": [
-        { "name": "MODTAO", "key": "MODTAO" },
+        { "name": "Modern F&I (MODTAO)", "key": "MODTAO" },
       ],
       "Communication Service (CSMSG)": [
         { "name": "Communication Service (CSMSG)", "key": "CSMSGISSUE" },
       ],
       "Connected Communications Platform": [
         { "name": "Connected Communications Platform", "key": "CCPADMIN" },
-      ],
-      "CCPAPPS": [
-        { "name": "CCPAPPS", "key": "CCPAPPS" },
-      ],
-      "CCPBKND": [
-        { "name": "CCPBKND", "key": "CCPBKND" },
-      ],
-      "CCPDATA": [
-        { "name": "CCPDATA", "key": "CCPDATA" },
-      ],
-      "CCPTXT": [
-        { "name": "CCPTXT", "key": "CCPTXT" },
-      ],
-      "MRC2": [
-        { "name": "MRC2", "key": "MRC2" },
+        { "name": "Connected Communications Platform (CCPAPPS)", "key": "CCPAPPS" },
+        { "name": "Connected Communications Platform (CCPBKND)", "key": "CCPBKND" },
+        { "name": "Connected Communications Platform (CCPDATA)", "key": "CCPDATA" },
+        { "name": "Connected Communications Platform (CCPTXT)", "key": "CCPTXT" },
+        { "name": "Connected Communications Platform (MRC2)", "key": "MRC2" },
       ],
       "Text Connect": [
         { "name": "Text Connect", "key": "CC" },
-      ],
-    },
-  },
-  "Network & Communication Services": {
-    products: {
-      "Neutron": [
-        { "name": "Neutron", "key": "NEUTRON" },
-      ],
-      "Proton Tooling & Automation": [
-        { "name": "Proton Tooling & Automation", "key": "PROTON" },
-      ],
-      "IPNS": [
-        { "name": "IPNS", "key": "COLLAB" },
-      ],
-      "Voice Connect API": [
-        { "name": "Voice Connect API", "key": "VCI" },
       ],
     },
   },
@@ -1556,12 +1330,8 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       ],
       "CDK SimplePay": [
         { "name": "CDK SimplePay", "key": "CDKPAY" },
-      ],
-      "CDKPAYIN": [
-        { "name": "CDKPAYIN", "key": "CDKPAYIN" },
-      ],
-      "CDKPAYM": [
-        { "name": "CDKPAYM", "key": "CDKPAYM" },
+        { "name": "CDK SimplePay (CDKPAYIN)", "key": "CDKPAYIN" },
+        { "name": "CDK SimplePay (CDKPAYM)", "key": "CDKPAYM" },
       ],
     },
   },
@@ -1590,15 +1360,11 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       ],
       "Identity & Access Management Service (IAM)": [
         { "name": "Identity & Access Management Service (IAM)", "key": "FSRE" },
-      ],
-      "IAM": [
-        { "name": "IAM", "key": "IAM" },
+        { "name": "Identity & Access Management Service (IAM) (IAM)", "key": "IAM" },
       ],
       "Consumer Canonical Hub / MDM 1.0": [
         { "name": "Consumer Canonical Hub / MDM 1.0", "key": "DNADD" },
-      ],
-      "MRCANON": [
-        { "name": "MRCANON", "key": "MRCANON" },
+        { "name": "Consumer Canonical Hub / MDM 1.0 (MRCANON)", "key": "MRCANON" },
       ],
       "Global Search": [
         { "name": "Global Search", "key": "GS" },
@@ -1613,26 +1379,60 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
   },
   "Title & Registration-CVR": {
     products: {
-      "CVRHOST": [
-        { "name": "CVRHOST", "key": "CVRHOST" },
+      "AVRS - California": [
+        { "name": "AVRS - California", "key": "CVRS" },
       ],
-      "CVRRC": [
-        { "name": "CVRRC", "key": "CVRRC" },
+      "CVR Converged": [
+        { "name": "CVR Converged", "key": "CVRCACONV" },
+        { "name": "CVR Converged (CVRCBE)", "key": "CVRCBE" },
+      ],
+      "CVR EVR (Delphi)": [
+        { "name": "CVR EVR (Delphi)", "key": "CVRIN" },
+        { "name": "CVR EVR (Delphi) (CVRNC)", "key": "CVRNC" },
+      ],
+      "CVR EVR (Delphi) / CVR EVR AL": [
+        { "name": "CVR EVR (Delphi) / CVR EVR AL", "key": "CVRAL" },
+      ],
+      "CVR EVR (Delphi) / CVR EVR MA": [
+        { "name": "CVR EVR (Delphi) / CVR EVR MA", "key": "CVRMA" },
+      ],
+      "CVR EVR (Delphi) / CVR EVR MD": [
+        { "name": "CVR EVR (Delphi) / CVR EVR MD", "key": "CVRMD" },
+      ],
+      "CVR EVR (Delphi) / CVR EVR PA": [
+        { "name": "CVR EVR (Delphi) / CVR EVR PA", "key": "CVRPA" },
+      ],
+      "CVR EVR (Delphi) / CVR EVR SC": [
+        { "name": "CVR EVR (Delphi) / CVR EVR SC", "key": "CVRSC" },
+      ],
+      "CVR EVR (Delphi) / CVR EVR VA": [
+        { "name": "CVR EVR (Delphi) / CVR EVR VA", "key": "CVRVA" },
+      ],
+      "CVR EVR (Delphi) / CVR EVR WV": [
+        { "name": "CVR EVR (Delphi) / CVR EVR WV", "key": "CVRWV" },
+      ],
+      "CVR EVR (Delphi) / CVR Host": [
+        { "name": "CVR EVR (Delphi) / CVR Host", "key": "CVRHOST" },
       ],
       "CVR FL Connect": [
         { "name": "CVR FL Connect", "key": "CVRFL" },
       ],
+      "CVR GA EVR": [
+        { "name": "CVR GA EVR", "key": "CVRGA" },
+      ],
       "CVR IL Connect": [
         { "name": "CVR IL Connect", "key": "CVRIL" },
+        { "name": "CVR IL Connect (CVRILSUP)", "key": "CVRILSUP" },
       ],
       "CVR Interface Services (CIS)": [
         { "name": "CVR Interface Services (CIS)", "key": "CVRCH" },
-      ],
-      "CVRCLA": [
-        { "name": "CVRCLA", "key": "CVRCLA" },
-      ],
-      "CVRDAESIGN": [
-        { "name": "CVRDAESIGN", "key": "CVRDAESIGN" },
+        { "name": "CVR Interface Services (CIS) (CVRCIS)", "key": "CVRCIS" },
+        { "name": "CVR Interface Services (CIS) (CVRCLA)", "key": "CVRCLA" },
+        { "name": "CVR Interface Services (CIS) (CVRDAESIGN)", "key": "CVRDAESIGN" },
+        { "name": "CVR Interface Services (CIS) (CVRDOCIMG)", "key": "CVRDOCIMG" },
+        { "name": "CVR Interface Services (CIS) (CVRJE)", "key": "CVRJE" },
+        { "name": "CVR Interface Services (CIS) (CVRNMVTI)", "key": "CVRNMVTI" },
+        { "name": "CVR Interface Services (CIS) (CVRRC)", "key": "CVRRC" },
       ],
       "CVR MI Connect": [
         { "name": "CVR MI Connect", "key": "CVRMIWEB" },
@@ -1640,11 +1440,17 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       "CVR NC Connect": [
         { "name": "CVR NC Connect", "key": "CVRNCC" },
       ],
+      "CVR NJ Web": [
+        { "name": "CVR NJ Web", "key": "CVRNJ" },
+      ],
       "CVR NY Verifi": [
         { "name": "CVR NY Verifi", "key": "CVRNY" },
       ],
       "CVR PA Connect": [
         { "name": "CVR PA Connect", "key": "CVRPAC" },
+      ],
+      "CVR WI Connect": [
+        { "name": "CVR WI Connect", "key": "WICON" },
       ],
     },
   },
