@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends, Header, Query
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends, Header, Query
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from fastapi.responses import StreamingResponse
@@ -54,6 +54,7 @@ from services.rag_handler import get_handler, LeadershipRAGHandler
 from services.github import GitHubClient, GitHubConfig
 from services.salesforce import SalesforceClient, SalesforceConfig
 from services.salesforce_classifier import batch_classify, classify_and_solve, get_categories, get_category_colors
+from services.tableau import TableauClient, TableauConfig
 import re
 
 # Configure logging
@@ -72,6 +73,9 @@ class AppState:
         self.confluence_config = None
         self.github_client = GitHubClient() # Initialize GitHub client
         self.salesforce_client = SalesforceClient()  # Initialize Salesforce client
+        self.tableau_configured = False
+        self.tableau_client = None
+        self.tableau_config = None
         self._salesforce_classified_cache: list = []  # In-memory cache of classified cases
         self.messages = []
         self.export_files = {}
@@ -428,7 +432,10 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3001",
-    ],
+        # Extra origins (e.g. a LAN IP for office sharing) come from env, not code
+    ] + [o.strip() for o in os.environ.get("EXTRA_CORS_ORIGINS", "").split(",") if o.strip()],
+    # Also allow private-range dev hosts on common frontend ports.
+    allow_origin_regex=r"^http://(10|192\.168|172\.(1[6-9]|2\d|3[01])|100)\.[\d.]+:300[01]$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1446,7 +1453,7 @@ async def login_endpoint(request: LoginRequest):
         # Create access token
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user["username"], "email": user.get("email", "")},
+            data={"sub": user["username"], "email": user.get("email", ""), "role": user.get("role", "viewer")},
             expires_delta=access_token_expires
         )
         
@@ -1485,10 +1492,17 @@ async def auto_connect_integrations():
         confluence_email = os.environ.get('CONFLUENCE_SERVICE_EMAIL')
         confluence_api_token_encrypted = os.environ.get('CONFLUENCE_SERVICE_API_TOKEN')
         confluence_url = os.environ.get('CONFLUENCE_BASE_URL', 'https://projects.cdk.com/wiki')
-        
+
+        github_token_encrypted = os.environ.get('GITHUB_SERVICE_TOKEN')
+
+        tableau_server_url = os.environ.get('TABLEAU_SERVER_URL')
+        tableau_pat_secret_encrypted = os.environ.get('TABLEAU_PAT_SECRET')
+
         results = {
             "jira": {"success": False, "message": ""},
-            "confluence": {"success": False, "message": ""}
+            "confluence": {"success": False, "message": ""},
+            "github": {"success": False, "message": ""},
+            "tableau": {"success": False, "message": ""}
         }
         
         # Connect Jira
@@ -1598,7 +1612,102 @@ async def auto_connect_integrations():
                 "success": False,
                 "message": "Confluence service credentials not configured"
             }
-        
+
+        # Connect GitHub
+        if github_token_encrypted:
+            try:
+                # Decrypt token (stored encrypted in .env)
+                github_token = get_encrypted_env('GITHUB_SERVICE_TOKEN')
+                if not github_token:
+                    raise RuntimeError("GitHub service token could not be decrypted")
+
+                app_state.github_client.set_token(github_token)
+
+                status = await app_state.github_client.get_status()
+                if not status.get("connected"):
+                    raise RuntimeError(status.get("error", "GitHub connection validation failed"))
+
+                results["github"] = {
+                    "success": True,
+                    "message": f"Connected successfully as {status.get('user', 'GitHub user')}."
+                }
+                logger.info("GitHub auto-connected successfully as %s", status.get("user", "GitHub user"))
+
+                # Clear token from memory
+                del github_token
+            except Exception as e:
+                results["github"] = {
+                    "success": False,
+                    "message": f"Failed to connect: {str(e)}"
+                }
+                logger.error(f"GitHub auto-connect failed: {e}")
+        else:
+            results["github"] = {
+                "success": False,
+                "message": "GitHub service credentials not configured"
+            }
+
+        # Connect Tableau
+        if tableau_server_url and tableau_pat_secret_encrypted:
+            try:
+                # Decrypt PAT secret (stored encrypted in .env)
+                tableau_pat_secret = get_encrypted_env('TABLEAU_PAT_SECRET')
+                if not tableau_pat_secret:
+                    raise RuntimeError("Tableau PAT secret could not be decrypted")
+
+                tableau_config = TableauConfig(
+                    server_url=tableau_server_url,
+                    site_id=os.environ.get('TABLEAU_SITE_ID', ''),
+                    pat_name=os.environ.get('TABLEAU_PAT_NAME', ''),
+                    pat_secret=tableau_pat_secret
+                )
+                tableau_client = TableauClient(tableau_config)
+                await tableau_client.initialize()
+
+                validation = await tableau_client.validate_connection()
+                if not validation.get("success"):
+                    await tableau_client.close()
+                    raise RuntimeError(validation.get("message", "Tableau connection validation failed"))
+
+                if app_state.tableau_client and app_state.tableau_client is not tableau_client:
+                    try:
+                        await app_state.tableau_client.close()
+                    except Exception:
+                        pass
+                app_state.tableau_configured = True
+                app_state.tableau_client = tableau_client
+                app_state.tableau_config = tableau_config
+
+                results["tableau"] = {
+                    "success": True,
+                    "message": (
+                        f"Connected to site '{tableau_config.site_id or 'default'}'. "
+                        f"{validation.get('views', 0)} views visible."
+                    )
+                }
+                logger.info(
+                    "Tableau auto-connected to site '%s'; %s views visible",
+                    tableau_config.site_id or "default",
+                    validation.get("views", 0),
+                )
+
+                # Clear secret from memory
+                del tableau_pat_secret
+            except Exception as e:
+                app_state.tableau_configured = False
+                app_state.tableau_client = None
+                app_state.tableau_config = None
+                results["tableau"] = {
+                    "success": False,
+                    "message": f"Failed to connect: {str(e)}"
+                }
+                logger.error(f"Tableau auto-connect failed: {e}")
+        else:
+            results["tableau"] = {
+                "success": False,
+                "message": "Tableau service credentials not configured"
+            }
+
         # Start indexing scheduler if clients are available
         try:
             from services.indexing_scheduler import get_indexing_scheduler
@@ -1650,11 +1759,13 @@ async def verify_token_endpoint(authorization: Optional[str] = Header(None)):
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
         email = payload.get("email", "")
-        
+        role = payload.get("role", "viewer")
+
         return {
             "success": True,
             "username": username,
-            "email": email
+            "email": email,
+            "role": role
         }
     except jwt.ExpiredSignatureError:
         return {"success": False, "message": "Token has expired"}
@@ -1685,18 +1796,29 @@ async def configure_jira(config: JiraConfigRequest):
         
         # Create Jira client
         jira_client = JiraClient(jira_config)
-        
+
         # Initialize the async client
         await jira_client.initialize()
-        
-        # Test the connection by trying to get projects
+
+        # Jira Server/DC serves /project anonymously (200 + empty list) for bad
+        # tokens, so a projects fetch alone cannot prove the credentials work.
+        # Validate auth first and refuse to touch the existing client on failure.
+        validation = await jira_client.validate_connection()
+        if not validation.get("success"):
+            await jira_client.close()
+            logger.warning(f"Rejected /api/jira/configure: {validation.get('message')}")
+            raise HTTPException(
+                status_code=400,
+                detail=validation.get("message", "Jira credential validation failed"),
+            )
+
         projects_count = 0
         current_sprint = None
         try:
             projects = await jira_client.get_projects()
             projects_count = len(projects)
             logger.info(f"Successfully connected to Jira. Found {projects_count} projects")
-            
+
             # Try to get current sprint if board_id is provided
             if config.board_id:
                 try:
@@ -1706,13 +1828,18 @@ async def configure_jira(config: JiraConfigRequest):
                     pass
         except Exception as e:
             logger.warning(f"Could not get projects, but connection may still work: {e}")
-        
-        # Store configuration
+
+        # Store configuration, closing the previous client to avoid leaking connections
+        if app_state.jira_client and app_state.jira_client is not jira_client:
+            try:
+                await app_state.jira_client.close()
+            except Exception:
+                pass
         app_state.jira_configured = True
         app_state.jira_client = jira_client
         app_state.jira_config = jira_config
         app_state.jira_board_id = config.board_id
-        
+
         logger.info("Jira configured successfully. Confluence must be configured separately.")
         
         return {
@@ -1726,6 +1853,8 @@ async def configure_jira(config: JiraConfigRequest):
                 "board_id": config.board_id
             }
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Jira configuration failed: {e}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -1841,21 +1970,37 @@ async def configure_confluence(config: dict):
         
         # Initialize the async client
         await confluence_client.initialize()
-        
-        # Test the connection by trying to get spaces
+
+        # Validate before storing: bad tokens can be served anonymously, so an
+        # empty spaces list means the credentials don't actually work. Never
+        # replace a working client with an unvalidated one (mirrors Jira).
         try:
             spaces = await confluence_client.get_spaces()
-            logger.info(f"Successfully connected to Confluence. Found {len(spaces)} spaces")
         except Exception as e:
-            logger.warning(f"Could not get spaces, but connection may still work: {e}")
-        
-        # Update app state
+            await confluence_client.close()
+            logger.warning(f"Rejected /api/confluence/configure: {e}")
+            raise HTTPException(status_code=400, detail=f"Confluence credential validation failed: {e}")
+        if not spaces:
+            await confluence_client.close()
+            logger.warning("Rejected /api/confluence/configure: credentials cannot see any spaces")
+            raise HTTPException(
+                status_code=400,
+                detail="Confluence authenticated, but the account cannot see any spaces. Check credentials/permissions.",
+            )
+        logger.info(f"Successfully connected to Confluence. Found {len(spaces)} spaces")
+
+        # Update app state, closing the previous client to avoid leaking connections
+        if app_state.confluence_client and app_state.confluence_client is not confluence_client:
+            try:
+                await app_state.confluence_client.close()
+            except Exception:
+                pass
         app_state.confluence_config = confluence_config
         app_state.confluence_client = confluence_client
         app_state.confluence_configured = True
-        
+
         logger.info("Confluence configured successfully as separate connection")
-        
+
         return {
             "success": True,
             "message": "Confluence configured successfully",
@@ -1864,20 +2009,18 @@ async def configure_confluence(config: dict):
                 "email": config.get('email', '')
             }
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Confluence configuration failed: {e}")
-        return {
-            "success": False,
-            "error": str(e),
-            "message": "Failed to configure Confluence"
-        }
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/jira/sprint/current")
 async def get_current_sprint():
     """Get current sprint information"""
     if not app_state.jira_configured or not app_state.jira_client:
         raise HTTPException(status_code=400, detail="Jira not configured")
-
+    
     try:
         current_sprint = await app_state.jira_client.get_current_sprint()
         return {
@@ -1947,7 +2090,6 @@ async def search_jira_issues(request: Dict[str, Any]):
         max_results = request.get("max_results", 50)
         fields = request.get("fields", None)
         
-        result = await app_state.jira_client.search(jql, max_results)
         result = await app_state.jira_client.search(jql, max_results, fields=fields)
         
         # If no issues, use semantic/Jira RAG fallback on recent issues
@@ -2321,7 +2463,40 @@ async def chat_endpoint(request: ChatRequest, x_workbuddy_theme: str = Header(No
         logger.info(f"   - Jira Client Exists: {app_state.jira_client is not None}")
         logger.info(f"   - AI Engine Initialized: {app_state.ai_engine is not None}")
         logger.info("=" * 80)
-        
+
+        # TABLEAU CHAT ROUTING (additive early-exit) — handled before the
+        # existing pipeline; when the guard doesn't match, every line below
+        # runs unchanged. Matches only source=='tableau' (Tableau checkbox)
+        # or auto-mode messages that explicitly mention Tableau.
+        try:
+            from services.tableau_chat import get_tableau_chat_handler
+            _tableau_chat = get_tableau_chat_handler()
+            if _tableau_chat.should_handle(request.source, request.integrations or [], message):
+                logger.info("📊 Routing to Tableau chat handler")
+                if not (app_state.tableau_configured and app_state.tableau_client):
+                    return {
+                        "response": (
+                            "**Tableau is not connected.** It connects automatically "
+                            "at login when Tableau service credentials are configured "
+                            "in the backend — or it can be connected via Connection Settings."
+                        ),
+                        "source": "tableau",
+                    }
+                tableau_result = await _tableau_chat.handle_query(message, app_state.tableau_client)
+                return {
+                    "response": tableau_result.get("response", "No response from the Tableau handler."),
+                    "source": "tableau",
+                    "intent": tableau_result.get("intent"),
+                }
+        except Exception as tableau_chat_error:
+            logger.error(f"❌ Tableau chat routing failed: {tableau_chat_error}")
+            if (request.source or "").lower() == "tableau":
+                return {
+                    "response": f"Sorry — the Tableau lookup failed: {tableau_chat_error}",
+                    "source": "tableau",
+                }
+            # Auto mode: fall through to the existing pipeline unchanged
+
         # UNIFIED RAG ROUTING (replaces keyword-based checks)
         # Get unified RAG handler
         from services.unified_rag_handler import get_unified_rag_handler, SourceType
@@ -3467,11 +3642,26 @@ async def test_jira_connection(config: JiraConfigRequest):
         
         # Create Jira client
         jira_client = JiraClient(jira_config)
-        
+
         # Initialize the async client
         await jira_client.initialize()
-        
+
+        # Jira Server/DC answers many endpoints anonymously for bad tokens, so
+        # only validate_connection() (which probes /myself) proves the credentials.
+        validation = await jira_client.validate_connection()
+        if not validation.get("success"):
+            return {
+                "success": False,
+                "message": validation.get("message", "Jira credential validation failed"),
+                "config": {
+                    "url": config.url,
+                    "email": config.email,
+                    "board_id": config.board_id
+                }
+            }
+
         # Test the connection
+        current_sprint = None
         try:
             # Try to get current sprint
             current_sprint = await jira_client.get_current_sprint()
@@ -7599,14 +7789,19 @@ async def github_configure(config: Dict[str, str]):
         if not token:
             return create_error_response("API token is required", status_code=400)
             
-        # Update config dynamically
-        app_state.github_client.config.api_token = token
+        # Validate with a throwaway client first so bad credentials never
+        # replace the live (possibly service-account) connection
+        from services.github import GitHubClient
+        probe = GitHubClient()
+        probe.config.api_token = token
         if email:
-            app_state.github_client.config.email = email
-            
-        # Verify connection
-        status = await app_state.github_client.get_status()
+            probe.config.email = email
+        status = await probe.get_status()
+        if probe._client:
+            await probe._client.aclose()
+
         if status.get("connected"):
+            app_state.github_client.set_token(token, email)
             return create_success_response(status, "GitHub connected successfully")
         else:
             return create_error_response("Connection failed", status.get("error", "Unknown error"))
@@ -7861,27 +8056,155 @@ async def salesforce_metrics():
         return create_error_response("Failed to fetch metrics", str(e))
 
 
-@app.get("/api/jira/fields")
-async def get_jira_fields():
-    """Get list of searchable Jira fields for Services Dashboard configuration"""
-    if not app_state.jira_configured or not app_state.jira_client:
-        raise HTTPException(status_code=400, detail="Jira not configured")
+# ============== TABLEAU INTEGRATION ==============
 
+class TableauConfigRequest(BaseModel):
+    server_url: str
+    site_id: str = ""
+    pat_name: str
+    pat_secret: str
+
+
+@app.get("/api/tableau/status", tags=["Tableau"], summary="Get Tableau Connection Status")
+async def get_tableau_status():
+    """Get Tableau connection status (in-memory read, no network call)"""
+    return {
+        "configured": app_state.tableau_configured,
+        "config": {
+            "server_url": app_state.tableau_config.server_url,
+            "site": app_state.tableau_config.site_id or "default",
+        } if app_state.tableau_config else None
+    }
+
+
+@app.post("/api/tableau/configure", tags=["Tableau"], summary="Configure Tableau Connection")
+async def configure_tableau(config: TableauConfigRequest):
+    """Configure Tableau connection with a Personal Access Token"""
     try:
-        fields = await app_state.jira_client.get_fields()
+        url = config.server_url.strip()
+        if not url.startswith(('http://', 'https://')):
+            url = f"https://{url}"
+
+        tableau_config = TableauConfig(
+            server_url=url,
+            site_id=config.site_id.strip(),
+            pat_name=config.pat_name.strip(),
+            pat_secret=config.pat_secret.strip(),
+        )
+        tableau_client = TableauClient(tableau_config)
+        await tableau_client.initialize()
+
+        # Validate first and refuse to touch the existing client on failure
+        validation = await tableau_client.validate_connection()
+        if not validation.get("success"):
+            await tableau_client.close()
+            logger.warning(f"Rejected /api/tableau/configure: {validation.get('message')}")
+            raise HTTPException(
+                status_code=400,
+                detail=validation.get("message", "Tableau credential validation failed"),
+            )
+
+        # Store configuration, closing the previous client to avoid leaking connections
+        if app_state.tableau_client and app_state.tableau_client is not tableau_client:
+            try:
+                await app_state.tableau_client.close()
+            except Exception:
+                pass
+        app_state.tableau_configured = True
+        app_state.tableau_client = tableau_client
+        app_state.tableau_config = tableau_config
+
         return {
             "success": True,
-            "fields": fields if fields else [],
-            "total": len(fields) if fields else 0,
-            "note": "Look for custom field IDs like 'customfield_12345' for Zephyr test cycle and execution status fields"
+            "message": "Tableau configured successfully",
+            "views": validation.get("views", 0),
+            "config": {
+                "server_url": url,
+                "site": tableau_config.site_id or "default",
+            }
         }
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Tableau configuration failed: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/tableau/disconnect", tags=["Tableau"], summary="Disconnect Tableau")
+async def disconnect_tableau():
+    """Disconnect Tableau connection"""
+    try:
+        if app_state.tableau_client:
+            await app_state.tableau_client.close()
+        app_state.tableau_configured = False
+        app_state.tableau_client = None
+        app_state.tableau_config = None
+        return {"success": True, "message": "Tableau disconnected successfully"}
+    except Exception as e:
+        logger.error(f"Tableau disconnection failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+@app.get("/api/tableau/views", tags=["Tableau"], summary="List Tableau Views")
+async def get_tableau_views():
+    """List all views visible to the service token, with workbook names"""
+    if not app_state.tableau_configured or not app_state.tableau_client:
+        return create_error_response("Tableau not configured", status_code=400)
+    try:
+        views = await app_state.tableau_client.get_views()
+        return create_success_response({"views": views, "count": len(views)})
+    except Exception as e:
+        logger.error(f"❌ Tableau views error: {e}")
+        return create_error_response("Failed to list views", str(e))
+
+
+@app.get("/api/tableau/view-data", tags=["Tableau"], summary="Export Tableau View Data")
+async def get_tableau_view_data(
+    view_id: Optional[str] = None,
+    url: Optional[str] = None,
+    workbook: Optional[str] = None,
+    view: Optional[str] = None,
+    max_age: Optional[int] = None,
+):
+    """
+    Export a view's summary data as parsed rows. Identify the view by
+    view_id, by a browser url (…/#/site/x/views/<workbook>/<view>), or by
+    workbook + view content-url segments.
+    """
+    if not app_state.tableau_configured or not app_state.tableau_client:
+        return create_error_response("Tableau not configured", status_code=400)
+    try:
+        client = app_state.tableau_client
+        resolved = None
+        if not view_id and url:
+            parsed = TableauClient.parse_view_url(url)
+            if not parsed:
+                return create_error_response(
+                    "Could not parse workbook/view from url", status_code=400
+                )
+            workbook, view = parsed["workbook"], parsed["view"]
+        if not view_id and workbook and view:
+            resolved = await client.find_view(workbook, view)
+            if not resolved:
+                return create_error_response(
+                    f"View '{workbook}/{view}' not found on site", status_code=404
+                )
+            view_id = resolved["id"]
+        if not view_id:
+            return create_error_response(
+                "Provide view_id, url, or workbook + view", status_code=400
+            )
+
+        data = await client.get_view_data(view_id, max_age_minutes=max_age)
+        return create_success_response({
+            "view_id": view_id,
+            "view": resolved,
+            **data,
+        })
+    except Exception as e:
+        logger.error(f"❌ Tableau view data error: {e}")
+        return create_error_response("Failed to export view data", str(e))
+
 
 # ─── Mercury Dashboard ─────────────────────────────────────────────────────────
 
@@ -7897,7 +8220,9 @@ async def get_mercury_dashboard_legacy():
     import asyncio
 
     JIRA_BASE = os.getenv("JIRA_BASE_URL", "https://projects.cdk.com")
-    JIRA_TOKEN = os.getenv("JIRA_SERVICE_API_TOKEN", "")
+    # Service token is Fernet-encrypted in .env — decrypt it before use as a Bearer token.
+    from services.encryption import get_encrypted_env
+    JIRA_TOKEN = get_encrypted_env("JIRA_SERVICE_API_TOKEN") or ""
     headers = {"Authorization": f"Bearer {JIRA_TOKEN}", "Accept": "application/json"}
 
     PROJECT_ID = "21500"
@@ -8479,7 +8804,11 @@ async def get_mercury_dashboard():
         if chart_prefs.get("sortSprintBy") == "count":
             chart_rows = sorted(rows, key=lambda row: row["total"], reverse=True)
         if chart_prefs.get("showOthers") == "false":
-            chart_rows = chart_rows[: int(chart_prefs.get("itemsPerGroup") or len(chart_rows))]
+            try:
+                items_per_group = int(chart_prefs.get("itemsPerGroup") or len(chart_rows))
+            except (TypeError, ValueError):
+                items_per_group = len(chart_rows)
+            chart_rows = chart_rows[:items_per_group]
 
         version_name = next((cycle.get("versionName") for cycle in cycles.values() if isinstance(cycle, dict) and cycle.get("versionName")), version_id)
         project_key = next((cycle.get("projectKey") for cycle in cycles.values() if isinstance(cycle, dict) and cycle.get("projectKey")), project_id)
@@ -8492,7 +8821,7 @@ async def get_mercury_dashboard():
         }
         return rows, chart_rows, version_name, project_key, doc
 
-    async with httpx.AsyncClient(verify=False, timeout=60) as client:
+    async with httpx.AsyncClient(timeout=60) as client:
         gadgets = await dashboard_gadgets(client)
         custom_by_title = {}
         for gadget in gadgets:
@@ -8500,10 +8829,28 @@ async def get_mercury_dashboard():
                 prefs = prefs_to_dict(gadget, decode_custom=True)
                 custom_by_title[prefs.get("title")] = gadget
 
-        summary_gadget = next(gadget for gadget in gadgets if "execution-status" in (gadget.get("gadgetSpecUrl") or ""))
-        chart_gadget = next(gadget for gadget in gadgets if "testcase-execution" in (gadget.get("gadgetSpecUrl") or ""))
-        two_dim_gadget = next(gadget for gadget in gadgets if gadget_title(gadget) == "Two Dimensional Filter Statistics")
-        rich_text_gadget = next(gadget for gadget in gadgets if gadget_title(gadget) == "Rich Text")
+        # Gadget lookups use defaults: a renamed/removed gadget on the Jira
+        # dashboard must produce a clear 502, not an opaque StopIteration 500.
+        summary_gadget = next((gadget for gadget in gadgets if "execution-status" in (gadget.get("gadgetSpecUrl") or "")), None)
+        chart_gadget = next((gadget for gadget in gadgets if "testcase-execution" in (gadget.get("gadgetSpecUrl") or "")), None)
+        two_dim_gadget = next((gadget for gadget in gadgets if gadget_title(gadget) == "Two Dimensional Filter Statistics"), None)
+        rich_text_gadget = next((gadget for gadget in gadgets if gadget_title(gadget) == "Rich Text"), None)
+
+        required = {
+            "Zephyr execution summary gadget": summary_gadget,
+            "Zephyr execution chart gadget": chart_gadget,
+            "Two Dimensional Filter Statistics gadget": two_dim_gadget,
+            "Custom Charts 'Focused Test Suite'": custom_by_title.get("Focused Test Suite"),
+            "Custom Charts 'Comprehensive Test Suite'": custom_by_title.get("Comprehensive Test Suite"),
+            "Custom Charts 'Bugs distribution across T&L boxes'": custom_by_title.get("Bugs distribution across T&L boxes"),
+        }
+        missing = [name for name, g in required.items() if not g]
+        if missing:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Jira dashboard 39900 is missing expected gadgets: {', '.join(missing)}. "
+                       "The dashboard layout may have changed.",
+            )
 
         test_cases_distribution_gadget = custom_by_title.get("Test Cases Distribution")
 
@@ -8595,7 +8942,9 @@ async def get_findings_analysis():
     import re
 
     CONF_BASE  = os.getenv("CONFLUENCE_BASE_URL", "https://confluence.cdk.com")
-    CONF_TOKEN = os.getenv("CONFLUENCE_SERVICE_API_TOKEN", "")
+    # Service token is Fernet-encrypted in .env — decrypt it before use as a Bearer token.
+    from services.encryption import get_encrypted_env
+    CONF_TOKEN = get_encrypted_env("CONFLUENCE_SERVICE_API_TOKEN") or ""
     OBS_PAGE   = "502140070"
     BLK_PAGE   = "502140072"
     ch = {"Authorization": f"Bearer {CONF_TOKEN}", "Accept": "application/json"}
@@ -8739,7 +9088,7 @@ async def get_findings_analysis():
 
     # ── Fetch + parse ────────────────────────────────────────────────────────────
     try:
-        async with httpx.AsyncClient(verify=False, timeout=30) as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             obs_r, blk_r = await asyncio.gather(
                 client.get(f"{CONF_BASE}/rest/api/content/{OBS_PAGE}", params={"expand": "body.storage"}, headers=ch),
                 client.get(f"{CONF_BASE}/rest/api/content/{BLK_PAGE}",  params={"expand": "body.storage"}, headers=ch),
@@ -8839,9 +9188,14 @@ async def get_services_mod_ai_insights(payload: Dict[str, Any]):
 
     import json
     modules = payload.get("modules", [])
-    slim = [{"name": m["name"], "overall": m["overall"], "automated": m["automated"],
-             "requires_automation": m["requires_automation"],
-             "automation_not_required": m["automation_not_required"]} for m in modules]
+    if not isinstance(modules, list):
+        raise HTTPException(status_code=422, detail="'modules' must be a list")
+    # .get() everywhere: a malformed client payload must 4xx/degrade, not KeyError-500
+    slim = [{"name": m.get("name", "?"), "overall": m.get("overall", 0),
+             "automated": m.get("automated", 0),
+             "requires_automation": m.get("requires_automation", 0),
+             "automation_not_required": m.get("automation_not_required", 0)}
+            for m in modules if isinstance(m, dict)]
     context = json.dumps(slim, default=str)[:4000]
 
     system_prompt = (
@@ -8958,7 +9312,7 @@ async def get_services_mod_dashboard():
         except Exception:
             return 0
 
-    async with httpx.AsyncClient(verify=False, timeout=30) as client:
+    async with httpx.AsyncClient(timeout=30) as client:
         tasks = []
         for m in MODULES:
             tasks.append(jql_count(client, m["overall"]))
@@ -9140,7 +9494,7 @@ async def get_tk_categories():
         quoted = ", ".join(f'"{l}"' for l in labels)
         return f"labels in ({quoted})"
 
-    async with httpx.AsyncClient(verify=False, timeout=45) as client:
+    async with httpx.AsyncClient(timeout=45) as client:
         tasks = []
         for cat in TK_FUNC_CATEGORIES:
             lclause = labels_clause(cat["labels"])
@@ -9218,3 +9572,8 @@ async def get_jira_fields():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

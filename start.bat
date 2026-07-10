@@ -105,11 +105,16 @@ if exist "%NPM_HASH%" (
 )
 if "%DO_NPM%"=="1" (
     call :say "package.json changed (or first run) — running npm install..."
-    call npm install --prefer-offline
+    call npm install --prefer-offline || (
+        call :oops "npm install failed — will retry on next start."
+        del "%TEMP%\.falconx_pkg_hash" >nul 2>&1
+        goto :npm_done
+    )
     copy "%TEMP%\.falconx_pkg_hash" "%NPM_HASH%" >nul 2>&1
 ) else (
     call :say "npm packages already up to date — skipping install."
 )
+:npm_done
 del "%TEMP%\.falconx_pkg_hash" >nul 2>&1
 REM ---------------------------------------------------------------------------
 

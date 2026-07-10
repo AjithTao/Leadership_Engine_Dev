@@ -10,7 +10,7 @@ import {
   TrendingUp, ShieldAlert, Layers, AlertTriangle, ChevronDown, ChevronRight,
   Activity, Zap, Target, PieChart, Info
 } from 'lucide-react'
-import { getApiUrl } from '../../lib/api-config'
+import { getApiUrl, fetchWithTimeout } from '../../lib/api-config'
 import { useTheme } from '../contexts/ThemeContext'
 
 // Theme detection. The semantic accent hexes below need darker, WCAG-AA variants
@@ -633,7 +633,7 @@ function TestSuiteBreakdown({ manual, automated, total, by_area, columns: source
             </thead>
             <tbody>
               {areas.map((area, idx) => (
-                <tr key={area.label} style={{ background: idx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent', borderBottom: `1px solid ${DS.border}` }}>
+                <tr key={area.label} style={{ background: idx % 2 === 1 ? `color-mix(in srgb, ${DS.surface} 55%, transparent)` : 'transparent', borderBottom: `1px solid ${DS.border}` }}>
                   {/* Area name with colour dot */}
                   <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -874,7 +874,7 @@ function BugDistributionChart({ bugs, total, sourceJql, jiraBase }: {
 }
 
 // ── Execution Status Table ────────────────────────────────────────────────────
-function ExecutionTable({ rows, jiraBase }: { rows: ExecRow[]; jiraBase?: string }) {
+function ExecutionTable({ rows, jiraBase, project }: { rows: ExecRow[]; jiraBase?: string; project?: string }) {
   const cols: Array<{ key: keyof ExecRow; label: string; status: keyof typeof STATUS }> = [
     { key: 'pass',       label: 'Pass',     status: 'PASS'       },
     { key: 'fail',       label: 'Fail',     status: 'FAIL'       },
@@ -909,7 +909,7 @@ function ExecutionTable({ rows, jiraBase }: { rows: ExecRow[]; jiraBase?: string
                   <span style={{ color: DS.text, fontWeight: 500 }}>{row.cycle}</span>
                   {jiraBase && (
                     <a
-                      href={`${jiraBase}/issues/?jql=${encodeURIComponent(`project in (MODDWTC) AND issuetype = Test AND "Test Cycle" ~ "${row.cycle}"`)}`}
+                      href={`${jiraBase}/issues/?jql=${encodeURIComponent(`project in (${project || 'MODDWTC'}) AND issuetype = Test AND "Test Cycle" ~ "${row.cycle.replace(/"/g, '\\"')}"`)}`}
                       target="_blank" rel="noopener noreferrer"
                       onClick={e => e.stopPropagation()}
                       title="Open in Jira"
@@ -1032,19 +1032,28 @@ function ExecutionBarsChart({ rows }: { rows: ExecRow[] }) {
 }
 
 // ── Bug Priority by Project (stacked horizontal bars) ────────────────────────
+// Theme-aware (pick pattern, see DS above): these hexes render as TEXT (and as
+// `${color}18` tints) in the matrix — dark AA-on-light hues for the light theme,
+// bright 400-weight hues readable on #1E2028 for the dark theme.
 const PRIORITY_COLORS: Record<string, string> = {
-  Blocker:  '#9B1C1C',
-  Highest:  '#92400E',
-  High:     '#78350F',
-  Medium:   '#854D0E',
-  Normal:   '#1E40AF',
-  Low:      '#166534',
-  Lowest:   '#5B21B6',
-  Minor:    '#4B5563',
+  get Blocker()  { return pick('#9B1C1C', '#F87171') },
+  get Highest()  { return pick('#92400E', '#FB923C') },
+  get High()     { return pick('#78350F', '#FBBF24') },
+  get Medium()   { return pick('#854D0E', '#FCD34D') },
+  get Normal()   { return pick('#1E40AF', '#60A5FA') },
+  get Low()      { return pick('#166534', '#4ADE80') },
+  get Lowest()   { return pick('#5B21B6', '#A78BFA') },
+  get Minor()    { return pick('#4B5563', '#9CA3AF') },
 }
 const PRIORITY_ORDER = ['Blocker', 'Highest', 'High', 'Medium', 'Normal', 'Low', 'Lowest', 'Minor']
-const FALLBACK_SERIES_COLORS = ['#1E3A5F', '#14532D', '#78350F', '#3B0764', '#7F1D1D', '#164E63', '#374151', '#5C0A00']
-const paletteColor = (index: number) => FALLBACK_SERIES_COLORS[Math.abs(index) % FALLBACK_SERIES_COLORS.length]
+const FALLBACK_SERIES_COLORS: Array<[light: string, dark: string]> = [
+  ['#1E3A5F', '#60A5FA'], ['#14532D', '#34D399'], ['#78350F', '#FBBF24'], ['#3B0764', '#C084FC'],
+  ['#7F1D1D', '#F87171'], ['#164E63', '#22D3EE'], ['#374151', '#9CA3AF'], ['#5C0A00', '#FCA5A5'],
+]
+const paletteColor = (index: number) => {
+  const [light, dark] = FALLBACK_SERIES_COLORS[Math.abs(index) % FALLBACK_SERIES_COLORS.length]
+  return pick(light, dark)
+}
 
 function BugPriorityByProjectChart({ items = [], total, priorityOrder }: { items?: BugPriorityByProject[]; total: number; priorityOrder?: string[] }) {
   const activeItems = items.filter(item => item.total > 0)
@@ -1087,7 +1096,7 @@ function BugPriorityByProjectChart({ items = [], total, priorityOrder }: { items
           {activeItems.map((item, rowIdx) => (
             <tr
               key={item.project}
-              style={{ borderBottom: `1px solid ${DS.border}`, background: rowIdx % 2 === 0 ? 'transparent' : DS.surface + '55' }}
+              style={{ borderBottom: `1px solid ${DS.border}`, background: rowIdx % 2 === 0 ? 'transparent' : `color-mix(in srgb, ${DS.surface} 55%, transparent)` }}
             >
               <td style={{ padding: '7px 14px 7px 16px', whiteSpace: 'nowrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1186,7 +1195,7 @@ function JiraLink({ id, jiraBase }: { id: string; jiraBase: string }) {
       style={{
         color: 'var(--blue)', fontSize: 9, fontWeight: 700,
         textDecoration: 'none', borderRadius: 3, padding: '1px 4px',
-        background: 'var(--blue-bg)', border: '1px solid var(--blue)30',
+        background: 'var(--blue-bg)', border: '1px solid color-mix(in srgb, var(--blue) 30%, transparent)',
         display: 'inline-flex', alignItems: 'center', gap: 2,
       }}
       onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
@@ -1397,6 +1406,15 @@ const PRIORITY_BADGE: Record<string, { color: string; bg: string }> = {
   low:    { color: 'var(--accent-cool)', bg: 'var(--accent-cool-bg)' },
 }
 
+// True once a payload carries real dashboard data (the dashboard mounts with
+// EMPTY_DASHBOARD — all zeros / empty arrays — until the first fetch lands).
+const hasRealData = (v: unknown): boolean => {
+  if (typeof v === 'number') return v !== 0
+  if (Array.isArray(v)) return v.length > 0
+  if (v && typeof v === 'object') return Object.values(v).some(hasRealData)
+  return false
+}
+
 function AIInsightsPanel({
   apiPath,
   payload,
@@ -1411,35 +1429,67 @@ function AIInsightsPanel({
   const [open,      setOpen]      = useState(false)
   const [error,     setError]     = useState<string | null>(null)
   const [fetchedAt, setFetchedAt] = useState<string | null>(null)
-  const fetched = useRef(false)
+  // Signature of the payload last sent for analysis (set at fetch time), so a
+  // re-expand after the dashboard data changed (initial load / 5-min refresh)
+  // triggers a fresh analysis instead of showing stale insights forever.
+  const fetchedSignature = useRef<string | null>(null)
+  const inFlight = useRef(false)
+  const mounted  = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
+
+  const payloadSignature = JSON.stringify(payload)
+  const payloadEmpty = !hasRealData(payload)
 
   const fetchInsights = useCallback(async () => {
+    if (inFlight.current) return
+    inFlight.current = true
+    fetchedSignature.current = payloadSignature
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(getApiUrl(apiPath), {
+      const res = await fetchWithTimeout(getApiUrl(apiPath), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) throw new Error(await res.text())
+        body: payloadSignature,
+      }, 60000)
+      if (!res.ok) {
+        const raw = await res.text()
+        let msg = raw
+        try {
+          const parsed = JSON.parse(raw)
+          if (parsed && parsed.detail != null) {
+            msg = typeof parsed.detail === 'string' ? parsed.detail : JSON.stringify(parsed.detail)
+          }
+        } catch { /* not JSON — fall through to truncated raw text */ }
+        if (msg.length > 200) msg = msg.slice(0, 200) + '…'
+        throw new Error(msg || `Request failed (HTTP ${res.status})`)
+      }
       const json = await res.json()
+      if (!mounted.current) return
       setInsights(json.insights ?? [])
       setFetchedAt(json.generated_at ?? null)
     } catch (e) {
+      if (!mounted.current) return
       setError(e instanceof Error ? e.message : String(e))
     } finally {
-      setLoading(false)
+      inFlight.current = false
+      if (mounted.current) setLoading(false)
     }
-  }, [apiPath, payload])
+  }, [apiPath, payloadSignature])
 
-  const handleOpen = () => {
-    setOpen(o => !o)
-    if (!fetched.current) {
-      fetched.current = true
-      fetchInsights()
-    }
-  }
+  const handleOpen = () => setOpen(o => !o)
+
+  // Fetch whenever the panel is open with real data whose signature differs from
+  // the last analysed one — covers first expand, dashboard data arriving after
+  // the EMPTY_DASHBOARD placeholder, and the 5-minute auto-refresh.
+  useEffect(() => {
+    if (!open || payloadEmpty || inFlight.current) return
+    if (fetchedSignature.current === payloadSignature) return
+    fetchInsights()
+  }, [open, payloadEmpty, payloadSignature, fetchInsights])
 
   return (
     <div style={{ borderTop: `1px solid ${DS.border}` }}>
@@ -1465,7 +1515,7 @@ function AIInsightsPanel({
         </span>
         <span style={{
           fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
-          background: 'rgba(99,102,241,0.12)', color: '#818cf8',
+          background: 'rgba(99,102,241,0.12)', color: pick('#4F46E5', '#A5B4FC'),
         }}>
           Falcon Insights
         </span>
@@ -1486,6 +1536,13 @@ function AIInsightsPanel({
             style={{ overflow: 'hidden' }}
           >
             <div style={{ padding: '0 12px 12px' }}>
+              {!loading && !error && payloadEmpty && insights.length === 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 4px' }}>
+                  <Info size={12} style={{ color: DS.textMuted, flexShrink: 0 }} />
+                  <span style={{ color: DS.textMuted, fontSize: 10 }}>Waiting for dashboard data…</span>
+                </div>
+              )}
+
               {loading && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 4px' }}>
                   <motion.div
@@ -1926,7 +1983,7 @@ export function ServicesDashboard() {
               subtitle={`${data.version} · ${data.project} · Pass / Fail / WIP / Blocked / Not Run per dealer cycle`}
               accent={DS.accent}
             />
-            <ExecutionTable rows={data.execution_summary} jiraBase={data.jira_base_url} />
+            <ExecutionTable rows={data.execution_summary} jiraBase={data.jira_base_url} project={data.project} />
           </Card>
           <AIInsightsPanel
             apiPath="/api/mercury-dashboard/ai-insights"

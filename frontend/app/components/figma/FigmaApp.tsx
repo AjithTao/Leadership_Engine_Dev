@@ -17,7 +17,7 @@ export type Theme = 'light' | 'dark'
 export interface Connection {
   name: string
   status: 'connected' | 'disconnected'
-  type: 'atlassian' | 'github' | 'slack'
+  type: 'atlassian' | 'github' | 'slack' | 'tableau'
 }
 
 export default function FigmaApp() {

@@ -13,18 +13,21 @@ import { TCOEDashboard } from '../TCOEDashboard'
 import { QAMetricsDashboard } from '../QAMetricsDashboard'
 import { KPIMetricsDashboard } from '../KPIMetricsDashboard'
 import { GitHubInsightsDashboard } from '../GitHubInsightsDashboard'
+import { SalesforceInsightsDashboard } from '../SalesforceInsightsDashboard'
+import { TableauInsightsDashboard } from '../TableauInsightsDashboard'
 import { ServicesDashboard } from '../ServicesDashboard'
 import { ServicesModDashboard } from '../ServicesModDashboard'
 import { useTheme } from '../../contexts/ThemeContext'
 import { SettingsProvider } from '../../contexts/SettingsContext'
+import { getApiUrl } from '../../../lib/api-config'
 
-export type ActiveView = 'copilot' | 'insights' | 'github-insights' | 'leadership' | 'tcoe-report' | 'tcoe-dashboard' | 'qa-metrics' | 'kpi-metrics' | 'salesforce-insights' | 'services-dashboard' | 'services-mod-dashboard' | 'services-modern'
+export type ActiveView = 'copilot' | 'insights' | 'github-insights' | 'tableau-insights' | 'leadership' | 'tcoe-report' | 'tcoe-dashboard' | 'qa-metrics' | 'kpi-metrics' | 'salesforce-insights' | 'services-dashboard' | 'services-mod-dashboard' | 'services-modern'
 export type Theme = 'light' | 'dark'
 
 export interface Connection {
   name: string
   status: 'connected' | 'disconnected'
-  type: 'atlassian' | 'github' | 'slack'
+  type: 'atlassian' | 'github' | 'slack' | 'tableau'
 }
 
 export default function NewFigmaApp() {
@@ -48,9 +51,10 @@ function NewFigmaAppContent() {
   const [showSettings, setShowSettings] = useState(false)
   const [quickActionPrompt, setQuickActionPrompt] = useState<string | null>(null)
   const [connections, setConnections] = useState<Connection[]>([
-    { name: 'Jira',       status: 'disconnected', type: 'atlassian' },
+    { name: 'Jira', status: 'disconnected', type: 'atlassian' },
     { name: 'Confluence', status: 'disconnected', type: 'atlassian' },
-    { name: 'GitHub',     status: 'disconnected', type: 'github'    },
+    { name: 'GitHub', status: 'disconnected', type: 'github' },
+    { name: 'Tableau', status: 'disconnected', type: 'tableau' },
   ])
 
   const toggleConnection = (index: number) => {
@@ -84,7 +88,7 @@ function NewFigmaAppContent() {
       
       if (connectionType === 'atlassian') {
         // Make API call to configure Jira
-        const response = await fetch('http://localhost:8000/api/jira/configure', {
+        const response = await fetch(getApiUrl('/api/jira/configure'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -128,10 +132,10 @@ function NewFigmaAppContent() {
 
     const refreshStatuses = async () => {
       try {
-        const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000'
-        const jiraRes = await fetch(`${apiBase}/api/jira/status`).then(r => r.json()).catch(() => null)
-        const confRes = await fetch(`${apiBase}/api/confluence/status`).then(r => r.json()).catch(() => null)
-        const githubRes = await fetch(`${apiBase}/api/github/status`).then(r => r.json()).catch(() => null)
+        const jiraRes = await fetch(getApiUrl(`/api/jira/status`)).then(r => r.json()).catch(() => null)
+        const confRes = await fetch(getApiUrl(`/api/confluence/status`)).then(r => r.json()).catch(() => null)
+        const githubRes = await fetch(getApiUrl(`/api/github/status`)).then(r => r.json()).catch(() => null)
+        const tableauRes = await fetch(getApiUrl(`/api/tableau/status`)).then(r => r.json()).catch(() => null)
 
         if (!mounted) return
 
@@ -144,6 +148,9 @@ function NewFigmaAppContent() {
           }
           if (c.name === 'GitHub') {
             return { ...c, status: githubRes && githubRes.connected ? 'connected' as const : 'disconnected' as const }
+          }
+          if (c.name === 'Tableau') {
+            return { ...c, status: tableauRes && tableauRes.configured ? 'connected' as const : 'disconnected' as const }
           }
           return c
         }))
@@ -199,48 +206,10 @@ function NewFigmaAppContent() {
         return <InsightsDashboard />
       case 'github-insights':
         return <GitHubInsightsDashboard />
+      case 'tableau-insights':
+        return <TableauInsightsDashboard />
       case 'salesforce-insights':
-        return (
-          <div className="h-full flex flex-col items-center justify-center gap-5">
-            <div style={{
-              width: 72,
-              height: 72,
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-            }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
-                <path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
-                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-              </svg>
-            </div>
-            <div className="text-center" style={{ maxWidth: 340 }}>
-              <h2 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                Salesforce CRM Insights
-              </h2>
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                Salesforce CRM insights are under development and not yet available. Check back soon for deal pipeline, lead conversion, and account health data.
-              </p>
-            </div>
-            <span style={{
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              lineHeight: 1,
-              padding: '5px 12px',
-              borderRadius: 999,
-              color: 'var(--accent-cool-text)',
-              background: 'var(--accent-cool-bg)',
-              border: '1px solid color-mix(in srgb, var(--accent-cool) 35%, transparent)',
-            }}>
-              Coming Soon
-            </span>
-          </div>
-        )
+        return <SalesforceInsightsDashboard />
       case 'leadership':
         return <FigmaDashboard hasActiveConnections={hasActiveConnections} theme={isDarkMode ? 'dark' : 'light'} />
       case 'services-dashboard':

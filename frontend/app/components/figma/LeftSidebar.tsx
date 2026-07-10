@@ -48,7 +48,7 @@ import { useTheme } from '../../contexts/ThemeContext'
 interface Connection {
   name: string
   status: 'connected' | 'disconnected'
-  type: 'atlassian' | 'github' | 'slack'
+  type: 'atlassian' | 'github' | 'slack' | 'tableau'
 }
 
 interface FigmaLeftSidebarProps {

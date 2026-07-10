@@ -7,7 +7,17 @@ import {
   ExternalLink, ChevronDown, ChevronRight, Activity, HelpCircle,
   Layers, Tag,
 } from 'lucide-react'
-import { getApiUrl } from '../../lib/api-config'
+import { getApiUrl, fetchWithTimeout } from '../../lib/api-config'
+import { useTheme } from '../contexts/ThemeContext'
+
+// Theme detection (same pattern as ServicesDashboard). The category hexes below
+// need dark, AA-on-near-white variants on light surfaces and brighter variants on
+// the dark #1E2028 surfaces. These getters resolve per render; the dashboard
+// subscribes to useTheme() so the subtree re-renders when the theme toggles.
+// Default to dark (the app's default) during SSR / before the class is applied.
+const isDarkTheme = () =>
+  typeof document === 'undefined' || document.documentElement.classList.contains('dark')
+const pick = (light: string, dark: string) => (isDarkTheme() ? dark : light)
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const DS = {
@@ -25,12 +35,14 @@ const DS = {
   font:         "'Plus Jakarta Sans', system-ui, sans-serif",
 } as const
 
+// Theme-aware category colours: light = dark AA hues on near-white, dark = bright
+// hues readable as text on #1E2028. Getters so `${color}NN` alpha tints resolve too.
 const CAT = {
-  automated:              { color: '#2E7D5E', bg: 'rgba(46,125,94,0.12)',   label: 'Automated' },
-  requires_automation:    { color: '#8B6020', bg: 'rgba(139,96,32,0.12)',   label: 'Requires Automation' },
-  automation_not_required:{ color: '#555E6B', bg: 'rgba(85,94,107,0.12)',   label: 'Not Required' },
-  unclassified:           { color: '#9B2C2C', bg: 'rgba(155,44,44,0.10)',   label: 'Unclassified' },
-} as const
+  automated:              { get color() { return pick('#2E7D5E', '#4ADE80') }, get bg() { return pick('rgba(46,125,94,0.12)',  'rgba(74,222,128,0.12)') },  label: 'Automated' },
+  requires_automation:    { get color() { return pick('#8B6020', '#FCD34D') }, get bg() { return pick('rgba(139,96,32,0.12)',  'rgba(252,211,77,0.12)') },  label: 'Requires Automation' },
+  automation_not_required:{ get color() { return pick('#555E6B', '#94A3B8') }, get bg() { return pick('rgba(85,94,107,0.12)',  'rgba(148,163,184,0.12)') }, label: 'Not Required' },
+  unclassified:           { get color() { return pick('#9B2C2C', '#F87171') }, get bg() { return pick('rgba(155,44,44,0.10)',  'rgba(248,113,113,0.10)') }, label: 'Unclassified' },
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface ModuleData {
@@ -93,6 +105,23 @@ interface AIInsight {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function openJira(jql: string, base: string) {
   window.open(`${base}/issues/?jql=${encodeURIComponent(jql)}`, '_blank', 'noopener,noreferrer')
+}
+
+// Extract a human-readable message from a failed Response: prefer a JSON `detail`
+// field, else strip markup and truncate to ~200 chars (never render raw HTML/blobs).
+async function readErrorText(res: Response): Promise<string> {
+  const text = await res.text().catch(() => '')
+  try {
+    const json = JSON.parse(text)
+    if (json && typeof json.detail === 'string') return json.detail.slice(0, 200)
+  } catch { /* not JSON */ }
+  const plain = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  return plain.slice(0, 200) || res.statusText || 'Request failed'
+}
+
+// Keyboard activation (Enter / Space) for clickable non-button elements.
+const onActionKey = (fn: () => void) => (e: React.KeyboardEvent) => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn() }
 }
 
 // ── AnimatedCounter ────────────────────────────────────────────────────────────
@@ -343,8 +372,11 @@ function ModuleTable({ modules, jiraBase }: { modules: ModuleData[]; jiraBase: s
               {/* Module name — click opens overall JQL */}
               <td style={{ padding: '8px 16px', whiteSpace: 'nowrap' }}>
                 <div
+                  role="button"
+                  tabIndex={0}
                   style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
                   onClick={() => openJira(mod.jql.overall, jiraBase)}
+                  onKeyDown={onActionKey(() => openJira(mod.jql.overall, jiraBase))}
                   title="Open all tests in Jira"
                 >
                   <TestTube2 size={11} style={{ color: DS.accent, flexShrink: 0 }} />
@@ -360,7 +392,10 @@ function ModuleTable({ modules, jiraBase }: { modules: ModuleData[]; jiraBase: s
                 return (
                   <td key={col.key} style={{ padding: '8px 12px', textAlign: 'center' }}>
                     <motion.span
+                      role={count > 0 ? 'button' : undefined}
+                      tabIndex={count > 0 ? 0 : undefined}
                       onClick={() => count > 0 && openJira(jql, jiraBase)}
+                      onKeyDown={count > 0 ? onActionKey(() => openJira(jql, jiraBase)) : undefined}
                       whileHover={count > 0 ? { scale: 1.08 } : {}}
                       style={{
                         display: 'inline-block', minWidth: 28, padding: '2px 7px',
@@ -379,7 +414,10 @@ function ModuleTable({ modules, jiraBase }: { modules: ModuleData[]; jiraBase: s
               {/* Total */}
               <td style={{ padding: '8px 16px 8px 12px', textAlign: 'right' }}>
                 <motion.span
+                  role="button"
+                  tabIndex={0}
                   onClick={() => openJira(mod.jql.overall, jiraBase)}
+                  onKeyDown={onActionKey(() => openJira(mod.jql.overall, jiraBase))}
                   whileHover={{ scale: 1.06 }}
                   style={{
                     display: 'inline-block', padding: '2px 8px', borderRadius: 6,
@@ -435,32 +473,46 @@ function AIInsightsPanel({ modules }: { modules: ModuleData[] }) {
   const [open,      setOpen]      = useState(false)
   const [error,     setError]     = useState<string | null>(null)
   const [fetchedAt, setFetchedAt] = useState<string | null>(null)
-  const fetched = useRef(false)
+  // Signature of the modules payload the last fetch was issued for — lets an
+  // expand after a dashboard Refresh detect stale insights and refetch.
+  const fetchedSig = useRef<string | null>(null)
+  const inFlight   = useRef(false)
+  const mounted    = useRef(true)
+  useEffect(() => () => { mounted.current = false }, [])
 
   const fetchInsights = useCallback(async () => {
+    if (modules.length === 0 || inFlight.current) return
+    inFlight.current = true
+    fetchedSig.current = JSON.stringify(modules)
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(getApiUrl('/api/services-mod-dashboard/ai-insights'), {
+      const res = await fetchWithTimeout(getApiUrl('/api/services-mod-dashboard/ai-insights'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ modules }),
-      })
-      if (!res.ok) throw new Error(await res.text())
+      }, 60000)
+      if (!res.ok) throw new Error(await readErrorText(res))
       const json = await res.json()
+      if (!mounted.current) return
       setInsights(json.insights ?? [])
       setFetchedAt(json.generated_at ?? null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      fetchedSig.current = null // failed — allow the next expand to retry
+      if (mounted.current) setError(e instanceof Error ? e.message : String(e))
     } finally {
-      setLoading(false)
+      inFlight.current = false
+      if (mounted.current) setLoading(false)
     }
   }, [modules])
 
   const handleOpen = () => {
-    setOpen(o => !o)
-    if (!fetched.current) {
-      fetched.current = true
+    const willOpen = !open
+    setOpen(willOpen)
+    // Fetch on expand when nothing has been fetched yet, or the dashboard data
+    // has changed since the last fetch (e.g. after a Refresh). Never fetch with
+    // an empty payload — wait for real module data.
+    if (willOpen && modules.length > 0 && JSON.stringify(modules) !== fetchedSig.current) {
       fetchInsights()
     }
   }
@@ -574,10 +626,10 @@ function AIInsightsPanel({ modules }: { modules: ModuleData[] }) {
 
 // ── TK Function Categorisation Gadget ─────────────────────────────────────────
 const STATUS_COLS: { key: keyof TKCategory; label: string; color: string }[] = [
-  { key: 'automated',               label: 'Automated',      color: CAT.automated.color               },
-  { key: 'requires_automation',     label: 'Req. Auto',      color: CAT.requires_automation.color     },
-  { key: 'automation_not_required', label: 'Not Required',   color: CAT.automation_not_required.color },
-  { key: 'unclassified',            label: 'Unclassified',   color: CAT.unclassified.color            },
+  { key: 'automated',               label: 'Automated',      get color() { return CAT.automated.color               } },
+  { key: 'requires_automation',     label: 'Req. Auto',      get color() { return CAT.requires_automation.color     } },
+  { key: 'automation_not_required', label: 'Not Required',   get color() { return CAT.automation_not_required.color } },
+  { key: 'unclassified',            label: 'Unclassified',   get color() { return CAT.unclassified.color            } },
 ]
 
 function TKCategorizationGadget({ jiraBase }: { jiraBase: string }) {
@@ -586,18 +638,21 @@ function TKCategorizationGadget({ jiraBase }: { jiraBase: string }) {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
   const fetched = useRef(false)
+  const mounted = useRef(true)
+  useEffect(() => () => { mounted.current = false }, [])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(getApiUrl('/api/services-mod-dashboard/tk-categories'))
-      if (!res.ok) throw new Error(await res.text())
-      setData(await res.json())
+      const res = await fetchWithTimeout(getApiUrl('/api/services-mod-dashboard/tk-categories'), {}, 45000)
+      if (!res.ok) throw new Error(await readErrorText(res))
+      const json = await res.json()
+      if (mounted.current) setData(json)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      if (mounted.current) setError(e instanceof Error ? e.message : String(e))
     } finally {
-      setLoading(false)
+      if (mounted.current) setLoading(false)
     }
   }, [])
 
@@ -674,6 +729,9 @@ function TKCategorizationGadget({ jiraBase }: { jiraBase: string }) {
 
               {!loading && cats.length > 0 && (
                 <>
+                  {/* Horizontal scroll wrapper — the fixed-width grid columns overflow narrow viewports */}
+                  <div style={{ overflowX: 'auto' }}>
+                  <div style={{ minWidth: 640 }}>
                   {/* Column header */}
                   <div style={{
                     display: 'grid',
@@ -744,7 +802,10 @@ function TKCategorizationGadget({ jiraBase }: { jiraBase: string }) {
                         {/* Total */}
                         <div style={{ textAlign: 'center' }}>
                           <motion.span
+                            role="button"
+                            tabIndex={0}
                             onClick={() => window.open(`${jiraBase}/issues/?jql=${encodeURIComponent(cat.jql.overall)}`, '_blank', 'noopener,noreferrer')}
+                            onKeyDown={onActionKey(() => window.open(`${jiraBase}/issues/?jql=${encodeURIComponent(cat.jql.overall)}`, '_blank', 'noopener,noreferrer'))}
                             whileHover={{ scale: 1.1 }}
                             style={{
                               display: 'inline-block', padding: '2px 7px', borderRadius: 6,
@@ -764,7 +825,10 @@ function TKCategorizationGadget({ jiraBase }: { jiraBase: string }) {
                             <div key={sc.key} style={{ textAlign: 'center' }}>
                               {count > 0 ? (
                                 <motion.span
+                                  role="button"
+                                  tabIndex={0}
                                   onClick={() => window.open(`${jiraBase}/issues/?jql=${encodeURIComponent(jqlForCol)}`, '_blank', 'noopener,noreferrer')}
+                                  onKeyDown={onActionKey(() => window.open(`${jiraBase}/issues/?jql=${encodeURIComponent(jqlForCol)}`, '_blank', 'noopener,noreferrer'))}
                                   whileHover={{ scale: 1.1 }}
                                   style={{
                                     display: 'inline-block', padding: '2px 6px', borderRadius: 4,
@@ -795,6 +859,8 @@ function TKCategorizationGadget({ jiraBase }: { jiraBase: string }) {
                       </motion.div>
                     )
                   })}
+                  </div>
+                  </div>
 
                   {/* Footer */}
                   <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${DS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -824,31 +890,39 @@ function TKCategorizationGadget({ jiraBase }: { jiraBase: string }) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export function ServicesModDashboard() {
+  // Subscribe to theme changes so the theme-aware CAT colour getters re-resolve
+  // and the dashboard repaints when light/dark toggles.
+  useTheme()
   const [data,       setData]       = useState<DashboardData | null>(null)
   const [loading,    setLoading]    = useState(true)
   const [error,      setError]      = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const mounted = useRef(true)
+  useEffect(() => () => { mounted.current = false }, [])
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch(getApiUrl('/api/services-mod-dashboard'))
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`)
-      setData(await res.json())
+      // Long timeout: the backend fans out many JQL queries for this endpoint.
+      const res = await fetchWithTimeout(getApiUrl('/api/services-mod-dashboard'), {}, 90000)
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await readErrorText(res)}`)
+      const json = await res.json()
+      if (!mounted.current) return
+      setData(json)
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      if (mounted.current) setError(e instanceof Error ? e.message : String(e))
     }
   }, [])
 
   useEffect(() => {
     setLoading(true)
-    fetchData().finally(() => setLoading(false))
+    fetchData().finally(() => { if (mounted.current) setLoading(false) })
   }, [fetchData])
 
   const handleRefresh = async () => {
     setRefreshing(true)
     await fetchData()
-    setRefreshing(false)
+    if (mounted.current) setRefreshing(false)
   }
 
   if (loading) return (
@@ -857,7 +931,7 @@ export function ServicesModDashboard() {
         <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
           style={{ width: 28, height: 28, border: `2px solid ${DS.border}`, borderTopColor: DS.accent, borderRadius: '50%', margin: '0 auto 12px' }} />
         <div style={{ fontSize: 13 }}>Loading module test data…</div>
-        <div style={{ fontSize: 11, marginTop: 4, color: DS.textHint }}>Running 28 JQL queries concurrently</div>
+        <div style={{ fontSize: 11, marginTop: 4, color: DS.textHint }}>Running Jira queries concurrently…</div>
       </div>
     </div>
   )
@@ -868,8 +942,24 @@ export function ServicesModDashboard() {
         <AlertCircle size={28} style={{ color: 'var(--red)', margin: '0 auto 12px' }} />
         <div style={{ color: DS.text, fontWeight: 600, marginBottom: 6 }}>Failed to load dashboard</div>
         <div style={{ color: DS.textMuted, fontSize: 12, marginBottom: 16, wordBreak: 'break-word' }}>{error}</div>
-        <button onClick={handleRefresh} style={{ background: DS.accent, color: '#000', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-          Retry
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          style={{
+            background: DS.accent, color: '#000', border: 'none', borderRadius: 8,
+            padding: '8px 16px', fontSize: 13, fontWeight: 600,
+            cursor: refreshing ? 'default' : 'pointer', opacity: refreshing ? 0.6 : 1,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          <motion.span
+            animate={refreshing ? { rotate: 360 } : { rotate: 0 }}
+            transition={{ repeat: refreshing ? Infinity : 0, duration: 0.8, ease: 'linear' }}
+            style={{ display: 'flex' }}
+          >
+            <RefreshCw size={13} />
+          </motion.span>
+          {refreshing ? 'Retrying…' : 'Retry'}
         </button>
       </div>
     </div>

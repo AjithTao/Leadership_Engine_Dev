@@ -206,24 +206,37 @@ export function SimpleGithubConnect() {
 
       <CardContent className="space-y-4">
         {/* Main Connect Button */}
-        <div className="flex items-center gap-3">
-          {status?.connected ? (
-            <div className="flex items-center gap-2 px-4 py-2 rounded-lg" style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)' }}>
-              <CheckCircle className="w-4 h-4" style={{ color: '#22C55E' }} />
-              <span className="text-sm font-semibold" style={{ color: '#22C55E' }}>Connected</span>
-            </div>
-          ) : (
-            <Button
-              onClick={handleConnect}
-              disabled={loading}
-              size="lg"
-              className="flex items-center gap-2 hover:opacity-90 transition-all duration-200"
-              style={{ backgroundColor: '#D4A847', color: '#13151C' }}
-            >
-              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-              {loading ? 'Connecting...' : 'Connect to GitHub'}
-            </Button>
-          )}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <Button
+            onClick={handleConnect}
+            disabled={loading}
+            size="lg"
+            className="flex items-center gap-2 shadow-lg hover:shadow-xl hover:opacity-90 transition-all duration-200 transform hover:scale-105"
+            style={{ backgroundColor: '#D4A847', color: '#13151C' }}
+          >
+            {loading ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Zap className="w-4 h-4" />
+            )}
+            {loading ? 'Connecting...' : 'Connect to GitHub'}
+          </Button>
+
+          {/* Manual Entry Toggle */}
+          <Button
+            variant="outline"
+            onClick={() => setShowManualEntry(!showManualEntry)}
+            className="flex items-center gap-2 transition-all duration-200"
+            style={{
+              borderColor: currentTheme.colors.border,
+              color: currentTheme.colors.text,
+              backgroundColor: 'transparent'
+            }}
+          >
+            <Settings className="w-4 h-4" />
+            Enter Connection Details
+            {showManualEntry ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </Button>
         </div>
 
         {/* Connection Result */}
@@ -239,6 +252,115 @@ export function SimpleGithubConnect() {
               {connectionResult}
             </AlertDescription>
           </Alert>
+        )}
+
+        {/* Manual Entry Form */}
+        {showManualEntry && (
+          <div className="space-y-4 border-t pt-4" style={{ borderColor: currentTheme.colors.border }}>
+            <h4 className="font-medium text-sm" style={{ color: currentTheme.colors.text }}>GitHub Connection Details</h4>
+
+            {/* Saved Configuration Display */}
+            {savedConfig && savedConfig.apiToken && (
+              <div className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <div className="p-1 bg-green-100 dark:bg-green-900/40 rounded-full">
+                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div className="flex-1">
+                    <h5 className="font-semibold text-green-800 dark:text-green-200 mb-1 text-sm">Saved Configuration Found</h5>
+                    <p className="text-xs text-green-700 dark:text-green-300">
+                      Personal access token saved{savedConfig.email ? <> for: <span className="font-medium">{savedConfig.email}</span></> : ''}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="github-token" className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>Personal Access Token</Label>
+                <div className="relative">
+                  <Input
+                    id="github-token"
+                    type={showToken ? "text" : "password"}
+                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                    value={config.apiToken}
+                    onChange={(e) => setConfig(prev => ({ ...prev, apiToken: e.target.value }))}
+                    className="text-sm pr-8 dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder:text-slate-400"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-2 hover:bg-transparent"
+                    onClick={() => setShowToken(!showToken)}
+                  >
+                    {showToken ? (
+                      <EyeOff className="h-3 w-3 text-gray-400 dark:text-gray-500" />
+                    ) : (
+                      <Eye className="h-3 w-3 text-gray-400 dark:text-gray-500" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="github-email" className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>Email (Optional)</Label>
+                <Input
+                  id="github-email"
+                  type="email"
+                  placeholder="your.email@company.com"
+                  value={config.email}
+                  onChange={(e) => setConfig(prev => ({ ...prev, email: e.target.value }))}
+                  className="text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder:text-slate-400"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                onClick={handleSaveAndConnect}
+                disabled={loading}
+                className="flex items-center gap-2"
+              >
+                {loading ? (
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-3 h-3" />
+                )}
+                Save & Connect
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => setShowManualEntry(false)}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+
+              {savedConfig && savedConfig.apiToken && (
+                <Button
+                  variant="outline"
+                  onClick={clearSavedDetails}
+                  disabled={loading}
+                  style={{ color: 'var(--red)', borderColor: 'var(--red)' }}
+                >
+                  Clear Saved Details
+                </Button>
+              )}
+            </div>
+
+            {/* Help Information */}
+            <Alert className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
+              <KeyRound className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <AlertTitle className="text-blue-800 dark:text-blue-200">How to create a token</AlertTitle>
+              <AlertDescription className="space-y-2 text-xs text-blue-700 dark:text-blue-300">
+                <p>Go to GitHub → <strong>Settings → Developer settings → Personal access tokens</strong> and generate a token.</p>
+                <p>Grant read access to <strong>repositories, pull requests, and actions</strong> so FalconX can build insights.</p>
+              </AlertDescription>
+            </Alert>
+          </div>
         )}
 
       </CardContent>

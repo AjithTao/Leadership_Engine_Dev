@@ -223,24 +223,37 @@ export function SimpleConfluenceConnect() {
       
       <CardContent className="space-y-4">
         {/* Main Connect Button */}
-        <div className="flex items-center gap-3">
-          {status?.configured ? (
-            <div className="flex items-center gap-2 px-4 py-2 rounded-lg" style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)' }}>
-              <CheckCircle className="w-4 h-4" style={{ color: '#22C55E' }} />
-              <span className="text-sm font-semibold" style={{ color: '#22C55E' }}>Connected</span>
-            </div>
-          ) : (
-            <Button
-              onClick={handleConnect}
-              disabled={loading}
-              size="lg"
-              className="flex items-center gap-2 hover:opacity-90 transition-all duration-200"
-              style={{ backgroundColor: '#D4A847', color: '#13151C' }}
-            >
-              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-              {loading ? 'Connecting...' : 'Connect to Confluence'}
-            </Button>
-          )}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <Button
+            onClick={handleConnect}
+            disabled={loading}
+            size="lg"
+            className="flex items-center gap-2 shadow-lg hover:shadow-xl hover:opacity-90 transition-all duration-200 transform hover:scale-105"
+            style={{ backgroundColor: '#D4A847', color: '#13151C' }}
+          >
+            {loading ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Zap className="w-4 h-4" />
+            )}
+            {loading ? 'Connecting...' : 'Connect to Confluence'}
+          </Button>
+
+          {/* Manual Entry Toggle */}
+          <Button
+            variant="outline"
+            onClick={() => setShowManualEntry(!showManualEntry)}
+            className="flex items-center gap-2 transition-all duration-200"
+            style={{
+              borderColor: currentTheme.colors.border,
+              color: currentTheme.colors.text,
+              backgroundColor: 'transparent'
+            }}
+          >
+            <Settings className="w-4 h-4" />
+            Enter Connection Details
+            {showManualEntry ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </Button>
         </div>
 
 
@@ -259,6 +272,133 @@ export function SimpleConfluenceConnect() {
           </Alert>
         )}
 
+        {/* Manual Entry Form */}
+        {showManualEntry && (
+          <div className="space-y-4 border-t pt-4" style={{ borderColor: currentTheme.colors.border }}>
+            <h4 className="font-medium text-sm" style={{ color: currentTheme.colors.text }}>Confluence Connection Details</h4>
+            
+            {/* Saved Configuration Display */}
+            {savedConfig && (
+              <div className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <div className="p-1 bg-green-100 dark:bg-green-900/40 rounded-full">
+                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div className="flex-1">
+                    <h5 className="font-semibold text-green-800 dark:text-green-200 mb-1 text-sm">Saved Configuration Found</h5>
+                    <p className="text-xs text-green-700 dark:text-green-300">
+                      Ready to connect as: <span className="font-medium">{savedConfig.email}</span>
+                    </p>
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-mono">
+                      {savedConfig.url}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="confluence-url" className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>Confluence URL</Label>
+                <Input
+                  id="confluence-url"
+                  type="url"
+                  placeholder="https://confluence.yourcompany.com"
+                  value={config.url}
+                  onChange={(e) => setConfig(prev => ({ ...prev, url: e.target.value }))}
+                  className="text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder:text-slate-400"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="confluence-email" className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>Email</Label>
+                <Input
+                  id="confluence-email"
+                  type="email"
+                  placeholder="your.email@company.com"
+                  value={config.email}
+                  onChange={(e) => setConfig(prev => ({ ...prev, email: e.target.value }))}
+                  className="text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder:text-slate-400"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="confluence-token" className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>API Token</Label>
+                <div className="relative">
+                  <Input
+                    id="confluence-token"
+                    type={showToken ? "text" : "password"}
+                    placeholder="your-confluence-api-token"
+                    value={config.apiToken}
+                    onChange={(e) => setConfig(prev => ({ ...prev, apiToken: e.target.value }))}
+                    className="text-sm pr-8 dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder:text-slate-400"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-2 hover:bg-transparent"
+                    onClick={() => setShowToken(!showToken)}
+                  >
+                    {showToken ? (
+                      <EyeOff className="h-3 w-3 text-gray-400 dark:text-gray-500" />
+                    ) : (
+                      <Eye className="h-3 w-3 text-gray-400 dark:text-gray-500" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                onClick={handleSaveAndConnect}
+                disabled={loading}
+                className="flex items-center gap-2"
+              >
+                {loading ? (
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-3 h-3" />
+                )}
+                Save & Connect
+              </Button>
+              
+              <Button
+                variant="outline"
+                onClick={() => setShowManualEntry(false)}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+
+              {savedConfig && (
+                <Button
+                  variant="outline"
+                  onClick={clearSavedDetails}
+                  disabled={loading}
+                  style={{ color: 'var(--red)', borderColor: 'var(--red)' }}
+                >
+                  Clear Saved Details
+                </Button>
+              )}
+            </div>
+
+            {/* Help Information */}
+            <Alert className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
+              <BookOpen className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <AlertTitle className="text-green-800 dark:text-green-200">How to get your API Token</AlertTitle>
+              <AlertDescription className="space-y-2 text-xs text-green-700 dark:text-green-300">
+                <p>1. Go to <strong>Atlassian Account Settings</strong></p>
+                <p>2. Click <strong>Security</strong> → <strong>Create and manage API tokens</strong></p>
+                <p>3. Click <strong>Create API token</strong></p>
+                <p>4. Give it a name like "Confluence Access"</p>
+                <p>5. Copy the token and paste it above</p>
+                <p><strong>Note:</strong> Same token can be used for both Jira and Confluence</p>
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
 
       </CardContent>
     </Card>

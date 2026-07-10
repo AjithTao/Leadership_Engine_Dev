@@ -22,6 +22,60 @@ Dates in this CHANGELOG follow the [ISO 8601 date format](https://www.w3.org/QA/
 
 ## [Unreleased]
 ### Added
+- **Services MOD Dashboard** (Project Mercury → Module Test Status): module-level
+  test automation coverage — 7 modules × 4 categories from live Jira JQL, stacked
+  bars with expandable per-category breakdowns, Jira deep-links, TK test-case
+  categorisation gadget, and an AI insights panel. New endpoints:
+  `GET /api/services-mod-dashboard`, `GET /api/services-mod-dashboard/tk-categories`,
+  `POST /api/services-mod-dashboard/ai-insights`.
+- **Mercury dashboard rebuild**: `GET /api/mercury-dashboard` now reconstructs the
+  live Jira dashboard 39900 (gadget discovery + Custom Charts prefs decoding +
+  JQL/Zephyr queries); previous implementation preserved at
+  `GET /api/mercury-dashboard/legacy` with reworked per-dealer/per-module JQL.
+  Frontend gains AI insight panels (backend-proxied Databricks — fixes
+  "Databricks AI service not configured"), a bug priority×project matrix, a test
+  cases donut, and JQL deep-links throughout. Findings endpoint hardened (502 on
+  Confluence errors, lxml parsing).
+- **start.bat**: pip/npm installs now skipped via hash checks when
+  requirements.txt/package.json are unchanged (with retry on failed installs).
+- **Tableau integration (backend)**: new `backend/services/tableau.py` client for
+  on-prem Tableau Server (PAT sign-in via REST API, view listing with a 5-minute
+  cache, view data export as parsed CSV rows, session re-auth on expiry).
+  - New endpoints: `GET /api/tableau/status`, `POST /api/tableau/configure`
+    (validates credentials before replacing the shared client),
+    `POST /api/tableau/disconnect`, `GET /api/tableau/views`, and
+    `GET /api/tableau/view-data` (accepts `view_id`, a dashboard browser `url`,
+    or `workbook` + `view` segments).
+  - Tableau auto-connects at login via `/api/auth/auto-connect-integrations`
+    using `TABLEAU_*` env keys (PAT secret Fernet-encrypted; see
+    `backend/config/env.template`).
+- **Tableau chat integration (Work Buddy)**: new standalone
+  `backend/services/tableau_chat.py` handler lets users query Tableau in
+  natural language ("find testing dashboards in Tableau", "what is our unit
+  testing coverage?"). Supports connection status, dashboard/view discovery,
+  and view-data questions answered by the LLM over live-exported view data
+  (markdown-table fallback when the LLM is unavailable).
+  - Routed via an additive early-exit guard at the top of `POST /api/chat`:
+    only requests with `source='tableau'` or auto-mode messages that
+    explicitly mention Tableau are intercepted; all other chat requests run
+    through the existing pipeline unchanged.
+  - Work Buddy header now offers a **Tableau** integration checkbox
+    (`NewHeader.tsx`), flowing through the existing generic integrations
+    array — no other frontend changes.
+- **Tableau UI (Integrations + Insights)**:
+  - **Integrations → Tableau**: new `SimpleTableauConnect` card (server URL,
+    site, PAT name/secret) in Connection Settings with connect/disconnect and
+    live status; unlike older cards, the token secret is never persisted in
+    localStorage. Tableau also appears in the sidebar integrations list with
+    a connection dot.
+  - **Insights → Tableau**: new `TableauInsightsDashboard` executive view —
+    Top 7 QCOE KPI tiles with tier badges and click-through drill-down,
+    module/tier/PI/project filters, actuals-vs-threshold bars, tier mix,
+    coverage trend by PI, project×PI heatmap, computed
+    risks/opportunities/anomalies, and CSV/print/copy-summary export. Renders
+    live Tableau data with a clearly-badged realistic sample fallback when
+    Tableau is not connected. Chart palettes validated for contrast and
+    color-vision safety in both themes.
 - **Services Dashboard + QE dashboard enhancements** (features by Ramesh Ajith,
   integrated additively so none of the existing UI/UX or API work was reverted):
   - New **Services Dashboard** ("Project Mercury — Status Summary"): test-suite

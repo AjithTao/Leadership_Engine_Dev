@@ -294,7 +294,7 @@ export function NewHeader({
             Integrations:
           </span>
           <div className="flex items-center gap-3">
-            {['jira', 'confluence'].map((id) => {
+            {['jira', 'confluence', 'tableau'].map((id) => {
               const selected = integrations.includes(id)
               const isComingSoon = false
               const label = id.charAt(0).toUpperCase() + id.slice(1)
