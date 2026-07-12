@@ -376,6 +376,13 @@ function TcoeTable({ spec, previousWeek, currentWeek, portfolioFilter }: {
   return <QcoeMetricTable spec={spec} previousWeek={previousWeek} currentWeek={currentWeek} portfolioFilter={portfolioFilter} />;
 }
 
+function formatExportDate(value?: string) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) return `${match[2]}${match[3]}${match[1]}`;
+  const date = new Date();
+  return `${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}${date.getFullYear()}`;
+}
+
 function MetricSection({ metric, run, portfolioFilter }: { metric: MetricState; run: DashboardRun; portfolioFilter?: string }) {
   const tableSpecs = useMemo(
     () => (metric.status === 'completed' ? buildTcoeTableSpecs(metric.key, metric.rows || [], metric.ai_insight) : []),
@@ -631,8 +638,8 @@ export function TCOEDashboard() {
     try {
       setExportingPDF(true);
       setError(null);
-      const filenameLabel = run.current_week_ending || new Date().toISOString().split('T')[0];
-      await exportQcoeDashboardPDF(buildExportReport(), `qcoe_metrics_${filenameLabel}.pdf`);
+      const filenameLabel = formatExportDate(run.current_week_ending);
+      await exportQcoeDashboardPDF(buildExportReport(), `QCoE - Weekly Status Report - ${filenameLabel}.pdf`);
       
     } catch (err) {
       console.error('Failed to export QCOE metrics PDF:', err);
@@ -647,8 +654,8 @@ export function TCOEDashboard() {
     try {
       setExportingJPG(true);
       setError(null);
-      const filenameLabel = run.current_week_ending || new Date().toISOString().split('T')[0];
-      await exportQcoeDashboardJPG(buildExportReport(), `qcoe_metrics_${filenameLabel}`);
+      const filenameLabel = formatExportDate(run.current_week_ending);
+      await exportQcoeDashboardJPG(buildExportReport(), `QCoE - Weekly Status Report - ${filenameLabel}`);
     } catch (err) {
       console.error('Failed to export QCOE metrics JPG:', err);
       setError(err instanceof Error ? err.message : 'Failed to export QCOE metrics as JPG.');
