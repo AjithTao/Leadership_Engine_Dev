@@ -607,9 +607,39 @@ export const exportTcoeReportAsPDF = async (elementId: string, filename: string 
   pdf.save(filename);
 };
 
-export const exportTcoeReportAsExcel = async (row: TcoeExportRow, filename: string = 'tcoe-report.xlsx') => {
+export const exportQcoeReportAsJPG = async (elementId: string, filename: string = 'qcoe-report.jpg') => {
+  const element = document.getElementById(elementId);
+  if (!element) throw new Error('QCOE report element not found');
+  const canvas = await html2canvas(element, {
+    scale: 2,
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: '#ffffff',
+    width: element.scrollWidth,
+    height: element.scrollHeight,
+    windowWidth: element.scrollWidth,
+    windowHeight: element.scrollHeight,
+    logging: false,
+    onclone: (doc) => {
+      doc.querySelectorAll('[data-html2canvas-ignore="true"], [data-pdf-exclude="true"]').forEach((node) => node.remove());
+      const report = doc.getElementById(elementId);
+      if (report) {
+        report.style.width = '100%';
+        report.style.height = 'auto';
+        report.style.overflow = 'visible';
+        report.style.background = '#ffffff';
+      }
+    },
+  });
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = canvas.toDataURL('image/jpeg', 0.95);
+  link.click();
+};
+
+export const exportTcoeReportAsExcel = async (row: TcoeExportRow, filename: string = 'qcoe-report.xlsx') => {
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('TCOE Report');
+  const worksheet = workbook.addWorksheet('QCOE Report');
 
   worksheet.columns = [
     { header: 'Portfolio / Project', key: 'portfolio', width: 32 },
@@ -683,11 +713,11 @@ export const exportTcoeReportAsExcel = async (row: TcoeExportRow, filename: stri
   window.URL.revokeObjectURL(url);
 };
 
-export const exportTcoeReportAsExcelMulti = async (rows: TcoeExportRow[], filename: string = 'tcoe-report.xlsx') => {
+export const exportTcoeReportAsExcelMulti = async (rows: TcoeExportRow[], filename: string = 'qcoe-report.xlsx') => {
   const workbook = new ExcelJS.Workbook();
 
   const addRowSheets = (row: TcoeExportRow, idx: number) => {
-    const sheetName = `TCOE ${idx + 1}`;
+    const sheetName = `QCOE ${idx + 1}`;
     const worksheet = workbook.addWorksheet(sheetName);
     worksheet.columns = [
       { header: 'Portfolio / Project', key: 'portfolio', width: 32 },

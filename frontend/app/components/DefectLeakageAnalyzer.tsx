@@ -14,12 +14,14 @@ import {
   RefreshCw, Calendar, Activity,
   FileText, Download, Info, Zap, Check,
   TrendingUp, TrendingDown, Minus, Sparkles, BarChart3,
-  ArrowUp, ArrowDown, Equal, Table2, Mail, Send, Pencil
+  ArrowUp, ArrowDown, Equal, Table2, Mail, Send, Pencil, FileImage
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { getApiUrl } from '../../lib/api-config';
 import { useTheme } from '../contexts/ThemeContext';
-import { createTcoeReportPDFBlob, exportTcoeReportAsPDF, exportTcoeReportAsExcel, exportTcoeReportAsExcelMulti } from '../utils/exportUtils';
+import { createTcoeReportPDFBlob, exportQcoeReportAsJPG, exportTcoeReportAsPDF, exportTcoeReportAsExcel, exportTcoeReportAsExcelMulti } from '../utils/exportUtils';
+import { buildTcoeTableSpecs } from '../utils/tcoeDashboardTables';
+import { QcoeMetricTable } from './QcoeMetricTable';
 import { jobTracker } from '../utils/jobTracker';
 import { DashboardLayout } from './DashboardLayout';
 import {
@@ -1598,6 +1600,7 @@ export function DefectLeakageAnalyzer() {
   const defaultMetric = VISIBLE_METRIC_OPTIONS.find(option => option.value === 'test_review_status') || VISIBLE_METRIC_OPTIONS.find(option => !option.disabled) || VISIBLE_METRIC_OPTIONS[0];
   const [selectedMetric, setSelectedMetric] = useState<string>('test_review_status');
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [exportingJPG, setExportingJPG] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
   const [mailDialogOpen, setMailDialogOpen] = useState(false);
   const [sendingMail, setSendingMail] = useState(false);
@@ -4674,11 +4677,23 @@ export function DefectLeakageAnalyzer() {
       
       // Use the frontend html2canvas approach to capture the exact UI appearance
       // This captures the styled report with colors, AI insights, and all formatting
-      await exportTcoeReportAsPDF('tcoe-report', `tcoe_${selectedMetric || 'report'}_${filenameLabel}.pdf`);
+      await exportTcoeReportAsPDF('tcoe-report', `qcoe_${selectedMetric || 'report'}_${filenameLabel}.pdf`);
     } catch (error) {
-      console.error('Failed to export TCOE metric PDF:', error);
+      console.error('Failed to export QCOE metric PDF:', error);
     } finally {
       setExportingPDF(false);
+    }
+  };
+
+  const handleExportJPG = async () => {
+    try {
+      setExportingJPG(true);
+      const filenameLabel = currentWeekEndingLabel || selectedWeekEndingCurrent || new Date().toISOString().split('T')[0];
+      await exportQcoeReportAsJPG('tcoe-report', `qcoe_${selectedMetric || 'report'}_${filenameLabel}.jpg`);
+    } catch (error) {
+      console.error('Failed to export QCOE metric JPG:', error);
+    } finally {
+      setExportingJPG(false);
     }
   };
 
@@ -4723,7 +4738,7 @@ export function DefectLeakageAnalyzer() {
 
       setMailStatus('Mail sent successfully.');
     } catch (error) {
-      console.error('Failed to send TCOE report mail:', error);
+      console.error('Failed to send QCOE report mail:', error);
       setMailError(error instanceof Error ? error.message : 'Failed to send mail.');
       setMailStatus(null);
     } finally {
@@ -4777,7 +4792,7 @@ export function DefectLeakageAnalyzer() {
         }, `tcoe-report-${filenameLabel}.xlsx`);
       }
     } catch (error) {
-      console.error('Failed to export TCOE report Excel:', error);
+      console.error('Failed to export QCOE report Excel:', error);
     } finally {
       setExportingExcel(false);
     }
@@ -5050,6 +5065,22 @@ export function DefectLeakageAnalyzer() {
             >
               <Download className="h-4 w-4 mr-2" />
               {exportingPDF ? 'Exporting...' : 'Export PDF (One Page)'}
+            </Button>
+            <Button
+              onClick={handleExportJPG}
+              className="rounded-xl px-4 py-2 text-sm font-medium transition-opacity duration-150 hover:opacity-85"
+              style={{
+                backgroundColor: cardBackground,
+                color: headingColor,
+                borderColor: borderColor,
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderRadius: '12px'
+              }}
+              disabled={!hasGeneratedReport || exportingJPG}
+            >
+              <FileImage className="h-4 w-4 mr-2" />
+              {exportingJPG ? 'Exporting...' : 'Export as Image'}
             </Button>
             <Button
               onClick={openMailDialog}
@@ -6476,6 +6507,20 @@ export function DefectLeakageAnalyzer() {
           const renderQualityMetricTables = () => {
             const tableRows = metricRows.filter(row => row.portfolio !== 'Grand Total' && row.portfolio_display !== 'Grand Total');
             const rowsForTables = tableRows.length ? tableRows : metricRows;
+            const sharedSpecs = buildTcoeTableSpecs(metricKey, rowsForTables);
+            return (
+              <div style={{ display: 'grid', gap: 18 }}>
+                {sharedSpecs.map((spec) => (
+                  <QcoeMetricTable
+                    key={`${metricKey}-${spec.title}`}
+                    spec={spec}
+                    previousWeek={previousWeekEndingLabel}
+                    currentWeek={currentWeekEndingLabel}
+                  />
+                ))}
+              </div>
+            );
+            /* Legacy renderer retained below temporarily for non-regression reference. */
             const toNumber = (value: any) => {
               const numeric = Number(value);
               return Number.isFinite(numeric) ? numeric : 0;
@@ -9261,7 +9306,7 @@ export function DefectLeakageAnalyzer() {
         >
           <Info className="h-4 w-4" style={{ color: isDarkMode ? '#D4A847' : currentTheme.colors.info }} />
           <AlertDescription className="text-sm" style={{ color: currentTheme.colors.info }}>
-              <strong>TCOE Report:</strong> Select filters above and click "Generate" to analyze defect leakage.
+              <strong>QCOE Report:</strong> Select filters above and click "Generate" to analyze quality metrics.
               Click on Portfolio or Project dropdown to select multiple items with checkboxes.
           </AlertDescription>
         </Alert>

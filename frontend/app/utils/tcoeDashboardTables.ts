@@ -18,13 +18,32 @@ export interface TcoeTableRow {
   previousCy26?: number;
   currentCy25?: number;
   currentCy26?: number;
+  source?: any;
 }
 
 export interface TcoeTableSpec {
+  metricKey: string;
   title: string;
   countHeaders: string[];
   rows: TcoeTableRow[];
   mode: TcoeValueMode;
+  aiInsight?: QcoeAIInsight | null;
+}
+
+export interface QcoePortfolioInsight {
+  project_names: string[];
+  root_causes: string[];
+  action_items: string[];
+}
+
+export interface QcoeAIInsight {
+  status: 'available' | 'unavailable';
+  export_comments: {
+    issue_portfolio_recommendation: string;
+    best_portfolio_summary: string;
+    overall_recommendation: string;
+  } | null;
+  portfolios: Record<string, QcoePortfolioInsight>;
 }
 
 export const TCOE_METRIC_ORDER = [
@@ -60,6 +79,18 @@ const rowLabel = (row: any): string =>
 
 const rowComment = (row: any): string =>
   String(row?.ai_analysis || row?.ai_insights || row?.comment || '').replace(/\*\*(.*?)\*\*/g, '$1');
+
+const piLabels = (rows: any[]) => {
+  const context = rows.find(Boolean)?.pi_context || rows.find(Boolean)?.period2?.pi_context || {};
+  const raw = String(context.value || '');
+  const match = raw.match(/(PI\d+)_?(CY\d+)/i);
+  const pi = String(context.pi || match?.[1] || '').toUpperCase();
+  const year = String(context.year || match?.[2] || '').toUpperCase();
+  return {
+    compact: year && pi ? `${year}${pi}` : 'Selected PI',
+    spaced: year && pi ? `${year} ${pi}` : 'Selected PI',
+  };
+};
 
 const progressValue = (row: any, current: number, previous: number): number =>
   toNumber(row?.progress?.wow_progress_pct ?? row?.progress?.percentage_change ?? row?.comparison?.leakage_change ?? (current - previous));
@@ -137,6 +168,7 @@ const automationRows = (metricKey: string, rows: any[], tableKey: 'table_a' | 't
       previousDenominator,
       currentNumerator: automated2,
       currentDenominator,
+      source: row,
     };
   });
 
@@ -165,6 +197,7 @@ const coverageRows = (rows: any[], tableKey: 'table_a' | 'table_b'): TcoeTableRo
       previousDenominator: previousStories,
       currentNumerator: currentWithTests,
       currentDenominator: currentStories,
+      source: row,
     };
   });
 
@@ -188,6 +221,7 @@ const singleRows = (metricKey: string, rows: any[]): TcoeTableRow[] =>
         previousDenominator: toNumber(p1.total_stories),
         currentNumerator: toNumber(p2.total_test_cases),
         currentDenominator: toNumber(p2.total_stories),
+        source: row,
       };
     }
 
@@ -211,6 +245,7 @@ const singleRows = (metricKey: string, rows: any[]): TcoeTableRow[] =>
         previousDenominator: previousTests,
         currentNumerator: currentBugs,
         currentDenominator: currentTests,
+        source: row,
       };
     }
 
@@ -231,6 +266,7 @@ const singleRows = (metricKey: string, rows: any[]): TcoeTableRow[] =>
         previousDenominator: previousTotal,
         currentNumerator: toNumber(p2.reviewed_yes),
         currentDenominator: currentTotal || toNumber(row?.total_stories),
+        source: row,
       };
     }
 
@@ -254,26 +290,32 @@ const singleRows = (metricKey: string, rows: any[]): TcoeTableRow[] =>
       previousCy26,
       currentCy25,
       currentCy26,
+      source: row,
     };
   });
 
-export function buildTcoeTableSpecs(metricKey: string, rows: any[]): TcoeTableSpec[] {
+export function buildTcoeTableSpecs(metricKey: string, rows: any[], aiInsight?: QcoeAIInsight | null): TcoeTableSpec[] {
   const dataRows = rows.filter((row) => row?.portfolio !== 'Grand Total' && row?.portfolio_display !== 'Grand Total');
   const rowsForTables = dataRows.length ? dataRows : rows;
+  const pi = piLabels(rowsForTables);
 
   if (metricKey === 'test_coverage') {
     return [
       {
-        title: rowsForTables[0]?.table_a?.title || 'Stories to Test Cases Mapping - Every story should have at least 1 test case mapped to ensure optimal coverage',
-        countHeaders: ['# of Dev Stories', '# Test Cases Created'],
+        metricKey,
+        title: 'Stories to Test Cases Mapping - Every story should have at least 1 test case mapped to ensure optimal coverage',
+        countHeaders: [`# of Dev Stories in ${pi.compact}`, `# Test Cases Created in ${pi.compact} (Story + Bugs + Defects)`],
         rows: withGrandTotal(coverageRows(rowsForTables, 'table_a'), 'percent'),
         mode: 'percent',
+        aiInsight,
       },
       {
+        metricKey,
         title: rowsForTables[0]?.table_b?.title || 'Stories to Test Cases Mapping - Cumulative (CY24+CY25+CY26)',
-        countHeaders: ['Cumulative # of Dev Stories', 'Cumulative # of Tests Mapped'],
+        countHeaders: ['Cumulative # of Dev Stories (CY24+CY25+CY26)', 'Cumulative # of Tests Mapped (Story + Bugs + Defects)'],
         rows: withGrandTotal(coverageRows(rowsForTables, 'table_b'), 'percent'),
         mode: 'percent',
+        aiInsight,
       },
     ];
   }
@@ -282,26 +324,30 @@ export function buildTcoeTableSpecs(metricKey: string, rows: any[]): TcoeTableSp
     const isOverall = metricKey === 'overall_automation';
     return [
       {
+        metricKey,
         title: rowsForTables[0]?.table_a?.title || `${isOverall ? 'Overall' : 'Regression'} Automation Status - Automated test cases against overall volume`,
         countHeaders: ['Automated', 'Requires Automation', 'Automation Not Required'],
         rows: withGrandTotal(automationRows(metricKey, rowsForTables, 'table_a'), 'percent'),
         mode: 'percent',
+        aiInsight,
       },
       {
+        metricKey,
         title: rowsForTables[0]?.table_b?.title || `${isOverall ? 'Overall' : 'Regression'} Automation Status - Automated test cases against automatable volume`,
         countHeaders: ['Automated', 'Requires Automation'],
         rows: withGrandTotal(automationRows(metricKey, rowsForTables, 'table_b'), 'percent'),
         mode: 'percent',
+        aiInsight,
       },
     ];
   }
 
   const countHeaders = metricKey === 'test_story_ratio'
-    ? ['# Test Cases Created', '# of Closed Dev Stories']
+    ? [`# Test Cases Created in ${pi.spaced}`, `# of Closed Dev Stories in ${pi.spaced}`]
     : metricKey === 'bug_ratio'
-    ? ['Test Cases', 'Bugs Written']
+    ? [`Test Cases (Stories / Bugs / Defects with Tests + Test only stories) in ${pi.spaced}`, `Bugs Written in ${pi.spaced}`]
     : metricKey === 'test_review_status'
-    ? ['# of Closed Dev Stories with Review Filled', '# of Closed Dev Stories']
+    ? ['# of Closed Dev Stories with Test Cases Review Filled', `# of Closed Dev Stories in ${pi.compact}`]
     : ['CY25 Defects', 'CY26 Defects'];
   const mode: TcoeValueMode = metricKey === 'test_story_ratio'
     ? 'ratio'
@@ -320,10 +366,12 @@ export function buildTcoeTableSpecs(metricKey: string, rows: any[]): TcoeTableSp
 
   return [
     {
+      metricKey,
       title,
       countHeaders,
       rows: withGrandTotal(singleRows(metricKey, rowsForTables), mode),
       mode,
+      aiInsight,
     },
   ];
 }
