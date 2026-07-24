@@ -18,7 +18,7 @@ export function FullPageContent({ activeItem, onBack }: FullPageContentProps) {
       case 'chat': return 'Leadership Copilot'
       case 'insights': return 'Leadership Insights'
       case 'leadership': return 'Leadership Access'
-      case 'quality-metrics': return 'TCOE Report'
+      case 'quality-metrics': return 'QCOE Report'
       case 'qa-metrics': return 'QA Metrics'
       default: return 'Dashboard'
     }

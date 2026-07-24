@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, AlertTriangle, CheckCircle2, ChevronDown, Clock3, Download, Filter, RefreshCw, Search, ShieldCheck, X } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle2, ChevronDown, Clock3, Download, FileImage, Filter, RefreshCw, Search, ShieldCheck, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { DashboardLayout } from './DashboardLayout';
 import { getApiUrl, fetchWithTimeout } from '../../lib/api-config';
-import { exportTcoeReportAsPDF } from '../utils/exportUtils';
+import { exportQcoeDashboardJPG, exportQcoeDashboardPDF, QcoeExportReport } from '../utils/qcoeDashboardExport';
+import { QcoeMetricTable } from './QcoeMetricTable';
 import {
   TCOE_METRIC_ORDER,
   TcoeTableRow,
@@ -34,6 +35,7 @@ interface MetricState extends MetricConfig {
   error?: string | null;
   started_at?: string | null;
   completed_at?: string | null;
+  ai_insight?: import('../utils/tcoeDashboardTables').QcoeAIInsight | null;
 }
 
 interface DashboardRun {
@@ -371,172 +373,20 @@ function LoadingMetricTable() {
 function TcoeTable({ spec, previousWeek, currentWeek, portfolioFilter }: {
   spec: TcoeTableSpec; previousWeek: string; currentWeek: string; portfolioFilter?: string;
 }) {
-  const visibleRows = portfolioFilter
-    ? spec.rows.filter(row => row.isGrandTotal || row.label.toLowerCase().includes(portfolioFilter.toLowerCase()))
-    : spec.rows;
+  return <QcoeMetricTable spec={spec} previousWeek={previousWeek} currentWeek={currentWeek} portfolioFilter={portfolioFilter} />;
+}
 
-  const headers = [
-    'Portfolio',
-    ...spec.countHeaders,
-    `Week ending ${formatWeekEnding(previousWeek)}`,
-    `Week ending ${formatWeekEnding(currentWeek)}`,
-    'WoW Progress',
-    'Comments',
-  ];
-
-  return (
-    <div
-      style={{
-        overflowX: 'auto',
-        border: '1px solid var(--border)',
-        borderRadius: 8,
-        background: 'var(--bg-card)',
-        boxShadow: '0 1px 0 rgba(255,255,255,0.06)',
-      }}
-    >
-      <table style={{ width: '100%', minWidth: 980, borderCollapse: 'separate', borderSpacing: 0, fontSize: 12 }}>
-        <thead>
-          <tr>
-            <th
-              colSpan={headers.length}
-              style={{
-                padding: '13px 14px',
-                textAlign: 'left',
-                background: 'linear-gradient(90deg, var(--bg-active), var(--bg-surface))',
-                color: 'var(--text-primary)',
-                borderBottom: '1px solid var(--border)',
-                fontWeight: 800,
-              }}
-            >
-              {spec.title}
-            </th>
-          </tr>
-          <tr>
-            {headers.map((header, index) => (
-              <th
-                key={header}
-                style={{
-                  padding: '10px 12px',
-                  textAlign: index === 0 || index === headers.length - 1 ? 'left' : 'center',
-                  background: 'var(--bg-surface)',
-                  color: 'var(--text-secondary)',
-                  borderBottom: '1px solid var(--border)',
-                  borderRight: index === headers.length - 1 ? undefined : '1px solid var(--border)',
-                  fontWeight: 800,
-                  minWidth: index === headers.length - 1 ? 300 : undefined,
-                }}
-              >
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {visibleRows.map((row, rowIndex) => {
-            const rowBg = row.isGrandTotal
-              ? 'var(--tcoe-grand-total-bg)'
-              : rowIndex % 2 === 0
-              ? 'var(--bg-card)'
-              : 'var(--bg-surface)';
-            const rowColor = row.isGrandTotal ? 'var(--tcoe-grand-total-text)' : 'var(--text-primary)';
-
-            return (
-              <tr key={`${spec.title}-${row.label}-${rowIndex}`} className="tcoe-dashboard-row" style={{ background: rowBg }}>
-                <td
-                  className={`tcoe-value-cell ${trendClass(row, row.previous)}`}
-                  style={{
-                    padding: '10px 12px',
-                    borderBottom: '1px solid var(--border)',
-                    borderRight: '1px solid var(--border)',
-                    color: rowColor,
-                    fontWeight: row.isGrandTotal ? 800 : 700,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {row.label}
-                </td>
-                {row.counts.map((count, countIndex) => (
-                  <td
-                    key={`${row.label}-count-${countIndex}`}
-                    style={{
-                      padding: '10px 12px',
-                      borderBottom: '1px solid var(--border)',
-                      borderRight: '1px solid var(--border)',
-                      color: rowColor,
-                      textAlign: 'center',
-                      fontWeight: row.isGrandTotal ? 800 : 700,
-                    }}
-                  >
-                    {formatTcoeNumber(count)}
-                  </td>
-                ))}
-                <td
-                  className={`tcoe-value-cell ${trendClass(row, row.current)}`}
-                  style={{
-                    padding: '10px 12px',
-                    borderBottom: '1px solid var(--border)',
-                    borderRight: '1px solid var(--border)',
-                    textAlign: 'center',
-                    fontWeight: 800,
-                    ...valueTone(row, row.previous),
-                  }}
-                >
-                  {formatTcoeValue(row.previous, row.mode)}
-                </td>
-                <td
-                  className={`tcoe-value-cell ${trendClass(row, row.progress, true)}`}
-                  style={{
-                    padding: '10px 12px',
-                    borderBottom: '1px solid var(--border)',
-                    borderRight: '1px solid var(--border)',
-                    textAlign: 'center',
-                    fontWeight: 800,
-                    ...valueTone(row, row.current),
-                  }}
-                >
-                  {formatTcoeValue(row.current, row.mode)}
-                </td>
-                <td
-                  style={{
-                    padding: '10px 12px',
-                    borderBottom: '1px solid var(--border)',
-                    borderRight: '1px solid var(--border)',
-                    textAlign: 'center',
-                    fontWeight: 800,
-                    ...valueTone(row, row.progress, true),
-                  }}
-                >
-                  <span className="tcoe-trend-badge">
-                    {toneKind(row, row.progress, true) === 'good' && !row.isGrandTotal && <CheckCircle2 size={13} className="tcoe-trend-icon" />}
-                    {toneKind(row, row.progress, true) === 'risk' && !row.isGrandTotal && <AlertTriangle size={13} className="tcoe-trend-icon" />}
-                    {formatTcoeChange(row.progress)}
-                  </span>
-                </td>
-                <td
-                  style={{
-                    padding: '10px 12px',
-                    borderBottom: '1px solid var(--border)',
-                    color: rowColor,
-                    minWidth: 300,
-                    lineHeight: 1.5,
-                    whiteSpace: 'pre-line',
-                  }}
-                >
-                  {row.comment}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
+function formatExportDate(value?: string) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) return `${match[2]}${match[3]}${match[1]}`;
+  const date = new Date();
+  return `${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}${date.getFullYear()}`;
 }
 
 function MetricSection({ metric, run, portfolioFilter }: { metric: MetricState; run: DashboardRun; portfolioFilter?: string }) {
   const tableSpecs = useMemo(
-    () => (metric.status === 'completed' ? buildTcoeTableSpecs(metric.key, metric.rows || []) : []),
-    [metric.key, metric.rows, metric.status]
+    () => (metric.status === 'completed' ? buildTcoeTableSpecs(metric.key, metric.rows || [], metric.ai_insight) : []),
+    [metric.ai_insight, metric.key, metric.rows, metric.status]
   );
 
   return (
@@ -652,6 +502,7 @@ export function TCOEDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [exportingJPG, setExportingJPG] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Filter state
   const [selectedMetricKeys, setSelectedMetricKeys] = useState<Set<string>>(new Set());
@@ -677,11 +528,11 @@ export function TCOEDashboard() {
       });
       const data = await response.json();
       if (!response.ok || !data.success) {
-        throw new Error(data.detail || data.error || 'Unable to start TCOE dashboard.');
+        throw new Error(data.detail || data.error || 'Unable to start QCOE dashboard.');
       }
       applyResponse(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to start TCOE dashboard.');
+      setError(err instanceof Error ? err.message : 'Unable to start QCOE dashboard.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -768,25 +619,50 @@ export function TCOEDashboard() {
     return { total, completed, failed, processing, pending };
   }, [orderedMetrics]);
 
+  const buildExportReport = useCallback((): QcoeExportReport => ({
+    generatedAt: new Date(),
+    currentWeek: run?.current_week_ending || '',
+    previousWeek: run?.previous_week_ending || '',
+    metrics: orderedMetrics
+      .filter((metric) => metric.status === 'completed')
+      .map((metric) => ({
+        label: metric.label,
+        tables: buildTcoeTableSpecs(metric.key, metric.rows || [], metric.ai_insight),
+      }))
+      .filter((metric) => metric.tables.length > 0),
+  }), [orderedMetrics, run?.current_week_ending, run?.previous_week_ending]);
+
   const handleExportPDF = useCallback(async () => {
-    if (!run || totals.completed === 0) return;
+    if (!run) return;
 
     try {
       setExportingPDF(true);
       setError(null);
-
-      // Use the frontend html2canvas approach to capture the exact UI appearance
-      // This captures the styled dashboard with colors, AI insights, and all formatting
-      const filenameLabel = run.current_week_ending || new Date().toISOString().split('T')[0];
-      await exportTcoeReportAsPDF('tcoe-dashboard-report', `tcoe_metrics_${filenameLabel}.pdf`);
+      const filenameLabel = formatExportDate(run.current_week_ending);
+      await exportQcoeDashboardPDF(buildExportReport(), `QCoE - Weekly Status Report - ${filenameLabel}.pdf`);
       
     } catch (err) {
-      console.error('Failed to export TCOE metrics PDF:', err);
-      setError(err instanceof Error ? err.message : 'Failed to export TCOE metrics as PDF.');
+      console.error('Failed to export QCOE metrics PDF:', err);
+      setError(err instanceof Error ? err.message : 'Failed to export QCOE metrics as PDF.');
     } finally {
       setExportingPDF(false);
     }
-  }, [run, totals.completed]);
+  }, [buildExportReport, run]);
+
+  const handleExportJPG = useCallback(async () => {
+    if (!run) return;
+    try {
+      setExportingJPG(true);
+      setError(null);
+      const filenameLabel = formatExportDate(run.current_week_ending);
+      await exportQcoeDashboardJPG(buildExportReport(), `QCoE - Weekly Status Report - ${filenameLabel}`);
+    } catch (err) {
+      console.error('Failed to export QCOE metrics JPG:', err);
+      setError(err instanceof Error ? err.message : 'Failed to export QCOE metrics as JPG.');
+    } finally {
+      setExportingJPG(false);
+    }
+  }, [buildExportReport, run]);
 
   const scrollToMetric = useCallback((metricKey: string) => {
     document.getElementById(`tcoe-report-card-${metricKey}`)?.scrollIntoView({
@@ -865,7 +741,7 @@ export function TCOEDashboard() {
         <div
           id="tcoe-dashboard-report"
           className="pdf-export-container"
-          data-pdf-title="CDK QCOE TCOE DASHBOARD"
+          data-pdf-title="CDK QCOE DASHBOARD"
           style={{ display: 'grid', gap: 18, width: '100%' }}
         >
         <section
@@ -914,7 +790,7 @@ export function TCOEDashboard() {
                     Quality Metrics
                   </p>
                   <h1 style={{ margin: 0, color: 'var(--text-primary)', fontSize: 28, fontWeight: 900, letterSpacing: 0 }}>
-                    TCOE Dashboard
+                    QCOE Dashboard
                   </h1>
                 </div>
               </div>
@@ -933,7 +809,7 @@ export function TCOEDashboard() {
               <StatusBadge status={run?.status || 'pending'} />
               <Button
                 onClick={handleExportPDF}
-                disabled={!run || totals.completed === 0 || exportingPDF}
+                disabled={!run || exportingPDF}
                 style={{
                   height: 38,
                   borderRadius: 'var(--radius-pill)',
@@ -946,6 +822,14 @@ export function TCOEDashboard() {
               >
                 <Download size={15} className={exportingPDF ? 'animate-pulse' : ''} style={{ marginRight: 8 }} />
                 {exportingPDF ? 'Exporting...' : 'Export as PDF'}
+              </Button>
+              <Button
+                onClick={handleExportJPG}
+                disabled={!run || exportingJPG}
+                style={{ height: 38, borderRadius: 'var(--radius-pill)', background: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border)', fontWeight: 800, boxShadow: 'var(--shadow-small)' }}
+              >
+                <FileImage size={15} className={exportingJPG ? 'animate-pulse' : ''} style={{ marginRight: 8 }} />
+                {exportingJPG ? 'Exporting...' : 'Export as Image'}
               </Button>
               <Button
                 onClick={() => startRun(true)}

@@ -14,12 +14,14 @@ import {
   RefreshCw, Calendar, Activity,
   FileText, Download, Info, Zap, Check,
   TrendingUp, TrendingDown, Minus, Sparkles, BarChart3,
-  ArrowUp, ArrowDown, Equal, Table2, Mail, Send, Pencil
+  ArrowUp, ArrowDown, Equal, Table2, Mail, Send, Pencil, FileImage
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { getApiUrl } from '../../lib/api-config';
 import { useTheme } from '../contexts/ThemeContext';
-import { createTcoeReportPDFBlob, exportTcoeReportAsPDF, exportTcoeReportAsExcel, exportTcoeReportAsExcelMulti } from '../utils/exportUtils';
+import { createTcoeReportPDFBlob, exportQcoeReportAsJPG, exportTcoeReportAsPDF, exportTcoeReportAsExcel, exportTcoeReportAsExcelMulti } from '../utils/exportUtils';
+import { buildTcoeTableSpecs } from '../utils/tcoeDashboardTables';
+import { QcoeMetricTable } from './QcoeMetricTable';
 import { jobTracker } from '../utils/jobTracker';
 import { DashboardLayout } from './DashboardLayout';
 import {
@@ -994,8 +996,8 @@ const UPDATED_TCOE_PORTFOLIO_STRUCTURE_UNUSED: Record<string, { products: Record
 };
 void UPDATED_TCOE_PORTFOLIO_STRUCTURE_UNUSED;
 
-// Active QCOE/TCOE scope imported from Updated Project.xlsx.
-// Invalid CVR project keys are intentionally skipped so dashboard JQL stays valid.
+// Active QCOE/TCOE scope synced from TAC Bar Chart.csv.
+// Source file is UTF-16 LE + tab-delimited and has one row per automation status.
 const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string, { name: string; key: string }[]> }> = {
   "Data Platform": {
     products: {
@@ -1010,63 +1012,35 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       ],
       "Manufacturer Data Updates (Media Pubs)": [
         { "name": "Manufacturer Data Updates (Media Pubs)", "key": "MPSMOD" },
+        { "name": "Manufacturer Data Updates (Media Pubs) (MPSUPDATES)", "key": "MPSUPDATES" },
       ],
-      "MPSUPDATES": [
-        { "name": "MPSUPDATES", "key": "MPSUPDATES" },
+      "Advanced Vehicle Lookup (AVL)": [
+        { "name": "Advanced Vehicle Lookup (AVL)", "key": "OEMBD" },
       ],
       "AI Acceleration Program": [
         { "name": "AI Acceleration Program", "key": "AAP" },
-      ],
-      "AIVAPL": [
-        { "name": "AIVAPL", "key": "AIVAPL" },
+        { "name": "AI Acceleration Program (AIVAPL)", "key": "AIVAPL" },
       ],
       "Conversational AI": [
         { "name": "Conversational AI", "key": "AIVA" },
       ],
       "Enterprise Data Pipeline (EDP)": [
         { "name": "Enterprise Data Pipeline (EDP)", "key": "ASYNCAPI" },
-      ],
-      "DNAST": [
-        { "name": "DNAST", "key": "DNAST" },
-      ],
-      "DNASYND": [
-        { "name": "DNASYND", "key": "DNASYND" },
-      ],
-      "EDPOEMI": [
-        { "name": "EDPOEMI", "key": "EDPOEMI" },
-      ],
-      "MDSEDP": [
-        { "name": "MDSEDP", "key": "MDSEDP" },
-      ],
-      "MDSMIG": [
-        { "name": "MDSMIG", "key": "MDSMIG" },
-      ],
-      "Retired Products / Advanced Vehicle Lookup (AVL)": [
-        { "name": "Retired Products / Advanced Vehicle Lookup (AVL)", "key": "OEMBD" },
+        { "name": "Enterprise Data Pipeline (EDP) (DNAST)", "key": "DNAST" },
+        { "name": "Enterprise Data Pipeline (EDP) (DNASYND)", "key": "DNASYND" },
+        { "name": "Enterprise Data Pipeline (EDP) (EDPOEMI)", "key": "EDPOEMI" },
+        { "name": "Enterprise Data Pipeline (EDP) (MDSEDP)", "key": "MDSEDP" },
+        { "name": "Enterprise Data Pipeline (EDP) (MDSMIG)", "key": "MDSMIG" },
       ],
       "Titan - Data Lake": [
         { "name": "Titan - Data Lake", "key": "TDI" },
-      ],
-      "TDO": [
-        { "name": "TDO", "key": "TDO" },
-      ],
-      "TDOPS": [
-        { "name": "TDOPS", "key": "TDOPS" },
-      ],
-      "TDP": [
-        { "name": "TDP", "key": "TDP" },
-      ],
-      "TOB": [
-        { "name": "TOB", "key": "TOB" },
-      ],
-      "TST": [
-        { "name": "TST", "key": "TST" },
-      ],
-      "UDC": [
-        { "name": "UDC", "key": "UDC" },
-      ],
-      "UDI": [
-        { "name": "UDI", "key": "UDI" },
+        { "name": "Titan - Data Lake (TDO)", "key": "TDO" },
+        { "name": "Titan - Data Lake (TDOPS)", "key": "TDOPS" },
+        { "name": "Titan - Data Lake (TDP)", "key": "TDP" },
+        { "name": "Titan - Data Lake (TOB)", "key": "TOB" },
+        { "name": "Titan - Data Lake (TST)", "key": "TST" },
+        { "name": "Titan - Data Lake (UDC)", "key": "UDC" },
+        { "name": "Titan - Data Lake (UDI)", "key": "UDI" },
       ],
     },
   },
@@ -1074,9 +1048,7 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
     products: {
       "CDK Intelligence Suite": [
         { "name": "CDK Intelligence Suite", "key": "NDP" },
-      ],
-      "SSBYOD": [
-        { "name": "SSBYOD", "key": "SSBYOD" },
+        { "name": "CDK Intelligence Suite (SSBYOD)", "key": "SSBYOD" },
       ],
       "CS Performance Dashboard": [
         { "name": "CS Performance Dashboard", "key": "DNACS" },
@@ -1086,6 +1058,9 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       ],
       "Managed Bi-Directional (MBD)": [
         { "name": "Managed Bi-Directional (MBD)", "key": "DNADEDGE" },
+      ],
+      "Data Access Bulk Extract (DABE)": [
+        { "name": "Data Access Bulk Extract (DABE)", "key": "DNALPS" },
       ],
       "Dealer Data Exchange (DDX)": [
         { "name": "Dealer Data Exchange (DDX)", "key": "DNADDX" },
@@ -1105,48 +1080,28 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
     products: {
       "DMS Accounting (Modern)": [
         { "name": "DMS Accounting (Modern)", "key": "APMODACC" },
-      ],
-      "ARMODACC": [
-        { "name": "ARMODACC", "key": "ARMODACC" },
-      ],
-      "FSMODACC": [
-        { "name": "FSMODACC", "key": "FSMODACC" },
-      ],
-      "MDWP": [
-        { "name": "MDWP", "key": "MDWP" },
-      ],
-      "MODBETC": [
-        { "name": "MODBETC", "key": "MODBETC" },
-      ],
-      "MODDWTC": [
-        { "name": "MODDWTC", "key": "MODDWTC" },
-      ],
-      "MODPLAT": [
-        { "name": "MODPLAT", "key": "MODPLAT" },
-      ],
-      "MODSRCH": [
-        { "name": "MODSRCH", "key": "MODSRCH" },
-      ],
-      "MODTOOL": [
-        { "name": "MODTOOL", "key": "MODTOOL" },
-      ],
-      "POMODACC": [
-        { "name": "POMODACC", "key": "POMODACC" },
+        { "name": "DMS Accounting (Modern) (ARMODACC)", "key": "ARMODACC" },
+        { "name": "DMS Accounting (Modern) (FSMODACC)", "key": "FSMODACC" },
+        { "name": "DMS Accounting (Modern) (MDWP)", "key": "MDWP" },
+        { "name": "DMS Accounting (Modern) (MODACCRPTS)", "key": "MODACCRPTS" },
+        { "name": "DMS Accounting (Modern) (MODBETC)", "key": "MODBETC" },
+        { "name": "DMS Accounting (Modern) (MODDWTC)", "key": "MODDWTC" },
+        { "name": "DMS Accounting (Modern) (MODPLAT)", "key": "MODPLAT" },
+        { "name": "DMS Accounting (Modern) (MODSRCH)", "key": "MODSRCH" },
+        { "name": "DMS Accounting (Modern) (MODTOOL)", "key": "MODTOOL" },
+        { "name": "DMS Accounting (Modern) (POMODACC)", "key": "POMODACC" },
       ],
       "DMS Accounting (Modern) / Drive SaaS - UI": [
         { "name": "DMS Accounting (Modern) / Drive SaaS - UI", "key": "BRMODACC" },
       ],
       "Drive Accounting (Legacy)": [
         { "name": "Drive Accounting (Legacy)", "key": "ACC" },
-      ],
-      "FSACC": [
-        { "name": "FSACC", "key": "FSACC" },
+        { "name": "Drive Accounting (Legacy) (FSACC)", "key": "FSACC" },
       ],
       "Drive Platform (Legacy)": [
-        { "name": "Drive Platform (Legacy)", "key": "DRV" },
-      ],
-      "QTCLOUD": [
-        { "name": "QTCLOUD", "key": "QTCLOUD" },
+        { "name": "Drive Platform (Legacy)", "key": "DE" },
+        { "name": "Drive Platform (Legacy) (DRV)", "key": "DRV" },
+        { "name": "Drive Platform (Legacy) (QTCLOUD)", "key": "QTCLOUD" },
       ],
       "Heavy Truck (Legacy)": [
         { "name": "Heavy Truck (Legacy)", "key": "TRKMOD" },
@@ -1156,28 +1111,8 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       ],
       "Drive OEM Integrations (Modern)": [
         { "name": "Drive OEM Integrations (Modern)", "key": "MODOEM" },
-      ],
-      "OEMI": [
-        { "name": "OEMI", "key": "OEMI" },
-      ],
-      "PSRD": [
-        { "name": "PSRD", "key": "PSRD" },
-      ],
-    },
-  },
-  "Engineering Excellence": {
-    products: {
-      "Intelligent Automation and Reporting Ecosystem": [
-        { "name": "Intelligent Automation and Reporting Ecosystem", "key": "REP" },
-      ],
-      "Quality Intelligence": [
-        { "name": "Quality Intelligence", "key": "EQAP" },
-      ],
-      "QUEN": [
-        { "name": "QUEN", "key": "QUEN" },
-      ],
-      "RM Portal": [
-        { "name": "RM Portal", "key": "RMD" },
+        { "name": "Drive OEM Integrations (Modern) (OEMI)", "key": "OEMI" },
+        { "name": "Drive OEM Integrations (Modern) (PSRD)", "key": "PSRD" },
       ],
     },
   },
@@ -1185,66 +1120,33 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
     products: {
       "Parts (Modernized)": [
         { "name": "Parts (Modernized)", "key": "FIX" },
-      ],
-      "FIXPRTSMKT": [
-        { "name": "FIXPRTSMKT", "key": "FIXPRTSMKT" },
-      ],
-      "FIXPRTSORD": [
-        { "name": "FIXPRTSORD", "key": "FIXPRTSORD" },
-      ],
-      "FXOPKIT": [
-        { "name": "FXOPKIT", "key": "FXOPKIT" },
-      ],
-      "MODPRT": [
-        { "name": "MODPRT", "key": "MODPRT" },
-      ],
-      "MPDS": [
-        { "name": "MPDS", "key": "MPDS" },
-      ],
-      "SER": [
-        { "name": "SER", "key": "SER" },
+        { "name": "Parts (Modernized) (FIXPRTSMKT)", "key": "FIXPRTSMKT" },
+        { "name": "Parts (Modernized) (FIXPRTSORD)", "key": "FIXPRTSORD" },
+        { "name": "Parts (Modernized) (FXOPKIT)", "key": "FXOPKIT" },
+        { "name": "Parts (Modernized) (MODPRT)", "key": "MODPRT" },
+        { "name": "Parts (Modernized) (MPDS)", "key": "MPDS" },
+        { "name": "Parts (Modernized) (SER)", "key": "SER" },
       ],
       "CDK Service (Classic)": [
         { "name": "CDK Service (Classic)", "key": "CDKSRVAPL" },
+        { "name": "CDK Service (Classic) (CDKSRVDAT)", "key": "CDKSRVDAT" },
+        { "name": "CDK Service (Classic) (CDKSRVPLT)", "key": "CDKSRVPLT" },
+        { "name": "CDK Service (Classic) (FXDOPSHT)", "key": "FXDOPSHT" },
+        { "name": "CDK Service (Classic) (FXDPSCN)", "key": "FXDPSCN" },
+        { "name": "CDK Service (Classic) (PPR)", "key": "PPR" },
       ],
-      "CDKSRVDAT": [
-        { "name": "CDKSRVDAT", "key": "CDKSRVDAT" },
-      ],
-      "CDKSRVPLT": [
-        { "name": "CDKSRVPLT", "key": "CDKSRVPLT" },
-      ],
-      "FXDOPSHT": [
-        { "name": "FXDOPSHT", "key": "FXDOPSHT" },
-      ],
-      "FXDPSCN": [
-        { "name": "FXDPSCN", "key": "FXDPSCN" },
-      ],
-      "PPR": [
-        { "name": "PPR", "key": "PPR" },
+      "CDK Service (Modern)": [
+        { "name": "CDK Service (Modern)", "key": "FXDOPSHTT" },
       ],
       "CDK Service (Modern) / Modern Foundations": [
         { "name": "CDK Service (Modern) / Modern Foundations", "key": "CDKSRVAN" },
-      ],
-      "CDKSRVFRD": [
-        { "name": "CDKSRVFRD", "key": "CDKSRVFRD" },
-      ],
-      "CDKSRVOEM": [
-        { "name": "CDKSRVOEM", "key": "CDKSRVOEM" },
-      ],
-      "CSFM": [
-        { "name": "CSFM", "key": "CSFM" },
-      ],
-      "FPE": [
-        { "name": "FPE", "key": "FPE" },
-      ],
-      "FXDOPSDLM": [
-        { "name": "FXDOPSDLM", "key": "FXDOPSDLM" },
-      ],
-      "FXDOPSQMS": [
-        { "name": "FXDOPSQMS", "key": "FXDOPSQMS" },
-      ],
-      "FXOPSSRE": [
-        { "name": "FXOPSSRE", "key": "FXOPSSRE" },
+        { "name": "CDK Service (Modern) / Modern Foundations (CDKSRVFRD)", "key": "CDKSRVFRD" },
+        { "name": "CDK Service (Modern) / Modern Foundations (CDKSRVOEM)", "key": "CDKSRVOEM" },
+        { "name": "CDK Service (Modern) / Modern Foundations (CSFM)", "key": "CSFM" },
+        { "name": "CDK Service (Modern) / Modern Foundations (FPE)", "key": "FPE" },
+        { "name": "CDK Service (Modern) / Modern Foundations (FXDOPSDLM)", "key": "FXDOPSDLM" },
+        { "name": "CDK Service (Modern) / Modern Foundations (FXDOPSQMS)", "key": "FXDOPSQMS" },
+        { "name": "CDK Service (Modern) / Modern Foundations (FXOPSSRE)", "key": "FXOPSSRE" },
       ],
       "CDK Service Appointment (Classic)": [
         { "name": "CDK Service Appointment (Classic)", "key": "CDKSRVAPT" },
@@ -1257,18 +1159,10 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       ],
       "CDK Service Inspect (Modern)": [
         { "name": "CDK Service Inspect (Modern)", "key": "ADMSE" },
-      ],
-      "CDKSRVACC": [
-        { "name": "CDKSRVACC", "key": "CDKSRVACC" },
-      ],
-      "FXDOPSAPT": [
-        { "name": "FXDOPSAPT", "key": "FXDOPSAPT" },
-      ],
-      "FXDOPSINSP": [
-        { "name": "FXDOPSINSP", "key": "FXDOPSINSP" },
-      ],
-      "ROS": [
-        { "name": "ROS", "key": "ROS" },
+        { "name": "CDK Service Inspect (Modern) (CDKSRVACC)", "key": "CDKSRVACC" },
+        { "name": "CDK Service Inspect (Modern) (FXDOPSAPT)", "key": "FXDOPSAPT" },
+        { "name": "CDK Service Inspect (Modern) (FXDOPSINSP)", "key": "FXDOPSINSP" },
+        { "name": "CDK Service Inspect (Modern) (ROS)", "key": "ROS" },
       ],
       "CDK Service Lane (Classic)": [
         { "name": "CDK Service Lane (Classic)", "key": "CDKSRVLNI" },
@@ -1288,12 +1182,8 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
     products: {
       "Fortellis Platform": [
         { "name": "Fortellis Platform", "key": "FORT" },
-      ],
-      "FORTAPPAPI": [
-        { "name": "FORTAPPAPI", "key": "FORTAPPAPI" },
-      ],
-      "FORTQA": [
-        { "name": "FORTQA", "key": "FORTQA" },
+        { "name": "Fortellis Platform (FORTAPPAPI)", "key": "FORTAPPAPI" },
+        { "name": "Fortellis Platform (FORTQA)", "key": "FORTQA" },
       ],
       "Fortellis Developer Community": [
         { "name": "Fortellis Developer Community", "key": "FORTCORE" },
@@ -1319,9 +1209,7 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       ],
       "Vehicle Cloud": [
         { "name": "Vehicle Cloud", "key": "CVC" },
-      ],
-      "MODVHCL": [
-        { "name": "MODVHCL", "key": "MODVHCL" },
+        { "name": "Vehicle Cloud (MODVHCL)", "key": "MODVHCL" },
       ],
     },
   },
@@ -1329,156 +1217,76 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
     products: {
       "CRM": [
         { "name": "CRM", "key": "CCEL" },
-      ],
-      "CRMMYDAY": [
-        { "name": "CRMMYDAY", "key": "CRMMYDAY" },
-      ],
-      "CRMP4S": [
-        { "name": "CRMP4S", "key": "CRMP4S" },
-      ],
-      "EKC": [
-        { "name": "EKC", "key": "EKC" },
-      ],
-      "ELCRMHE": [
-        { "name": "ELCRMHE", "key": "ELCRMHE" },
-      ],
-      "ELCRMHT": [
-        { "name": "ELCRMHT", "key": "ELCRMHT" },
-      ],
-      "ELDBD": [
-        { "name": "ELDBD", "key": "ELDBD" },
-      ],
-      "ELEMRS": [
-        { "name": "ELEMRS", "key": "ELEMRS" },
-      ],
-      "ELMOB": [
-        { "name": "ELMOB", "key": "ELMOB" },
-      ],
-      "ELQAA": [
-        { "name": "ELQAA", "key": "ELQAA" },
-      ],
-      "ELRPT": [
-        { "name": "ELRPT", "key": "ELRPT" },
-      ],
-      "ELSCRM": [
-        { "name": "ELSCRM", "key": "ELSCRM" },
-      ],
-      "ELSMOD": [
-        { "name": "ELSMOD", "key": "ELSMOD" },
-      ],
-      "ELSRE": [
-        { "name": "ELSRE", "key": "ELSRE" },
-      ],
-      "ELSTCAP": [
-        { "name": "ELSTCAP", "key": "ELSTCAP" },
-      ],
-      "ELSUPPORT": [
-        { "name": "ELSUPPORT", "key": "ELSUPPORT" },
-      ],
-      "ELSWEM": [
-        { "name": "ELSWEM", "key": "ELSWEM" },
-      ],
-      "MRSSO": [
-        { "name": "MRSSO", "key": "MRSSO" },
-      ],
-      "RM": [
-        { "name": "RM", "key": "RM" },
+        { "name": "CRM (CRMMYDAY)", "key": "CRMMYDAY" },
+        { "name": "CRM (CRMP4S)", "key": "CRMP4S" },
+        { "name": "CRM (EKC)", "key": "EKC" },
+        { "name": "CRM (ELCRMHE)", "key": "ELCRMHE" },
+        { "name": "CRM (ELCRMHT)", "key": "ELCRMHT" },
+        { "name": "CRM (ELDBD)", "key": "ELDBD" },
+        { "name": "CRM (ELEMRS)", "key": "ELEMRS" },
+        { "name": "CRM (ELMOB)", "key": "ELMOB" },
+        { "name": "CRM (ELQAA)", "key": "ELQAA" },
+        { "name": "CRM (ELRPT)", "key": "ELRPT" },
+        { "name": "CRM (ELSCRM)", "key": "ELSCRM" },
+        { "name": "CRM (ELSMOD)", "key": "ELSMOD" },
+        { "name": "CRM (ELSRE)", "key": "ELSRE" },
+        { "name": "CRM (ELSTCAP)", "key": "ELSTCAP" },
+        { "name": "CRM (ELSUPPORT)", "key": "ELSUPPORT" },
+        { "name": "CRM (ELSWEM)", "key": "ELSWEM" },
+        { "name": "CRM (MRC1)", "key": "MRC1" },
+        { "name": "CRM (MRSSO)", "key": "MRSSO" },
+        { "name": "CRM (RM)", "key": "RM" },
       ],
       "CRM / CRM Shared Capabilities": [
         { "name": "CRM / CRM Shared Capabilities", "key": "ELDMSI" },
-      ],
-      "ELLRT": [
-        { "name": "ELLRT", "key": "ELLRT" },
-      ],
-      "ELTPI": [
-        { "name": "ELTPI", "key": "ELTPI" },
+        { "name": "CRM / CRM Shared Capabilities (ELLRT)", "key": "ELLRT" },
+        { "name": "CRM / CRM Shared Capabilities (ELTPI)", "key": "ELTPI" },
       ],
       "CRM AI": [
         { "name": "CRM AI", "key": "CRMAI" },
       ],
       "CRM DBA & ETL": [
         { "name": "CRM DBA & ETL", "key": "CDCDEB" },
-      ],
-      "ELDBAPR": [
-        { "name": "ELDBAPR", "key": "ELDBAPR" },
-      ],
-      "ELDBCR": [
-        { "name": "ELDBCR", "key": "ELDBCR" },
-      ],
-      "ELDBP": [
-        { "name": "ELDBP", "key": "ELDBP" },
-      ],
-      "ELDBS": [
-        { "name": "ELDBS", "key": "ELDBS" },
-      ],
-      "ELETL": [
-        { "name": "ELETL", "key": "ELETL" },
+        { "name": "CRM DBA & ETL (ELDBAPR)", "key": "ELDBAPR" },
+        { "name": "CRM DBA & ETL (ELDBCR)", "key": "ELDBCR" },
+        { "name": "CRM DBA & ETL (ELDBP)", "key": "ELDBP" },
+        { "name": "CRM DBA & ETL (ELDBS)", "key": "ELDBS" },
+        { "name": "CRM DBA & ETL (ELETL)", "key": "ELETL" },
       ],
       "CRM Desking": [
         { "name": "CRM Desking", "key": "CRMCM" },
-      ],
-      "DESKEL": [
-        { "name": "DESKEL", "key": "DESKEL" },
-      ],
-      "MOD2SC": [
-        { "name": "MOD2SC", "key": "MOD2SC" },
+        { "name": "CRM Desking (DESKEL)", "key": "DESKEL" },
+        { "name": "CRM Desking (MOD2SC)", "key": "MOD2SC" },
       ],
       "CRM Marketing": [
         { "name": "CRM Marketing", "key": "ELCOMT" },
-      ],
-      "ELDM": [
-        { "name": "ELDM", "key": "ELDM" },
+        { "name": "CRM Marketing (ELDM)", "key": "ELDM" },
       ],
       "Modern Retail Integrated Experience": [
         { "name": "Modern Retail Integrated Experience", "key": "FRMSMOD" },
-      ],
-      "MRIX": [
-        { "name": "MRIX", "key": "MRIX" },
+        { "name": "Modern Retail Integrated Experience (MRIX)", "key": "MRIX" },
       ],
       "One-Eighty (180)": [
         { "name": "One-Eighty (180)", "key": "OEDARWIN" },
-      ],
-      "OEGRDTETON": [
-        { "name": "OEGRDTETON", "key": "OEGRDTETON" },
-      ],
-      "OEHIMALAYA": [
-        { "name": "OEHIMALAYA", "key": "OEHIMALAYA" },
-      ],
-      "OEK2": [
-        { "name": "OEK2", "key": "OEK2" },
-      ],
-      "OEKIRKJUFE": [
-        { "name": "OEKIRKJUFE", "key": "OEKIRKJUFE" },
-      ],
-      "OET": [
-        { "name": "OET", "key": "OET" },
-      ],
-      "OETWINMOU": [
-        { "name": "OETWINMOU", "key": "OETWINMOU" },
-      ],
-      "OLYMPUS": [
-        { "name": "OLYMPUS", "key": "OLYMPUS" },
-      ],
-      "CDK Desking": [
-        { "name": "CDK Desking", "key": "CDESK" },
+        { "name": "One-Eighty (180) (OEGRDTETON)", "key": "OEGRDTETON" },
+        { "name": "One-Eighty (180) (OEHIMALAYA)", "key": "OEHIMALAYA" },
+        { "name": "One-Eighty (180) (OEK2)", "key": "OEK2" },
+        { "name": "One-Eighty (180) (OEKIRKJUFE)", "key": "OEKIRKJUFE" },
+        { "name": "One-Eighty (180) (OET)", "key": "OET" },
+        { "name": "One-Eighty (180) (OETWINMOU)", "key": "OETWINMOU" },
+        { "name": "One-Eighty (180) (OLYMPUS)", "key": "OLYMPUS" },
       ],
       "Credit Services": [
         { "name": "Credit Services", "key": "CREDIT" },
-      ],
-      "LDET": [
-        { "name": "LDET", "key": "LDET" },
+        { "name": "Credit Services (LDET)", "key": "LDET" },
       ],
       "Digital Contracting": [
         { "name": "Digital Contracting", "key": "DC" },
-      ],
-      "MODTAI": [
-        { "name": "MODTAI", "key": "MODTAI" },
+        { "name": "Digital Contracting (MODTAI)", "key": "MODTAI" },
       ],
       "Storefront": [
         { "name": "Storefront", "key": "MR" },
-      ],
-      "MRDRT": [
-        { "name": "MRDRT", "key": "MRDRT" },
+        { "name": "Storefront (MRDRT)", "key": "MRDRT" },
       ],
       "CDK Sign Platform": [
         { "name": "CDK Sign Platform", "key": "CSP" },
@@ -1494,58 +1302,26 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       ],
       "Drive Sales F&I": [
         { "name": "Drive Sales F&I", "key": "FI" },
-      ],
-      "KEYSTONE": [
-        { "name": "KEYSTONE", "key": "KEYSTONE" },
-      ],
-      "MODSFI": [
-        { "name": "MODSFI", "key": "MODSFI" },
+        { "name": "Drive Sales F&I (KEYSTONE)", "key": "KEYSTONE" },
+        { "name": "Drive Sales F&I (MODSFI)", "key": "MODSFI" },
       ],
       "Modern F&I": [
         { "name": "Modern F&I", "key": "LIEN" },
-      ],
-      "MODTAO": [
-        { "name": "MODTAO", "key": "MODTAO" },
+        { "name": "Modern F&I (MODTAO)", "key": "MODTAO" },
       ],
       "Communication Service (CSMSG)": [
         { "name": "Communication Service (CSMSG)", "key": "CSMSGISSUE" },
       ],
       "Connected Communications Platform": [
         { "name": "Connected Communications Platform", "key": "CCPADMIN" },
-      ],
-      "CCPAPPS": [
-        { "name": "CCPAPPS", "key": "CCPAPPS" },
-      ],
-      "CCPBKND": [
-        { "name": "CCPBKND", "key": "CCPBKND" },
-      ],
-      "CCPDATA": [
-        { "name": "CCPDATA", "key": "CCPDATA" },
-      ],
-      "CCPTXT": [
-        { "name": "CCPTXT", "key": "CCPTXT" },
-      ],
-      "MRC2": [
-        { "name": "MRC2", "key": "MRC2" },
+        { "name": "Connected Communications Platform (CCPAPPS)", "key": "CCPAPPS" },
+        { "name": "Connected Communications Platform (CCPBKND)", "key": "CCPBKND" },
+        { "name": "Connected Communications Platform (CCPDATA)", "key": "CCPDATA" },
+        { "name": "Connected Communications Platform (CCPTXT)", "key": "CCPTXT" },
+        { "name": "Connected Communications Platform (MRC2)", "key": "MRC2" },
       ],
       "Text Connect": [
         { "name": "Text Connect", "key": "CC" },
-      ],
-    },
-  },
-  "Network & Communication Services": {
-    products: {
-      "Neutron": [
-        { "name": "Neutron", "key": "NEUTRON" },
-      ],
-      "Proton Tooling & Automation": [
-        { "name": "Proton Tooling & Automation", "key": "PROTON" },
-      ],
-      "IPNS": [
-        { "name": "IPNS", "key": "COLLAB" },
-      ],
-      "Voice Connect API": [
-        { "name": "Voice Connect API", "key": "VCI" },
       ],
     },
   },
@@ -1556,12 +1332,8 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       ],
       "CDK SimplePay": [
         { "name": "CDK SimplePay", "key": "CDKPAY" },
-      ],
-      "CDKPAYIN": [
-        { "name": "CDKPAYIN", "key": "CDKPAYIN" },
-      ],
-      "CDKPAYM": [
-        { "name": "CDKPAYM", "key": "CDKPAYM" },
+        { "name": "CDK SimplePay (CDKPAYIN)", "key": "CDKPAYIN" },
+        { "name": "CDK SimplePay (CDKPAYM)", "key": "CDKPAYM" },
       ],
     },
   },
@@ -1590,15 +1362,11 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       ],
       "Identity & Access Management Service (IAM)": [
         { "name": "Identity & Access Management Service (IAM)", "key": "FSRE" },
-      ],
-      "IAM": [
-        { "name": "IAM", "key": "IAM" },
+        { "name": "Identity & Access Management Service (IAM) (IAM)", "key": "IAM" },
       ],
       "Consumer Canonical Hub / MDM 1.0": [
         { "name": "Consumer Canonical Hub / MDM 1.0", "key": "DNADD" },
-      ],
-      "MRCANON": [
-        { "name": "MRCANON", "key": "MRCANON" },
+        { "name": "Consumer Canonical Hub / MDM 1.0 (MRCANON)", "key": "MRCANON" },
       ],
       "Global Search": [
         { "name": "Global Search", "key": "GS" },
@@ -1613,26 +1381,60 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
   },
   "Title & Registration-CVR": {
     products: {
-      "CVRHOST": [
-        { "name": "CVRHOST", "key": "CVRHOST" },
+      "AVRS - California": [
+        { "name": "AVRS - California", "key": "CVRS" },
       ],
-      "CVRRC": [
-        { "name": "CVRRC", "key": "CVRRC" },
+      "CVR Converged": [
+        { "name": "CVR Converged", "key": "CVRCACONV" },
+        { "name": "CVR Converged (CVRCBE)", "key": "CVRCBE" },
+      ],
+      "CVR EVR (Delphi)": [
+        { "name": "CVR EVR (Delphi)", "key": "CVRIN" },
+        { "name": "CVR EVR (Delphi) (CVRNC)", "key": "CVRNC" },
+      ],
+      "CVR EVR (Delphi) / CVR EVR AL": [
+        { "name": "CVR EVR (Delphi) / CVR EVR AL", "key": "CVRAL" },
+      ],
+      "CVR EVR (Delphi) / CVR EVR MA": [
+        { "name": "CVR EVR (Delphi) / CVR EVR MA", "key": "CVRMA" },
+      ],
+      "CVR EVR (Delphi) / CVR EVR MD": [
+        { "name": "CVR EVR (Delphi) / CVR EVR MD", "key": "CVRMD" },
+      ],
+      "CVR EVR (Delphi) / CVR EVR PA": [
+        { "name": "CVR EVR (Delphi) / CVR EVR PA", "key": "CVRPA" },
+      ],
+      "CVR EVR (Delphi) / CVR EVR SC": [
+        { "name": "CVR EVR (Delphi) / CVR EVR SC", "key": "CVRSC" },
+      ],
+      "CVR EVR (Delphi) / CVR EVR VA": [
+        { "name": "CVR EVR (Delphi) / CVR EVR VA", "key": "CVRVA" },
+      ],
+      "CVR EVR (Delphi) / CVR EVR WV": [
+        { "name": "CVR EVR (Delphi) / CVR EVR WV", "key": "CVRWV" },
+      ],
+      "CVR EVR (Delphi) / CVR Host": [
+        { "name": "CVR EVR (Delphi) / CVR Host", "key": "CVRHOST" },
       ],
       "CVR FL Connect": [
         { "name": "CVR FL Connect", "key": "CVRFL" },
       ],
+      "CVR GA EVR": [
+        { "name": "CVR GA EVR", "key": "CVRGA" },
+      ],
       "CVR IL Connect": [
         { "name": "CVR IL Connect", "key": "CVRIL" },
+        { "name": "CVR IL Connect (CVRILSUP)", "key": "CVRILSUP" },
       ],
       "CVR Interface Services (CIS)": [
         { "name": "CVR Interface Services (CIS)", "key": "CVRCH" },
-      ],
-      "CVRCLA": [
-        { "name": "CVRCLA", "key": "CVRCLA" },
-      ],
-      "CVRDAESIGN": [
-        { "name": "CVRDAESIGN", "key": "CVRDAESIGN" },
+        { "name": "CVR Interface Services (CIS) (CVRCIS)", "key": "CVRCIS" },
+        { "name": "CVR Interface Services (CIS) (CVRCLA)", "key": "CVRCLA" },
+        { "name": "CVR Interface Services (CIS) (CVRDAESIGN)", "key": "CVRDAESIGN" },
+        { "name": "CVR Interface Services (CIS) (CVRDOCIMG)", "key": "CVRDOCIMG" },
+        { "name": "CVR Interface Services (CIS) (CVRJE)", "key": "CVRJE" },
+        { "name": "CVR Interface Services (CIS) (CVRNMVTI)", "key": "CVRNMVTI" },
+        { "name": "CVR Interface Services (CIS) (CVRRC)", "key": "CVRRC" },
       ],
       "CVR MI Connect": [
         { "name": "CVR MI Connect", "key": "CVRMIWEB" },
@@ -1640,11 +1442,17 @@ const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string,
       "CVR NC Connect": [
         { "name": "CVR NC Connect", "key": "CVRNCC" },
       ],
+      "CVR NJ Web": [
+        { "name": "CVR NJ Web", "key": "CVRNJ" },
+      ],
       "CVR NY Verifi": [
         { "name": "CVR NY Verifi", "key": "CVRNY" },
       ],
       "CVR PA Connect": [
         { "name": "CVR PA Connect", "key": "CVRPAC" },
+      ],
+      "CVR WI Connect": [
+        { "name": "CVR WI Connect", "key": "WICON" },
       ],
     },
   },
@@ -1792,6 +1600,7 @@ export function DefectLeakageAnalyzer() {
   const defaultMetric = VISIBLE_METRIC_OPTIONS.find(option => option.value === 'test_review_status') || VISIBLE_METRIC_OPTIONS.find(option => !option.disabled) || VISIBLE_METRIC_OPTIONS[0];
   const [selectedMetric, setSelectedMetric] = useState<string>('test_review_status');
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [exportingJPG, setExportingJPG] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
   const [mailDialogOpen, setMailDialogOpen] = useState(false);
   const [sendingMail, setSendingMail] = useState(false);
@@ -4868,11 +4677,23 @@ export function DefectLeakageAnalyzer() {
       
       // Use the frontend html2canvas approach to capture the exact UI appearance
       // This captures the styled report with colors, AI insights, and all formatting
-      await exportTcoeReportAsPDF('tcoe-report', `tcoe_${selectedMetric || 'report'}_${filenameLabel}.pdf`);
+      await exportTcoeReportAsPDF('tcoe-report', `qcoe_${selectedMetric || 'report'}_${filenameLabel}.pdf`);
     } catch (error) {
-      console.error('Failed to export TCOE metric PDF:', error);
+      console.error('Failed to export QCOE metric PDF:', error);
     } finally {
       setExportingPDF(false);
+    }
+  };
+
+  const handleExportJPG = async () => {
+    try {
+      setExportingJPG(true);
+      const filenameLabel = currentWeekEndingLabel || selectedWeekEndingCurrent || new Date().toISOString().split('T')[0];
+      await exportQcoeReportAsJPG('tcoe-report', `qcoe_${selectedMetric || 'report'}_${filenameLabel}.jpg`);
+    } catch (error) {
+      console.error('Failed to export QCOE metric JPG:', error);
+    } finally {
+      setExportingJPG(false);
     }
   };
 
@@ -4917,7 +4738,7 @@ export function DefectLeakageAnalyzer() {
 
       setMailStatus('Mail sent successfully.');
     } catch (error) {
-      console.error('Failed to send TCOE report mail:', error);
+      console.error('Failed to send QCOE report mail:', error);
       setMailError(error instanceof Error ? error.message : 'Failed to send mail.');
       setMailStatus(null);
     } finally {
@@ -4971,7 +4792,7 @@ export function DefectLeakageAnalyzer() {
         }, `tcoe-report-${filenameLabel}.xlsx`);
       }
     } catch (error) {
-      console.error('Failed to export TCOE report Excel:', error);
+      console.error('Failed to export QCOE report Excel:', error);
     } finally {
       setExportingExcel(false);
     }
@@ -5246,6 +5067,22 @@ export function DefectLeakageAnalyzer() {
             >
               <Download className="h-4 w-4 mr-2" />
               {exportingPDF ? 'Exporting...' : 'Export PDF (One Page)'}
+            </Button>
+            <Button
+              onClick={handleExportJPG}
+              className="fx-pill rounded-xl px-4 py-2 text-sm font-medium transition-opacity duration-150 hover:opacity-85"
+              style={{
+                backgroundColor: cardBackground,
+                color: headingColor,
+                borderColor: borderColor,
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderRadius: isDarkMode ? '12px' : undefined
+              }}
+              disabled={!hasGeneratedReport || exportingJPG}
+            >
+              <FileImage className="h-4 w-4 mr-2" />
+              {exportingJPG ? 'Exporting...' : 'Export as Image'}
             </Button>
             <Button
               onClick={openMailDialog}
@@ -6672,360 +6509,16 @@ export function DefectLeakageAnalyzer() {
           const renderQualityMetricTables = () => {
             const tableRows = metricRows.filter(row => row.portfolio !== 'Grand Total' && row.portfolio_display !== 'Grand Total');
             const rowsForTables = tableRows.length ? tableRows : metricRows;
-            const toNumber = (value: any) => {
-              const numeric = Number(value);
-              return Number.isFinite(numeric) ? numeric : 0;
-            };
-            const crossPIComparison = isCrossPIComparison();
-            const shouldResetPIComparison = (tableKey?: 'table_a' | 'table_b') => (
-              crossPIComparison
-              && PI_SCOPED_RESET_METRICS.has(metricKey)
-              && !(metricKey === 'test_coverage' && tableKey === 'table_b')
-            );
-            const rowLabel = (row: any) => row.portfolio_display || row.portfolio || row.project_label || 'Unknown';
-            const rowComment = (row: any) => {
-              const raw = row.ai_analysis || row.ai_insights || (metricKey === 'defect_leakage' ? buildCommentText(row, metricLabel) : '');
-              return String(raw || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            };
-            const pct = (numerator: number, denominator: number) => denominator > 0 ? (numerator / denominator) * 100 : 0;
-            const defectInflow = (cy25: number, cy26: number) => cy25 > 0 ? ((cy26 - cy25) / cy25) * 100 : (cy26 > 0 ? 100 : 0);
-            const progressValue = (row: any, current: number, previous: number) =>
-              toNumber(row.progress?.wow_progress_pct ?? row.progress?.percentage_change ?? row.comparison?.leakage_change ?? (current - previous));
-
-            const buildGrandTotal = (rows: any[], mode: string) => {
-              const countLength = rows[0]?.counts?.length || 2;
-              const counts = Array.from({ length: countLength }, (_, idx) => rows.reduce((sum, row) => sum + toNumber(row.counts[idx]), 0));
-              const previousNumerator = rows.reduce((sum, row) => sum + toNumber(row.previousNumerator), 0);
-              const previousDenominator = rows.reduce((sum, row) => sum + toNumber(row.previousDenominator), 0);
-              const currentNumerator = rows.reduce((sum, row) => sum + toNumber(row.currentNumerator), 0);
-              const currentDenominator = rows.reduce((sum, row) => sum + toNumber(row.currentDenominator), 0);
-              const previousCy25 = rows.reduce((sum, row) => sum + toNumber(row.previousCy25), 0);
-              const previousCy26 = rows.reduce((sum, row) => sum + toNumber(row.previousCy26), 0);
-              const currentCy25 = rows.reduce((sum, row) => sum + toNumber(row.currentCy25), 0);
-              const currentCy26 = rows.reduce((sum, row) => sum + toNumber(row.currentCy26), 0);
-              const previous = mode === 'ratio'
-                ? (previousDenominator > 0 ? previousNumerator / previousDenominator : 0)
-                : mode === 'defect_inflow'
-                ? defectInflow(previousCy25, previousCy26)
-                : pct(previousNumerator, previousDenominator);
-              const current = mode === 'ratio'
-                ? (currentDenominator > 0 ? currentNumerator / currentDenominator : 0)
-                : mode === 'defect_inflow'
-                ? defectInflow(currentCy25, currentCy26)
-                : pct(currentNumerator, currentDenominator);
-              const progress = mode === 'ratio' ? (current - previous) * 100 : current - previous;
-
-              return {
-                label: 'Grand Total',
-                counts,
-                previous,
-                current,
-                progress,
-                comment: '',
-                isGrandTotal: true,
-                mode,
-                lowerIsBetter: rows[0]?.lowerIsBetter || false
-              };
-            };
-
-            const automationRows = (tableKey: 'table_a' | 'table_b') => rowsForTables.map((row: any) => {
-              const table = row[tableKey] || {};
-              const p1 = table.period1 || row.period1 || {};
-              const p2 = table.period2 || table.period || row.period2 || row.period || {};
-              const automated2 = toNumber(p2.automated ?? p2.automated_count);
-              const requires2 = toNumber(p2.requires_automation ?? p2.manual_count);
-              const notRequired2 = toNumber(p2.automation_not_required);
-              const automated1 = toNumber(p1.automated ?? p1.automated_count);
-              const requires1 = toNumber(p1.requires_automation ?? p1.manual_count);
-              const notRequired1 = toNumber(p1.automation_not_required);
-              const currentDenominator = tableKey === 'table_b'
-                ? toNumber(p2.automatable ?? (automated2 + requires2))
-                : toNumber(p2.total ?? (automated2 + requires2 + notRequired2));
-              const previousDenominator = tableKey === 'table_b'
-                ? toNumber(p1.automatable ?? (automated1 + requires1))
-                : toNumber(p1.total ?? (automated1 + requires1 + notRequired1));
-              const current = tableKey === 'table_b'
-                ? toNumber(p2.automation_percentage_automatable ?? p2.automation_percentage ?? pct(automated2, currentDenominator))
-                : toNumber(p2.automation_percentage_total ?? p2.automation_percentage ?? pct(automated2, currentDenominator));
-              const previous = tableKey === 'table_b'
-                ? toNumber(p1.automation_percentage_automatable ?? p1.automation_percentage ?? pct(automated1, previousDenominator))
-                : toNumber(p1.automation_percentage_total ?? p1.automation_percentage ?? pct(automated1, previousDenominator));
-              return {
-                label: rowLabel(row),
-                counts: tableKey === 'table_b' ? [automated2, requires2] : [automated2, requires2, notRequired2],
-                previous,
-                current,
-                progress: toNumber(table.progress?.wow_progress_pct ?? table.progress?.percentage_change ?? progressValue(row, current, previous)),
-                comment: rowComment(row),
-                mode: 'percent',
-                previousNumerator: automated1,
-                previousDenominator,
-                currentNumerator: automated2,
-                currentDenominator
-              };
-            });
-
-            const coverageRows = (tableKey: 'table_a' | 'table_b') => rowsForTables.map((row: any) => {
-              const table = row[tableKey] || {};
-              const p1 = table.period1 || row.period1 || {};
-              const p2 = table.period2 || table.period || row.period2 || row.period || {};
-              const currentStories = toNumber(tableKey === 'table_b' ? (p2.cumulative_dev_stories ?? p2.total_stories) : (p2.dev_stories ?? p2.total_stories));
-              const currentTests = toNumber(tableKey === 'table_b' ? (p2.cumulative_tests_mapped ?? p2.total_test_cases) : (p2.test_cases_created ?? p2.total_test_cases));
-              const previousStories = toNumber(tableKey === 'table_b' ? (p1.cumulative_dev_stories ?? p1.total_stories) : (p1.dev_stories ?? p1.total_stories));
-              const previousWithTests = toNumber(p1.stories_with_tests);
-              const currentWithTests = toNumber(p2.stories_with_tests);
-              const previous = toNumber(p1.coverage_percentage ?? pct(previousWithTests, previousStories));
-              const current = toNumber(p2.coverage_percentage ?? pct(currentWithTests, currentStories));
-              return {
-                label: rowLabel(row),
-                counts: [currentStories, currentTests],
-                previous,
-                current,
-                progress: toNumber(table.progress?.wow_progress_pct ?? table.progress?.percentage_change ?? progressValue(row, current, previous)),
-                comment: rowComment(row),
-                mode: 'percent',
-                previousNumerator: previousWithTests,
-                previousDenominator: previousStories,
-                currentNumerator: currentWithTests,
-                currentDenominator: currentStories
-              };
-            });
-
-            const singleRows = rowsForTables.map((row: any) => {
-              const p1 = row.period1 || row.previous_week || {};
-              const p2 = row.period2 || row.period || row.current_week || {};
-              if (metricKey === 'test_story_ratio') {
-                const previous = toNumber(p1.ratio);
-                const current = toNumber(p2.ratio);
-                return {
-                  label: rowLabel(row),
-                  counts: [toNumber(p2.total_test_cases), toNumber(p2.total_stories)],
-                  previous,
-                  current,
-                  progress: toNumber(row.progress?.wow_progress_pct ?? ((current - previous) * 100)),
-                  comment: rowComment(row),
-                  mode: 'ratio',
-                  previousNumerator: toNumber(p1.total_test_cases),
-                  previousDenominator: toNumber(p1.total_stories),
-                  currentNumerator: toNumber(p2.total_test_cases),
-                  currentDenominator: toNumber(p2.total_stories)
-                };
-              }
-              if (metricKey === 'bug_ratio') {
-                const previousBugs = toNumber(p1.bugs_found);
-                const previousTests = toNumber(p1.test_cases_executed);
-                const currentBugs = toNumber(p2.bugs_found);
-                const currentTests = toNumber(p2.test_cases_executed);
-                const previous = previousTests > 0 ? pct(previousBugs, previousTests) : toNumber(p1.ratio) * 100;
-                const current = currentTests > 0 ? pct(currentBugs, currentTests) : toNumber(p2.ratio) * 100;
-                return {
-                  label: rowLabel(row),
-                  counts: [currentTests, currentBugs],
-                  previous,
-                  current,
-                  progress: toNumber(row.progress?.wow_progress_pct ?? (current - previous)),
-                  comment: rowComment(row),
-                  mode: 'ratio_percent',
-                  lowerIsBetter: true,
-                  previousNumerator: previousBugs,
-                  previousDenominator: previousTests,
-                  currentNumerator: currentBugs,
-                  currentDenominator: currentTests
-                };
-              }
-              if (metricKey === 'test_review_status') {
-                const previousTotal = toNumber(p1.reviewed_yes) + toNumber(p1.reviewed_no) + toNumber(p1.not_set);
-                const currentTotal = toNumber(p2.reviewed_yes) + toNumber(p2.reviewed_no) + toNumber(p2.not_set);
-                const previous = toNumber(p1.review_percentage ?? pct(toNumber(p1.reviewed_yes), previousTotal));
-                const current = toNumber(p2.review_percentage ?? pct(toNumber(p2.reviewed_yes), currentTotal));
-                return {
-                  label: rowLabel(row),
-                  counts: [toNumber(p2.reviewed_yes), currentTotal || toNumber(row.total_stories)],
-                  previous,
-                  current,
-                  progress: progressValue(row, current, previous),
-                  comment: rowComment(row),
-                  mode: 'percent',
-                  previousNumerator: toNumber(p1.reviewed_yes),
-                  previousDenominator: previousTotal,
-                  currentNumerator: toNumber(p2.reviewed_yes),
-                  currentDenominator: currentTotal || toNumber(row.total_stories)
-                };
-              }
-
-              const previousCy25 = toNumber(p1.cy25_defects ?? p1.bugs_count);
-              const previousCy26 = toNumber(p1.cy26_defects ?? p1.defects_count);
-              const currentCy25 = toNumber(p2.cy25_defects ?? p2.bugs_count);
-              const currentCy26 = toNumber(p2.cy26_defects ?? p2.defects_count);
-              const previous = toNumber(p1.defect_inflow_percentage ?? p1.leakage_percentage ?? defectInflow(previousCy25, previousCy26));
-              const current = toNumber(p2.defect_inflow_percentage ?? p2.leakage_percentage ?? defectInflow(currentCy25, currentCy26));
-              return {
-                label: rowLabel(row),
-                counts: [currentCy25, currentCy26],
-                previous,
-                current,
-                progress: progressValue(row, current, previous),
-                comment: rowComment(row),
-                mode: 'defect_inflow',
-                lowerIsBetter: true,
-                previousCy25,
-                previousCy26,
-                currentCy25,
-                currentCy26
-              };
-            });
-
-            const withGrandTotal = (rows: any[], mode: string) => rows.length > 1 ? [...rows, buildGrandTotal(rows, mode)] : rows;
-            const tableSpecs: any[] = [];
-            if (metricKey === 'overall_automation' || metricKey === 'regression_automation') {
-              tableSpecs.push({
-                title: metricRows[0]?.table_a?.title || (headers as any).tableATitle,
-                countHeaders: metricKey === 'overall_automation'
-                  ? ['Automated', 'Requires Automation', 'Automation Not Required']
-                  : ['Automated', 'Requires Automation', 'Automation Not Required'],
-                rows: withGrandTotal(automationRows('table_a'), 'percent'),
-                mode: 'percent',
-                showComparison: enableComparison
-              });
-              tableSpecs.push({
-                title: metricRows[0]?.table_b?.title || (headers as any).tableBTitle,
-                countHeaders: metricKey === 'overall_automation'
-                  ? ['Automated', 'Requires Automation']
-                  : ['Automated', 'Requires Automation'],
-                rows: withGrandTotal(automationRows('table_b'), 'percent'),
-                mode: 'percent',
-                showComparison: enableComparison
-              });
-            } else if (metricKey === 'test_coverage') {
-              tableSpecs.push({
-                title: metricRows[0]?.table_a?.title || (headers as any).tableATitle,
-                countHeaders: [(headers as any).firstCol, (headers as any).secondCol],
-                rows: withGrandTotal(coverageRows('table_a'), 'percent'),
-                mode: 'percent',
-                showComparison: enableComparison && !shouldResetPIComparison('table_a')
-              });
-              tableSpecs.push({
-                title: metricRows[0]?.table_b?.title || (headers as any).tableBTitle,
-                countHeaders: ['Cumulative # of Dev Stories (CY24+CY25+CY26)', 'Cumulative # of Tests Mapped (Story + Bugs + Defects)'],
-                rows: withGrandTotal(coverageRows('table_b'), 'percent'),
-                mode: 'percent',
-                showComparison: enableComparison && !shouldResetPIComparison('table_b')
-              });
-            } else {
-              const singleHeaders = metricKey === 'test_story_ratio'
-                ? [(headers as any).firstCol, (headers as any).secondCol]
-                : metricKey === 'bug_ratio'
-                ? [(headers as any).firstCol, (headers as any).secondCol]
-                : metricKey === 'test_review_status'
-                ? [(headers as any).firstCol, (headers as any).secondCol]
-                : ['CY25 Defects', 'CY26 Defects'];
-              const mode = metricKey === 'test_story_ratio' ? 'ratio' : metricKey === 'bug_ratio' ? 'ratio_percent' : metricKey === 'defect_leakage' ? 'defect_inflow' : 'percent';
-              tableSpecs.push({
-                title: qualityMetricTableTitle,
-                countHeaders: singleHeaders,
-                rows: withGrandTotal(singleRows, mode),
-                mode,
-                showComparison: enableComparison && !shouldResetPIComparison()
-              });
-            }
-
-            const formatCellValue = (value: number, mode: string) => {
-              if (mode === 'ratio') return formatRatio(value, 2);
-              return formatPercentage(value);
-            };
-            const cellTone = (value: number, mode: string, lowerIsBetter = false, isProgress = false) => {
-              if (isProgress) {
-                if (value === 0) return { backgroundColor: '#ffeb9c', color: '#9c6500' };
-                const positiveIsGood = !lowerIsBetter;
-                const good = positiveIsGood ? value > 0 : value < 0;
-                return good
-                  ? { backgroundColor: '#c6efce', color: '#006100' }
-                  : { backgroundColor: '#ffc7ce', color: '#9c0006' };
-              }
-              if (mode === 'ratio') {
-                if (value >= 2) return { backgroundColor: '#c6efce', color: '#006100' };
-                if (value >= 1) return { backgroundColor: '#ffeb9c', color: '#9c6500' };
-                return { backgroundColor: '#ffc7ce', color: '#9c0006' };
-              }
-              if (mode === 'ratio_percent') {
-                if (value <= 5) return { backgroundColor: '#c6efce', color: '#006100' };
-                if (value <= 10) return { backgroundColor: '#ffeb9c', color: '#9c6500' };
-                return { backgroundColor: '#ffc7ce', color: '#9c0006' };
-              }
-              if (mode === 'defect_inflow') {
-                if (value <= 0) return { backgroundColor: '#c6efce', color: '#006100' };
-                if (value <= 15) return { backgroundColor: '#ffeb9c', color: '#9c6500' };
-                return { backgroundColor: '#ffc7ce', color: '#9c0006' };
-              }
-              if (value >= 90) return { backgroundColor: '#c6efce', color: '#006100' };
-              if (value >= 70) return { backgroundColor: '#ffeb9c', color: '#9c6500' };
-              return { backgroundColor: '#ffc7ce', color: '#9c0006' };
-            };
-
+            const sharedSpecs = buildTcoeTableSpecs(metricKey, rowsForTables);
             return (
-              <div className="p-4 space-y-5" style={{ backgroundColor: cardBackground }}>
-                {tableSpecs.map((spec, tableIdx) => (
-                  <div key={`${metricKey}-quality-table-${tableIdx}`} className="overflow-x-auto pdf-table" style={{ width: '100%', pageBreakInside: 'avoid' }}>
-                    <table className="w-full border-collapse pdf-table" style={{ fontFamily: "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr>
-                          <th colSpan={spec.countHeaders.length + (spec.showComparison ? 5 : 3)} style={{ backgroundColor: '#d9e2f3', color: '#000000', border: '1px solid #bfbfbf', padding: '10px 12px', fontWeight: 700, fontSize: '14px', textAlign: 'center' }}>
-                            {spec.title}
-                          </th>
-                        </tr>
-                        <tr>
-                          {(() => {
-                            const headerColumns = [
-                              'Portfolio',
-                              ...spec.countHeaders,
-                              ...(spec.showComparison
-                                ? [`Week ending ${previousWeekEndingLabel}`, `Week ending ${currentWeekEndingLabel}`, 'WoW Progress']
-                                : [`Week ending ${currentWeekEndingLabel}`]),
-                              'Comments',
-                            ];
-                            return headerColumns.map((header, idx) => (
-                              <th key={`${spec.title}-${idx}`} style={{ backgroundColor: '#b4c6e7', color: '#000000', border: '1px solid #bfbfbf', padding: '8px 10px', fontWeight: 700, fontSize: '12px', textAlign: idx === 0 || idx === headerColumns.length - 1 ? 'left' : 'center', minWidth: idx === headerColumns.length - 1 ? '320px' : undefined }}>
-                                {header}
-                              </th>
-                            ));
-                          })()}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {spec.rows.map((row: any, idx: number) => {
-                          const rowBg = row.isGrandTotal ? '#d9e2f3' : (idx % 2 === 0 ? '#ffffff' : '#f8fafc');
-                          return (
-                            <tr key={`${spec.title}-${row.label}-${idx}`} style={{ backgroundColor: rowBg }}>
-                              <td style={{ border: '1px solid #bfbfbf', padding: '8px 10px', color: '#000000', fontWeight: row.isGrandTotal ? 700 : 600, fontSize: '12px' }}>
-                                {row.label}
-                              </td>
-                              {row.counts.map((count: number, countIdx: number) => (
-                                <td key={`${row.label}-count-${countIdx}`} style={{ border: '1px solid #bfbfbf', padding: '8px 10px', color: '#000000', fontWeight: row.isGrandTotal ? 700 : 600, textAlign: 'center', fontSize: '12px' }}>
-                                  {formatNumber(count)}
-                                </td>
-                              ))}
-                              {spec.showComparison && (
-                                <td style={{ border: '1px solid #bfbfbf', padding: '8px 10px', textAlign: 'center', fontWeight: 700, fontSize: '12px', ...cellTone(row.previous, spec.mode, row.lowerIsBetter) }}>
-                                  {formatCellValue(row.previous, spec.mode)}
-                                </td>
-                              )}
-                              <td style={{ border: '1px solid #bfbfbf', padding: '8px 10px', textAlign: 'center', fontWeight: 700, fontSize: '12px', ...cellTone(row.current, spec.mode, row.lowerIsBetter) }}>
-                                {formatCellValue(row.current, spec.mode)}
-                              </td>
-                              {spec.showComparison && (
-                                <td style={{ border: '1px solid #bfbfbf', padding: '8px 10px', textAlign: 'center', fontWeight: 700, fontSize: '12px', ...cellTone(row.progress, spec.mode, row.lowerIsBetter, true) }}>
-                                  {formatChange(row.progress)}
-                                </td>
-                              )}
-                              <td style={{ border: '1px solid #bfbfbf', padding: '8px 10px', color: '#000000', fontSize: '12px', lineHeight: 1.45, whiteSpace: 'pre-line', minWidth: '320px' }}>
-                                <span dangerouslySetInnerHTML={{ __html: row.comment }} />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+              <div style={{ display: 'grid', gap: 18 }}>
+                {sharedSpecs.map((spec) => (
+                  <QcoeMetricTable
+                    key={`${metricKey}-${spec.title}`}
+                    spec={spec}
+                    previousWeek={previousWeekEndingLabel}
+                    currentWeek={currentWeekEndingLabel}
+                  />
                 ))}
               </div>
             );
@@ -9457,7 +8950,7 @@ export function DefectLeakageAnalyzer() {
         >
           <Info className="h-4 w-4" style={{ color: isDarkMode ? '#D4A847' : currentTheme.colors.info }} />
           <AlertDescription className="text-sm" style={{ color: currentTheme.colors.info }}>
-              <strong>TCOE Report:</strong> Select filters above and click "Generate" to analyze defect leakage.
+              <strong>QCOE Report:</strong> Select filters above and click "Generate" to analyze quality metrics.
               Click on Portfolio or Project dropdown to select multiple items with checkboxes.
           </AlertDescription>
         </Alert>

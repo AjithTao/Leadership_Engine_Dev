@@ -134,6 +134,7 @@ def create_tcoe_dashboard_run(today: Optional[date] = None) -> Dict[str, Any]:
                 "status": "pending",
                 "rows": [],
                 "errors": [],
+                "ai_insight": None,
                 "started_at": None,
                 "completed_at": None,
                 "error": None,
@@ -277,12 +278,22 @@ async def analyze_dashboard_metric(
         error_text = "; ".join(f"{item['portfolio']}: {item['error']}" for item in errors)
         raise RuntimeError(error_text or f"No rows generated for {metric['label']}")
 
+    from services.qcoe_ai_insights import generate_qcoe_ai_insight
+
+    ai_insight = await generate_qcoe_ai_insight(
+        analyzer,
+        metric_key,
+        metric["label"],
+        rows,
+    )
+
     return {
         "key": metric_key,
         "label": metric["label"],
         "description": metric["description"],
         "rows": rows,
         "errors": errors,
+        "ai_insight": ai_insight,
     }
 
 
@@ -307,6 +318,7 @@ async def process_tcoe_dashboard_run(
             result = await analyze_dashboard_metric(metric["key"], jira_client, run, portfolios=portfolios)
             metric_state["rows"] = result["rows"]
             metric_state["errors"] = result["errors"]
+            metric_state["ai_insight"] = result.get("ai_insight")
             metric_state["status"] = "completed"
         except Exception as exc:
             metric_state["status"] = "failed"

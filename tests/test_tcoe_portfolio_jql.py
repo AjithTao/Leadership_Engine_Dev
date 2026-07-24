@@ -37,58 +37,62 @@ from services.test_story_ratio_analyzer import TestStoryRatioAnalyzer
 
 
 EXPECTED_PORTFOLIO_COUNTS = {
-    "Data Platform": 23,
-    "Data Solutions": 9,
-    "DMS": 20,
-    "Engineering Excellence": 4,
-    "Fixed Ops": 33,
-    "Fortellis": 5,
-    "Inventory Management Solutions": 6,
-    "Modern Retail": 68,
-    "Network & Communication Services": 4,
-    "Payments": 4,
-    "Shared Services": 14,
-    "Title & Registration-CVR": 11,
+    'Data Platform': 23,
+    'Data Solutions': 10,
+    'DMS': 22,
+    'Fixed Ops': 34,
+    'Fortellis': 5,
+    'Inventory Management Solutions': 6,
+    'Modern Retail': 68,
+    'Payments': 4,
+    'Shared Services': 14,
+    'Title & Registration-CVR': 31,
 }
 
 ACTIVE_CVR_PROJECT_KEYS = [
-    "CVRHOST",
-    "CVRRC",
-    "CVRFL",
-    "CVRIL",
-    "CVRCH",
-    "CVRCLA",
-    "CVRDAESIGN",
-    "CVRMIWEB",
-    "CVRNCC",
-    "CVRNY",
-    "CVRPAC",
+    'CVRS',
+    'CVRCACONV',
+    'CVRCBE',
+    'CVRIN',
+    'CVRNC',
+    'CVRAL',
+    'CVRMA',
+    'CVRMD',
+    'CVRPA',
+    'CVRSC',
+    'CVRVA',
+    'CVRWV',
+    'CVRHOST',
+    'CVRFL',
+    'CVRGA',
+    'CVRIL',
+    'CVRILSUP',
+    'CVRCH',
+    'CVRCIS',
+    'CVRCLA',
+    'CVRDAESIGN',
+    'CVRDOCIMG',
+    'CVRJE',
+    'CVRNMVTI',
+    'CVRRC',
+    'CVRMIWEB',
+    'CVRNCC',
+    'CVRNJ',
+    'CVRNY',
+    'CVRPAC',
+    'WICON',
 ]
 
 EXCLUDED_PROJECT_KEYS = [
-    "MDSIAPF",
-    "IMS",
-    "IMSSYS",
-    "CVRAL",
-    "CVRCACONV",
-    "CVRCBE",
-    "CVRCFE",
-    "CVRCIS",
-    "CVRDOCIMG",
-    "CVRGA",
-    "CVRILSUP",
-    "CVRIN",
-    "CVRMA",
-    "CVRMD",
-    "CVRNC",
-    "CVRNJ",
-    "CVRNMVTI",
-    "CVRPA",
-    "CVRS",
-    "CVRSC",
-    "CVRVA",
-    "CVRWV",
-    "WICON",
+    'REP',
+    'EQAP',
+    'QUEN',
+    'RMD',
+    'CDESK',
+    'NEUTRON',
+    'PROTON',
+    'COLLAB',
+    'VCI',
 ]
 
 
@@ -125,7 +129,7 @@ class TcoePortfolioJqlTests(unittest.TestCase):
             TestCaseReviewStatusAnalyzer(FakeJiraClient()),
         ]
 
-    def test_canonical_mapping_matches_updated_workbook_qcoe_scope(self):
+    def test_canonical_mapping_matches_tac_csv_qcoe_scope(self):
         self.assertEqual(set(PORTFOLIO_PROJECTS), set(EXPECTED_PORTFOLIO_COUNTS))
         self.assertEqual(
             {portfolio: len(projects) for portfolio, projects in PORTFOLIO_PROJECTS.items()},
@@ -134,8 +138,8 @@ class TcoePortfolioJqlTests(unittest.TestCase):
         self.assertEqual(PORTFOLIO_PROJECTS["Title & Registration-CVR"], ACTIVE_CVR_PROJECT_KEYS)
 
         all_projects = [project for projects in PORTFOLIO_PROJECTS.values() for project in projects]
-        self.assertEqual(len(all_projects), 201)
-        self.assertEqual(len(set(all_projects)), 201)
+        self.assertEqual(len(all_projects), 217)
+        self.assertEqual(len(set(all_projects)), 217)
         for project in EXCLUDED_PROJECT_KEYS:
             self.assertNotIn(project, all_projects)
 
@@ -261,26 +265,22 @@ class TcoePortfolioJqlTests(unittest.TestCase):
         self.assertIn('"Test Status" IN ("Requires Automation", "In Progress", "Merged", "Repair")', jira.queries[1])
         self.assertIn('"Test Status" = "Automation Not Required"', jira.queries[2])
 
-    def test_common_portfolio_aliases_do_not_fall_back_to_portfolio_label_jql(self):
+    def test_active_portfolio_aliases_do_not_fall_back_to_portfolio_label_jql(self):
         self.assertEqual(get_portfolio_projects("Data Platforms"), PORTFOLIO_PROJECTS["Data Platform"])
         self.assertEqual(
             build_project_jql("Data Platforms"),
             build_project_jql("Data Platform"),
         )
         self.assertEqual(
-            build_project_jql("Network and Communication Services"),
-            build_project_jql("Network & Communication Services"),
-        )
-        self.assertEqual(
             build_project_jql("IMS"),
             build_project_jql("Inventory Management Solutions"),
         )
 
-    def test_all_filter_resolves_to_all_updated_workbook_project_keys(self):
+    def test_all_filter_resolves_to_all_tac_csv_project_keys(self):
         projects = get_portfolio_projects("All")
 
-        self.assertEqual(len(projects), 201)
-        self.assertEqual(len(set(projects)), 201)
+        self.assertEqual(len(projects), 217)
+        self.assertEqual(len(set(projects)), 217)
         self.assertEqual(projects, [project for keys in PORTFOLIO_PROJECTS.values() for project in keys])
         self.assertTrue(build_project_jql("All").startswith("project IN ("))
         for project in EXCLUDED_PROJECT_KEYS:
@@ -290,7 +290,7 @@ class TcoePortfolioJqlTests(unittest.TestCase):
         analyzer = TestCaseReviewStatusAnalyzer(FakeJiraClient())
 
         self.assertEqual(analyzer.portfolio_groups, PROJECT_TO_PORTFOLIO)
-        self.assertEqual(len(analyzer.portfolio_groups), 201)
+        self.assertEqual(len(analyzer.portfolio_groups), 217)
 
     def test_review_status_portfolio_grouping_displays_the_a5_query(self):
         async def analyze():

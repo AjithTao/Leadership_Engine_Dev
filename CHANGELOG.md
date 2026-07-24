@@ -22,6 +22,35 @@ Dates in this CHANGELOG follow the [ISO 8601 date format](https://www.w3.org/QA/
 
 ## [Unreleased]
 ### Added
+- **QCOE dashboard exports & AI insights**: shared `QcoeMetricTable` component now
+  renders the metric tables in both the TCOE dashboard and the QCOE report view;
+  new data-driven paged PDF/JPG exporter (`qcoeDashboardExport.ts`) replaces the
+  whole-page html2canvas capture; per-metric aggregate AI insight
+  (`backend/services/qcoe_ai_insights.py`) wired into the dashboard run lifecycle
+  with strict JSON validation; "Export as Image" (JPG) buttons on both dashboards;
+  weekly report filenames normalised to `qcoe_*`.
+- **QCOE portfolio scope resync** (from TAC chart): Title & Registration-CVR
+  expanded to 31 project keys; new MRC1/DNALPS/DE/MODACCRPTS/FXDOPSHTT keys;
+  Engineering Excellence and Network & Communication Services portfolios removed.
+  Backend `PORTFOLIO_PROJECTS`, frontend `ACTIVE_TCOE_PORTFOLIO_STRUCTURE`, and
+  tests updated in sync.
+
+### Changed
+- **Functionize light theme**: light mode repainted to lavender-gray canvas, white
+  surfaces, indigo text, action-blue accent, and dark slate-purple navbar/sidebar
+  chrome across all dashboards, connect/config centers, and shared UI primitives.
+  Dark-mode tokens untouched.
+
+### Fixed
+- Test:Story Ratio cells in the on-screen QCOE metric table now use ratio
+  thresholds (was: always red; export coloring was already correct).
+- `ai_insight` read defensively in the TCOE dashboard run loop so analyzers
+  without the field no longer mark the metric failed.
+- Silent exception swallowing in the QCOE AI-insight service now logs warnings.
+- Removed ~360 lines of unreachable legacy table-renderer code left behind the
+  QCOE report view's early return.
+
+### Added
 - **Services MOD Dashboard** (Project Mercury → Module Test Status): module-level
   test automation coverage — 7 modules × 4 categories from live Jira JQL, stacked
   bars with expandable per-category breakdowns, Jira deep-links, TK test-case
