@@ -271,11 +271,11 @@ export function FigmaConnectionSettings({
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center"
                 style={{
-                  background: 'rgba(212,168,71,0.15)',
-                  border: '1px solid rgba(212,168,71,0.25)'
+                  background: isDarkMode ? 'rgba(212,168,71,0.15)' : 'var(--accent-cool-bg)',
+                  border: isDarkMode ? '1px solid rgba(212,168,71,0.25)' : '1px solid rgba(24,120,185,0.25)'
                 }}
               >
-                <Settings className="w-5 h-5" style={{ color: '#D4A847' }} />
+                <Settings className="w-5 h-5" style={{ color: isDarkMode ? '#D4A847' : 'var(--accent-cool-text)' }} />
               </div>
               <div>
                 <h2 className={`text-xl font-bold`} style={{ color: currentTheme.colors.text }}>Connection Settings</h2>
@@ -305,13 +305,13 @@ export function FigmaConnectionSettings({
                     onClick={() => setActiveTab(tab.id as any)}
                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200`}
                     style={{
-                      backgroundColor: activeTab === tab.id ? 'var(--bg-active)' : 'transparent',
-                      color: activeTab === tab.id ? 'var(--text-primary)' : 'var(--text-secondary)'
+                      backgroundColor: activeTab === tab.id ? 'var(--accent-indigo)' : 'transparent',
+                      color: activeTab === tab.id ? (isDarkMode ? 'var(--text-primary)' : '#FFFFFF') : 'var(--text-secondary)'
                     }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <tab.icon className={`w-4 h-4 flex-shrink-0`} style={{ color: '#D4A847' }} />
+                    <tab.icon className={`w-4 h-4 flex-shrink-0`} style={{ color: isDarkMode ? '#D4A847' : (activeTab === tab.id ? '#FFFFFF' : 'var(--accent-cool)') }} />
                     <span className="font-medium flex-1 min-w-0 truncate text-left">{tab.label}</span>
                     {(connections.find(c => c.name.toLowerCase() === tab.id)?.status === 'connected' || connectionStatus[tab.id] === 'connected') && (
                       <span
@@ -322,8 +322,8 @@ export function FigmaConnectionSettings({
                           lineHeight: 1,
                           padding: '3px 8px',
                           borderRadius: 999,
-                          color: 'var(--text-secondary)',
-                          background: 'rgba(34,197,94,0.10)',
+                          color: isDarkMode ? 'var(--text-secondary)' : 'var(--status-success)',
+                          background: isDarkMode ? 'rgba(34,197,94,0.10)' : 'var(--status-success-bg)',
                           flexShrink: 0
                         }}
                       >
@@ -332,7 +332,7 @@ export function FigmaConnectionSettings({
                             width: 7,
                             height: 7,
                             borderRadius: '50%',
-                            background: '#22C55E',
+                            background: isDarkMode ? '#22C55E' : 'var(--status-success)',
                             flexShrink: 0
                           }}
                         />
@@ -721,7 +721,7 @@ export function FigmaConnectionSettings({
               </span>
             </div>
             <div className="flex items-center space-x-3">
-              <Button variant="outline" onClick={onClose}>
+              <Button variant="outline" className="fx-pill" onClick={onClose}>
                 Close
               </Button>
             </div>

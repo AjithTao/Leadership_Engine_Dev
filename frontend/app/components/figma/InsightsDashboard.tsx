@@ -1625,8 +1625,8 @@ const avgIssuesPerMember = topAssignees.length > 0
                 onClick={handleGetInsights}
                 disabled={loading}
                 style={{
-                  background: 'var(--accent-cool)', color: '#000',
-                  border: 'none', borderRadius: 10, padding: '0 22px',
+                  background: 'var(--accent-cool)', color: isDarkMode ? '#000' : '#fff',
+                  border: 'none', borderRadius: isDarkMode ? 10 : 9999, padding: '0 22px',
                   fontSize: 13, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
                   height: 36, display: 'flex', alignItems: 'center', gap: 7,
                   opacity: loading ? 0.7 : 1, transition: 'opacity 0.15s', whiteSpace: 'nowrap',
@@ -1698,7 +1698,7 @@ const avgIssuesPerMember = topAssignees.length > 0
                 <SlidersHorizontal size={11} />
                 Filters
                 {(advancedFilters.priority.length + advancedFilters.issueType.length + advancedFilters.statusCategory.length + (advancedFilters.assignee ? 1 : 0) + (advancedFilters.label ? 1 : 0)) > 0 && (
-                  <span style={{ background: 'var(--accent-cool)', color: '#000', borderRadius: '50%', width: 14, height: 14, fontSize: 9, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ background: 'var(--accent-cool)', color: isDarkMode ? '#000' : '#fff', borderRadius: '50%', width: 14, height: 14, fontSize: 9, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                     {advancedFilters.priority.length + advancedFilters.issueType.length + advancedFilters.statusCategory.length + (advancedFilters.assignee ? 1 : 0) + (advancedFilters.label ? 1 : 0)}
                   </span>
                 )}
@@ -1875,7 +1875,7 @@ const avgIssuesPerMember = topAssignees.length > 0
               </p>
               <button
                 onClick={handleGetInsights}
-                style={{ background: 'var(--accent-cool)', color: '#000', border: 'none', borderRadius: 10, padding: '10px 28px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+                style={{ background: 'var(--accent-cool)', color: isDarkMode ? '#000' : '#fff', border: 'none', borderRadius: isDarkMode ? 10 : 9999, padding: '10px 28px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
               >
                 Get Insights
               </button>
@@ -2109,7 +2109,7 @@ const avgIssuesPerMember = topAssignees.length > 0
                           onClick={() => setSelectedChartView(v)}
                           style={{
                             background: selectedChartView === v ? 'var(--accent-cool)' : 'var(--bg-surface)',
-                            color: selectedChartView === v ? '#000' : 'var(--text-secondary)',
+                            color: selectedChartView === v ? (isDarkMode ? '#000' : '#fff') : 'var(--text-secondary)',
                             border: `1px solid ${selectedChartView === v ? 'var(--accent-cool)' : 'var(--border)'}`,
                             borderRadius: 8, padding: '4px 11px', fontSize: 11, fontWeight: 600,
                             cursor: 'pointer', textTransform: 'capitalize', letterSpacing: '0.03em',

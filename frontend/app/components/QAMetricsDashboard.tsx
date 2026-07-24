@@ -257,21 +257,21 @@ export function QAMetricsDashboard() {
               </h1>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
                 <p style={{ fontSize: '14px', color: DS.textSecondary, margin: 0 }}>Comprehensive Quality Engineering Dashboard</p>
-                <span style={{ background: DS.greenBg, color: DS.green, border: '1px solid rgba(212,168,71,0.3)', borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: 600 }}>
+                <span style={{ background: DS.greenBg, color: DS.green, border: '1px solid color-mix(in srgb, var(--green) 30%, transparent)', borderRadius: '6px', padding: '2px 8px', fontSize: '11px', fontWeight: 600 }}>
                   {data.total_projects} Projects • {data.unique_products} Products
                 </span>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <button onClick={fetchQEMetrics} disabled={loading} style={{ background: DS.surface, color: DS.textPrimary, border: `1px solid ${DS.border}`, borderRadius: '8px', padding: '8px 14px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: DS.font, opacity: loading ? 0.7 : 1 }}>
+              <button onClick={fetchQEMetrics} disabled={loading} style={{ background: DS.surface, color: DS.textPrimary, border: `1px solid ${DS.border}`, borderRadius: 'var(--radius-pill)', padding: '8px 14px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: DS.font, opacity: loading ? 0.7 : 1 }}>
                 <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
                 Refresh
               </button>
-              <button onClick={exportToExcel} disabled={!data} style={{ background: DS.surface, color: DS.textPrimary, border: `1px solid ${DS.border}`, borderRadius: '8px', padding: '8px 14px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: DS.font }}>
+              <button onClick={exportToExcel} disabled={!data} style={{ background: DS.surface, color: DS.textPrimary, border: `1px solid ${DS.border}`, borderRadius: 'var(--radius-pill)', padding: '8px 14px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: DS.font }}>
                 <Sheet size={14} />
                 CSV
               </button>
-              <button onClick={exportToPDF} disabled={!data} style={{ background: DS.surface, color: DS.textPrimary, border: `1px solid ${DS.border}`, borderRadius: '8px', padding: '8px 14px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: DS.font }}>
+              <button onClick={exportToPDF} disabled={!data} style={{ background: DS.surface, color: DS.textPrimary, border: `1px solid ${DS.border}`, borderRadius: 'var(--radius-pill)', padding: '8px 14px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: DS.font }}>
                 <FileText size={14} />
                 PDF
               </button>

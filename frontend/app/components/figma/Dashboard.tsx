@@ -187,7 +187,7 @@ export function FigmaDashboard({ hasActiveConnections, theme }: FigmaDashboardPr
               <button
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '7px 14px', borderRadius: 8,
+                  padding: '7px 14px', borderRadius: theme === 'dark' ? 8 : 9999,
                   background: 'transparent',
                   border: `1px solid ${T.border}`,
                   color: T.textSec, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer',
@@ -201,9 +201,9 @@ export function FigmaDashboard({ hasActiveConnections, theme }: FigmaDashboardPr
               <button
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '7px 14px', borderRadius: 8,
+                  padding: '7px 14px', borderRadius: theme === 'dark' ? 8 : 9999,
                   background: T.mustard, border: 'none',
-                  color: 'var(--bg-page)', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+                  color: 'var(--btn-primary-fg)', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
                   transition: 'opacity 0.15s',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
@@ -340,7 +340,7 @@ export function FigmaDashboard({ hasActiveConnections, theme }: FigmaDashboardPr
                         style={{
                           width: 28, height: 28, borderRadius: 8, flexShrink: 0,
                           backgroundColor: act.ok === true ? T.mustardDim : act.ok === false ? T.redBg : T.bgSurface,
-                          border: `1px solid ${act.ok === true ? T.mustard + '30' : act.ok === false ? T.red + '30' : T.border}`,
+                          border: `1px solid ${act.ok === true ? (theme === 'dark' ? 'transparent' : `color-mix(in srgb, ${T.mustard} 19%, transparent)`) : act.ok === false ? (theme === 'dark' ? 'transparent' : `color-mix(in srgb, ${T.red} 19%, transparent)`) : T.border}`,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}
                       >
@@ -421,7 +421,7 @@ export function FigmaDashboard({ hasActiveConnections, theme }: FigmaDashboardPr
                             fontSize: 10, fontWeight: 600,
                             color: T.mustard,
                             backgroundColor: T.mustardDim,
-                            border: `1px solid ${T.mustard}25`,
+                            border: `1px solid ${theme === 'dark' ? 'transparent' : `color-mix(in srgb, ${T.mustard} 15%, transparent)`}`,
                             borderRadius: 4, padding: '1px 6px',
                           }}
                         >
@@ -500,7 +500,7 @@ export function FigmaDashboard({ hasActiveConnections, theme }: FigmaDashboardPr
             transition={{ delay: 0.9 }}
             style={{
               height: 1,
-              background: `linear-gradient(to right, ${T.mustard}40, ${T.olive}40, transparent)`,
+              background: theme === 'dark' ? 'none' : `linear-gradient(to right, color-mix(in srgb, ${T.mustard} 25%, transparent), color-mix(in srgb, ${T.olive} 25%, transparent), transparent)`,
             }}
           />
           <p style={{ color: T.textMuted, fontSize: 11, paddingBottom: 4 }}>

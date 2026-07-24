@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700;6..12,800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -8,85 +8,135 @@
 
   /* ═══════════════════════════════════════════════════════════════════════════
      LIGHT MODE — :root (default)
-     Palette: Twilight Fog — cool blue-gray family, original mustard accent.
-     Inverts the dark mode's navy depth into cool misty surfaces.
-     Uses the exact same #D4A847 mustard as dark mode — no gold shift.
+     Palette: Functionize — lavender-gray canvas, white surfaces, indigo text,
+     action blue, dark slate-purple chrome (navbar/sidebar), pill buttons.
+     Dark mode (.dark below) is intentionally untouched by this restyle.
      ═══════════════════════════════════════════════════════════════════════════ */
   :root {
     color-scheme: light;
 
-    /* ── Backgrounds & surfaces — warm-neutral light stack, elevated cards ─ */
-    --bg-page:        #F4F5F7;   /* light neutral canvas (never pure white)    */
-    --bg-card:        #FCFCFD;   /* elevated surface — near-white, lifts above page */
-    --bg-surface:     #ECEDF1;   /* table headers, inputs — subtle inset       */
-    --bg-hover:       #E5E7EC;   /* nav hover, row hover                       */
-    --bg-active:      #DBDEE6;   /* active nav, selected states                */
+    /* ── Backgrounds & surfaces ─────────────────────────────────────────── */
+    --bg-page:        #F0F1F8;   /* lavender-gray app canvas                   */
+    --bg-card:        #FFFFFF;   /* cards, tables, modals, panels              */
+    --bg-surface:     #F3F4F9;   /* table headers, subtle insets               */
+    --bg-hover:       #E9EAF3;   /* row hover, quiet hover states              */
+    --bg-active:      #DFE1EF;   /* selected states                            */
 
     /* ── Borders ────────────────────────────────────────────────────────── */
-    --border:         #E1E3E9;   /* subtle neutral border                      */
-    --border-strong:  #C9CCD5;   /* focus / hover emphasis                     */
+    --border:         #D8DAE5;   /* lines & fields                             */
+    --border-strong:  #B9BDD1;   /* focus / hover emphasis                     */
+    --divider:        #ECEDF3;   /* row separators                             */
 
-    /* ── Text — genuine 3-step hierarchy (all ≥ AA on the surfaces above) ── */
-    --text-primary:   #16191F;   /* near-black — 17:1 on card                  */
-    --text-secondary: #4E5564;   /* mid-grey — 7.3:1, distinct from primary    */
-    --text-muted:     #646B79;   /* muted — 5.2:1 on card, 4.6:1 on surface    */
-    --text-hint:      #646B79;   /* hint — kept AA for small uppercase labels  */
+    /* ── Text — indigo-tinted hierarchy (all ≥ AA on white)  ─────────────── */
+    --text-primary:   #3F3E63;   /* headings, table headers, card titles       */
+    --text-secondary: #4A4A5E;   /* body                                       */
+    --text-muted:     #7C7C95;   /* metadata, timestamps — 4.6:1 on white      */
+    --text-hint:      #7C7C95;   /* small uppercase labels                     */
+    --text-heading:   #3F3E63;   /* spec alias                                 */
+    --text-body:      #4A4A5E;   /* spec alias                                 */
+    --text-on-dark:   #FFFFFF;
 
-    /* ── Brand accent — gold tuned for LIGHT surfaces ──────────────────── */
-    --accent-cool:      #A07815; /* fills/dots/stripes/icons — 3.9:1 UI on card */
-    --accent-cool-text: #816213; /* gold as TEXT on light — 5.0:1+ (badges)    */
-    --accent-cool-hover:#6E5410; /* hover/active accent                        */
-    --accent-cool-bg:   #F6F0DF; /* pale warm-gold tint background             */
+    /* ── Brand accent — action blue (replaces gold in light mode) ────────── */
+    --accent-cool:      #1878B9; /* primary actions, active accents            */
+    --accent-cool-text: #146AA5; /* blue as TEXT on white — 5.5:1              */
+    --accent-cool-hover:#146AA5; /* hover/active                               */
+    --accent-cool-bg:   #E4F1F9; /* pale blue tint background                  */
+    --primary-hover:    #146AA5;
+    --accent-indigo:    #504E7A; /* active section tabs, secondary emphasis    */
+    --link:             #1E88C7;
+    --info-cyan:        #29ABE2; /* FAB, highlights                            */
+    --active-underline: #3D9BE9; /* active navbar item indicator               */
+
+    /* ── Chrome (top navbar / left sidebar) — dark in light mode ─────────── */
+    --nav-bg:             #3E3D54;
+    --nav-text:           #FFFFFF;
+    --nav-text-muted:     rgba(255,255,255,0.72);
+    --nav-hover-bg:       rgba(255,255,255,0.08);
+    --nav-active-bg:      rgba(255,255,255,0.12);
+    --nav-border:         rgba(255,255,255,0.14);
+    --sidebar-bg:         #403F63;
+    --sidebar-text:       #FFFFFF;
+    --sidebar-text-muted: rgba(255,255,255,0.66);
+    --sidebar-hover-bg:   rgba(255,255,255,0.08);
+    --sidebar-active-bg:  #504E7A;
+    --sidebar-item-border: rgba(255,255,255,0.14);
+    --sidebar-section-label: rgba(255,255,255,0.55);  /* uppercase group headings */
+    --sidebar-subtext:       rgba(255,255,255,0.60);  /* sublabels, tree chevrons  */
+    --olive-dim:          rgba(80,78,122,0.10);       /* decorative corner glow    */
+    /* Accent that pops on the dark chrome (light-blue in light, gold in dark) */
+    --chrome-accent:        #3D9BE9;
+    --chrome-accent-dim:    rgba(61,155,233,0.15);
+    --chrome-accent-border: rgba(61,155,233,0.35);
+    --chrome-success:       #6EDC8C;   /* status dots on dark chrome           */
+    --chrome-danger:        #FF8B95;
+    /* Inverted/primary buttons (solid action blue in light) */
+    --btn-primary-bg:     #1878B9;
+    --btn-primary-fg:     #FFFFFF;
+    /* CDK Global logo third dot — brand green in light */
+    --cdk-dot:            #96C93D;
 
     /* ── Semantic colors ────────────────────────────────────────────────── */
     --amber:          #B87700;
-    --amber-bg:       #F2E8CC;
-    --red:            #C01C1C;
-    --red-bg:         #F2DADA;
-    --blue:           #1A5BB0;
-    --blue-bg:        #D8E6F5;
+    --amber-bg:       #F6ECD7;
+    --red:            #C21F3A;
+    --red-bg:         #F9E3E7;
+    --blue:           #1E88C7;
+    --blue-bg:        #E3F0F9;
+    --danger:         #C21F3A;   /* destructive pills                          */
+    --chart-green:    #A5D573;
+    --chart-blue:     #8FBFDE;
 
     /* ── Typography & radius ────────────────────────────────────────────── */
     --radius:         8px;
     --radius-lg:      12px;
     --radius-xl:      16px;
-    --font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --radius-card:    10px;
+    --radius-input:   6px;
+    --radius-pill:    9999px;    /* buttons are pills in light mode            */
+    --font:           'Nunito Sans', 'Mulish', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --mono:           'JetBrains Mono', 'Fira Code', monospace;
 
-    /* ── Glass effects ──────────────────────────────────────────────────── */
-    --glass-bg:       rgba(11,18,32,0.05);
-    --glass-border:   rgba(11,18,32,0.10);
-    --glass-shadow:   0 4px 16px rgba(10,20,50,0.12);
+    /* ── Fields & focus ─────────────────────────────────────────────────── */
+    --input-bg:       #FFFFFF;
+    --focus-ring:     #1878B9;
 
-    /* ── Shadows (cool-tinted for blue-gray surfaces) ───────────────────── */
-    --shadow-small:   0 1px 3px rgba(10,20,50,0.09), 0 1px 2px rgba(10,20,50,0.06);
-    --shadow-medium:  0 4px 12px rgba(10,20,50,0.09), 0 2px 4px rgba(10,20,50,0.06);
-    --shadow-large:   0 8px 28px rgba(10,20,50,0.12), 0 4px 8px rgba(10,20,50,0.07);
+    /* ── Glass effects ──────────────────────────────────────────────────── */
+    --glass-bg:       rgba(30,30,60,0.05);
+    --glass-border:   rgba(30,30,60,0.10);
+    --glass-shadow:   0 4px 16px rgba(30,30,60,0.12);
+
+    /* ── Shadows (indigo-tinted for lavender surfaces) ──────────────────── */
+    --shadow-card:    0 1px 3px rgba(30,30,60,0.08);
+    --shadow-small:   0 1px 3px rgba(30,30,60,0.08);
+    --shadow-medium:  0 4px 12px rgba(30,30,60,0.10), 0 2px 4px rgba(30,30,60,0.06);
+    --shadow-large:   0 8px 28px rgba(30,30,60,0.14), 0 4px 8px rgba(30,30,60,0.08);
 
     /* ── Legacy compat aliases ──────────────────────────────────────────── */
-    --bg-primary:        #F4F5F7;
-    --bg-secondary:      #FCFCFD;
-    --bg-tertiary:       #ECEDF1;
-    --accent-primary:    #16191F;
-    --accent-secondary:  #4E5564;
-    --accent-tertiary:   #646B79;
-    --text-muted-legacy: #646B79;
-    --border-subtle:     #E1E3E9;
-    --border-muted:      #E1E3E9;
-    --border-accent:     #C9CCD5;
-    --success:           #D4A847;
-    --green:             var(--accent-cool);
-    --green-bg:          var(--accent-cool-bg);
+    --page-bg:           #F0F1F8;  /* spec alias                              */
+    --surface:           #FFFFFF;  /* spec alias                              */
+    --bg-primary:        #F0F1F8;
+    --bg-secondary:      #FFFFFF;
+    --bg-tertiary:       #ECEDF3;
+    --accent-primary:    #3F3E63;
+    --accent-secondary:  #4A4A5E;
+    --accent-tertiary:   #7C7C95;
+    --text-muted-legacy: #7C7C95;
+    --border-subtle:     #D8DAE5;
+    --border-muted:      #D8DAE5;
+    --border-accent:     #B9BDD1;
+    --success:           #43A05C;
+    --green:             #43A05C;
+    --green-bg:          #E4F2E8;
     --warning:           #B87700;
-    --error:             #C01C1C;
+    --error:             #C21F3A;
 
     /* ── Status semantics (success / warning / danger) — AA as text on light */
-    --status-success:    #1A7331;   /* 5.8:1 text · 3:1 dot on card           */
+    --status-success:    #2E7D46;   /* 4.9:1 text on white                    */
     --status-success-bg: #E4F2E8;
     --status-warning:    #8A5E10;   /* dark amber/ochre — 5.6:1 text          */
     --status-warning-bg: #F6ECD7;
-    --status-danger:     #C01C1C;   /* 6:1 text                               */
-    --status-danger-bg:  #F7DEDE;
+    --status-danger:     #C21F3A;   /* 6:1 text                               */
+    --status-danger-bg:  #F9E3E7;
 
     /* ── Semantic design tokens (brand naming) + interactive states ──────── */
     --color-bg-primary:     var(--bg-page);
@@ -107,40 +157,40 @@
     --state-active-bg:      var(--bg-active);
     --state-focus-ring:     var(--accent-cool);
 
-    /* ── Tailwind HSL compat (light — warm-neutral, matches hexes above) ─── */
-    --background:              220 16% 96%;   /* #F4F5F7                      */
-    --foreground:              220 17% 10%;   /* #16191F                      */
-    --card:                    240 20% 99%;   /* #FCFCFD                      */
-    --card-foreground:         220 17% 10%;
-    --popover:                 240 20% 99%;
-    --popover-foreground:      220 17% 10%;
-    --primary:                 220 17% 10%;
-    --primary-foreground:      220 16% 96%;
-    --secondary:               228 15% 94%;   /* #ECEDF1 surface              */
-    --secondary-foreground:    220 17% 10%;
-    --muted:                   228 15% 94%;
-    --muted-foreground:        220 10% 43%;   /* #646B79                      */
-    --accent:                  228 15% 94%;
-    --accent-foreground:       220 17% 10%;
-    --destructive:             0 75% 43%;     /* #C01C1C                      */
+    /* ── Tailwind HSL compat (light — matches hexes above) ────────────────── */
+    --background:              232 36% 96%;   /* #F0F1F8                      */
+    --foreground:              242 23% 32%;   /* #3F3E63                      */
+    --card:                    0 0% 100%;     /* #FFFFFF                      */
+    --card-foreground:         242 23% 32%;
+    --popover:                 0 0% 100%;
+    --popover-foreground:      242 23% 32%;
+    --primary:                 204 77% 41%;   /* #1878B9 action blue          */
+    --primary-foreground:      0 0% 100%;
+    --secondary:               231 21% 94%;   /* #ECEDF3                      */
+    --secondary-foreground:    242 23% 32%;
+    --muted:                   231 21% 94%;
+    --muted-foreground:        240 11% 54%;   /* #7C7C95                      */
+    --accent:                  231 21% 94%;
+    --accent-foreground:       242 23% 32%;
+    --destructive:             350 72% 44%;   /* #C21F3A                      */
     --destructive-foreground:  0 0% 100%;
-    --input:                   228 15% 94%;
-    --ring:                    220 17% 10%;
-    --sidebar:                 240 20% 99%;   /* elevated card surface        */
-    --sidebar-foreground:      220 17% 10%;
-    --sidebar-primary:         220 17% 10%;
-    --sidebar-primary-foreground: 220 16% 96%;
-    --sidebar-accent:          223 16% 91%;   /* hover in sidebar (#E5E7EC)   */
-    --sidebar-accent-foreground: 220 17% 10%;
-    --sidebar-border:          225 15% 90%;   /* #E1E3E9                      */
-    --sidebar-ring:            220 17% 10%;
+    --input:                   231 20% 87%;   /* #D8DAE5 field borders        */
+    --ring:                    204 77% 41%;   /* blue focus ring              */
+    --sidebar:                 242 22% 32%;   /* #403F63 dark indigo panel    */
+    --sidebar-foreground:      0 0% 100%;
+    --sidebar-primary:         204 77% 41%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent:          243 22% 39%;   /* #504E7A active block         */
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border:          242 22% 40%;
+    --sidebar-ring:            204 77% 41%;
 
-    /* ── Chart colors (twilight fog light) ──────────────────────────────── */
-    --chart-1: 43 65% 50%;    /* mustard gold                                 */
-    --chart-2: 217 68% 40%;   /* deep blue                                    */
-    --chart-3: 45 93% 42%;
-    --chart-4: 0 72% 45%;
-    --chart-5: 220 18% 50%;
+    /* ── Chart colors (Functionize light) ───────────────────────────────── */
+    --chart-1: 89 54% 64%;    /* #A5D573 chart green                          */
+    --chart-2: 204 55% 72%;   /* #8FBFDE chart blue                           */
+    --chart-3: 204 77% 41%;   /* #1878B9 action blue                          */
+    --chart-4: 243 22% 39%;   /* #504E7A indigo                               */
+    --chart-5: 350 72% 44%;   /* #C21F3A red                                  */
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════
@@ -149,6 +199,55 @@
      ═══════════════════════════════════════════════════════════════════════════ */
   .dark {
     color-scheme: dark;
+
+    /* ── Light-restyle token names, aliased to the EXISTING dark values ────
+       These exist so light-mode components can consume the new tokens while
+       dark mode renders pixel-identically to before the restyle. Do not
+       introduce new colors here. ─────────────────────────────────────────── */
+    --font:           'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --divider:        #2A2D3E;   /* = --border                                 */
+    --text-heading:   #E8EAF0;   /* = --text-primary                           */
+    --text-body:      #8B93A8;   /* = --text-secondary                         */
+    --text-on-dark:   #E8EAF0;
+    --primary-hover:  #E0B860;   /* = --accent-cool-hover                      */
+    --accent-indigo:  #353A52;   /* = --bg-active                              */
+    --link:           #93C5FD;   /* = --blue                                   */
+    --info-cyan:      #93C5FD;
+    --active-underline: #D4A847; /* = --accent-cool                            */
+    --nav-bg:             #252830;            /* = --bg-surface (header's old bg) */
+    --nav-text:           #E8EAF0;
+    --nav-text-muted:     #8B93A8;
+    --nav-hover-bg:       #2D3142;            /* = --bg-hover                  */
+    --nav-active-bg:      #353A52;            /* = --bg-active                 */
+    --nav-border:         #2A2D3E;
+    --sidebar-bg:         #1E2028;            /* = --bg-card (sidebar's old bg) */
+    --sidebar-text:       #E8EAF0;
+    --sidebar-text-muted: #8B93A8;
+    --sidebar-hover-bg:   #2D3142;
+    --sidebar-active-bg:  #353A52;
+    --sidebar-item-border: #2A2D3E;
+    --sidebar-section-label: #3A4060;         /* = --text-hint                 */
+    --sidebar-subtext:       #545B78;         /* = --text-muted                */
+    --olive-dim:          rgba(122,142,78,0.15); /* original olive glow        */
+    --chrome-accent:        #D4A847;          /* = MUSTARD                     */
+    --chrome-accent-dim:    rgba(212,168,71,0.15);
+    --chrome-accent-border: rgba(212,168,71,0.25);
+    --chrome-success:       #4ADE80;          /* = --status-success            */
+    --chrome-danger:        #F87171;          /* = --red                       */
+    --btn-primary-bg:     #E8EAF0;            /* = theme primary (dark)        */
+    --btn-primary-fg:     #13151C;            /* = theme background (dark)     */
+    --cdk-dot:            #D4A847;            /* = MUSTARD                     */
+    --danger:         #F87171;   /* = --red                                    */
+    --chart-green:    #4ADE80;   /* = --status-success                         */
+    --chart-blue:     #93C5FD;   /* = --blue                                   */
+    --radius-card:    12px;      /* = --radius-lg (unchanged look)             */
+    --radius-input:   8px;       /* = --radius                                 */
+    --radius-pill:    8px;       /* dark buttons stay rounded-rect             */
+    --input-bg:       #252830;   /* = --bg-surface                             */
+    --focus-ring:     #3D4258;   /* = --border-strong                          */
+    --shadow-card:    0 1px 2px rgba(0,0,0,0.4);  /* = --shadow-small          */
+    --page-bg:        #13151C;
+    --surface:        #1E2028;
 
     /* ── Backgrounds & surfaces ─────────────────────────────────────────── */
     --bg-page:        #13151C;
@@ -369,7 +468,7 @@ button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 2px solid var(--border-strong);
+  outline: 2px solid var(--focus-ring, var(--border-strong));
   outline-offset: 2px;
 }
 
@@ -402,12 +501,89 @@ select:focus-visible {
 }
 .ds-card:hover { border-color: var(--border-strong); }
 
-/* Light-mode card elevation — subtle, enterprise. Dark mode keeps its flat,
-   border-defined cards so the dark theme is completely unaffected. */
+/* ══════════════════════════════════════════════════════════════════════════
+   FUNCTIONIZE LIGHT THEME — structural overrides (light mode ONLY)
+   Everything below is scoped to html:not(.dark); the dark theme keeps its
+   flat, border-defined look untouched.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Cards — white on lavender, 10px radius, soft indigo shadow */
 html:not(.dark) .ds-card,
-html:not(.dark) .premium-card { box-shadow: var(--shadow-small); }
+html:not(.dark) .premium-card {
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
 html:not(.dark) .ds-card:hover,
 html:not(.dark) .premium-card:hover { box-shadow: var(--shadow-medium); }
+
+/* Buttons — every button is a pill. Primary: solid action blue.
+   Secondary: white with border. */
+html:not(.dark) .btn,
+html:not(.dark) .premium-button {
+  border-radius: var(--radius-pill);
+  background: var(--bg-card);
+  border-color: var(--border);
+  color: var(--text-heading);
+  font-weight: 600;
+}
+html:not(.dark) .btn:hover,
+html:not(.dark) .premium-button:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+html:not(.dark) .btn-primary {
+  background: var(--accent-cool);
+  border-color: var(--accent-cool);
+  color: #FFFFFF;
+}
+html:not(.dark) .btn-primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+  opacity: 1;
+}
+
+/* Tables — white container, bold indigo headers (no uppercase), roomy cells,
+   1px divider rows */
+html:not(.dark) .ds-table-wrap { border-radius: var(--radius-card); }
+html:not(.dark) .ds-table thead th {
+  background: var(--bg-card);
+  color: var(--text-heading);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+html:not(.dark) .ds-table tbody tr { border-bottom: 1px solid var(--divider); }
+html:not(.dark) .ds-table tbody td { padding: 14px 16px; }
+html:not(.dark) .ds-table tbody tr:hover { background: var(--bg-surface); }
+
+/* Progress bars — slim, rounded, blue */
+html:not(.dark) .progress-track { border-radius: var(--radius-pill); }
+html:not(.dark) .progress-fill { background: var(--accent-cool); border-radius: var(--radius-pill); }
+html:not(.dark) .progress-fill-green { background: var(--success); }
+
+/* Chat bubbles — keep shape, lift bot bubble onto white */
+html:not(.dark) .bubble-bot { background: var(--bg-card); }
+
+/* Links — Functionize link blue */
+html:not(.dark) a.fx-link, html:not(.dark) .fx-link { color: var(--link); }
+
+/* Floating helper button (FAB) — cyan circle, white icon */
+html:not(.dark) .fx-fab {
+  background: var(--info-cyan);
+  color: #FFFFFF;
+  border-radius: 50%;
+  box-shadow: var(--shadow-medium);
+}
+
+/* Pill opt-in — elements tagged .fx-pill go fully rounded in light mode only;
+   dark mode keeps whatever radius class the element already has. */
+html:not(.dark) .fx-pill { border-radius: var(--radius-pill); }
+
+/* Popovers/dropdowns lift with a soft shadow in light mode */
+html:not(.dark) .fx-popover { box-shadow: var(--shadow-large); }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 .btn {
@@ -458,10 +634,12 @@ html:not(.dark) .premium-card:hover { box-shadow: var(--shadow-medium); }
 }
 
 /* ── Inputs ─────────────────────────────────────────────────────────────── */
+/* --input-bg / --radius-input resolve to the historical --bg-surface /
+   --radius values in dark mode, so only light mode changes appearance. */
 input, select, textarea {
-  background: var(--bg-surface);
+  background: var(--input-bg, var(--bg-surface));
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-input, var(--radius));
   color: var(--text-primary);
   font-family: var(--font);
   font-size: 13px;
@@ -471,6 +649,12 @@ input, select, textarea {
 }
 input:focus, select:focus, textarea:focus {
   border-color: var(--border-strong);
+}
+html:not(.dark) input:focus,
+html:not(.dark) select:focus,
+html:not(.dark) textarea:focus {
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 3px rgba(24, 120, 185, 0.15);
 }
 input::placeholder, textarea::placeholder {
   color: var(--text-muted);

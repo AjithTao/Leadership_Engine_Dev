@@ -26,6 +26,12 @@ interface GithubConfig {
   email: string
 }
 
+interface LegacyGithubConfig {
+  token?: string
+  organization?: string
+  enabled?: boolean
+}
+
 interface GithubStatus {
   connected: boolean
   user?: string
@@ -38,7 +44,7 @@ interface GithubStatus {
 }
 
 export function SimpleGithubConnect() {
-  const { currentTheme } = useTheme()
+  const { currentTheme, isDarkMode } = useTheme()
   const [status, setStatus] = useState<GithubStatus | null>(null)
   const [config, setConfig] = useState<GithubConfig>({
     apiToken: '',
@@ -50,17 +56,29 @@ export function SimpleGithubConnect() {
   const [savedConfig, setSavedConfig] = useState<GithubConfig | null>(null)
   const [connectionResult, setConnectionResult] = useState<string | null>(null)
 
+  const normalizeGithubConfig = (raw: string | null): GithubConfig | null => {
+    if (!raw) return null
+    try {
+      const parsed = JSON.parse(raw) as GithubConfig | LegacyGithubConfig
+      const token = (parsed as GithubConfig).apiToken || (parsed as LegacyGithubConfig).token || ''
+      const email = (parsed as GithubConfig).email || ''
+      if (!token) return null
+      return { apiToken: token, email }
+    } catch (error) {
+      console.error('Failed to parse GitHub config from localStorage:', error)
+      return null
+    }
+  }
+
   // Load saved configuration from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('github_config')
-    if (saved) {
-      try {
-        const parsedConfig = JSON.parse(saved)
-        setSavedConfig(parsedConfig)
-        setConfig(parsedConfig)
-      } catch (error) {
-        console.error('Failed to load saved GitHub config:', error)
-      }
+    const normalized =
+      normalizeGithubConfig(localStorage.getItem('github_config')) ||
+      normalizeGithubConfig(localStorage.getItem('github-config'))
+
+    if (normalized) {
+      setSavedConfig(normalized)
+      setConfig(normalized)
     }
   }, [])
 
@@ -84,7 +102,13 @@ export function SimpleGithubConnect() {
   // Save configuration to localStorage
   const saveConfiguration = async () => {
     try {
+      // Write both keys for compatibility across legacy/new settings components.
       localStorage.setItem('github_config', JSON.stringify(config))
+      localStorage.setItem('github-config', JSON.stringify({
+        token: config.apiToken,
+        organization: '',
+        enabled: true,
+      }))
       setSavedConfig(config)
       return true
     } catch (error) {
@@ -96,6 +120,7 @@ export function SimpleGithubConnect() {
   // Remove stale saved credentials so Connect can't replay them
   const clearSavedDetails = () => {
     localStorage.removeItem('github_config')
+    localStorage.removeItem('github-config')
     setSavedConfig(null)
     setConfig({ apiToken: '', email: '' })
     setConnectionResult('✅ Saved connection details cleared.')
@@ -106,6 +131,12 @@ export function SimpleGithubConnect() {
     try {
       setLoading(true)
       setConnectionResult(null)
+
+      const liveStatus = await checkStatus()
+      if (liveStatus?.connected) {
+        setConnectionResult(`✅ GitHub is already connected${liveStatus.user ? ` as ${liveStatus.user}` : ''}.`)
+        return
+      }
 
       if (!savedConfig || !savedConfig.apiToken) {
         setConnectionResult("❌ No saved connection details found. Please enter connection details first.")
@@ -187,12 +218,12 @@ export function SimpleGithubConnect() {
   }, [])
 
   return (
-    <Card className="h-full shadow-lg border-0 bg-gradient-to-br from-white/80 to-slate-50/50 dark:from-gray-800 dark:to-slate-900/20 backdrop-blur-sm">
+    <Card className="h-full shadow-lg border-0 bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-card)] dark:from-gray-800 dark:to-slate-900/20 backdrop-blur-sm">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg" style={{ background: 'rgba(212,168,71,0.15)' }}>
-              <Github className="w-6 h-6" style={{ color: '#D4A847' }} />
+            <div className="p-2 rounded-lg" style={{ background: isDarkMode ? 'rgba(212,168,71,0.15)' : 'var(--accent-cool-bg)' }}>
+              <Github className="w-6 h-6" style={{ color: isDarkMode ? '#D4A847' : 'var(--accent-cool)' }} />
             </div>
             <div>
               <CardTitle className="text-xl" style={{ color: currentTheme.colors.text }}>GitHub Integration</CardTitle>
@@ -211,8 +242,8 @@ export function SimpleGithubConnect() {
             onClick={handleConnect}
             disabled={loading}
             size="lg"
-            className="flex items-center gap-2 shadow-lg hover:shadow-xl hover:opacity-90 transition-all duration-200 transform hover:scale-105"
-            style={{ backgroundColor: '#D4A847', color: '#13151C' }}
+            className="fx-pill flex items-center gap-2 shadow-lg hover:shadow-xl hover:opacity-90 transition-all duration-200 transform hover:scale-105"
+            style={{ backgroundColor: isDarkMode ? '#D4A847' : 'var(--btn-primary-bg)', color: isDarkMode ? '#13151C' : 'var(--btn-primary-fg)' }}
           >
             {loading ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
@@ -242,12 +273,12 @@ export function SimpleGithubConnect() {
         {/* Connection Result */}
         {connectionResult && (
           <Alert className={connectionResult.startsWith('✅') ?
-            "border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20" :
-            "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20"
+            "border-[color-mix(in_srgb,var(--success)_30%,transparent)] dark:border-green-800 bg-[var(--status-success-bg)] dark:bg-green-900/20" :
+            "border-[color-mix(in_srgb,var(--danger)_30%,transparent)] dark:border-red-800 bg-[var(--status-danger-bg)] dark:bg-red-900/20"
           }>
             <AlertDescription className={connectionResult.startsWith('✅') ?
-              "text-green-700 dark:text-green-300" :
-              "text-red-700 dark:text-red-300"
+              "text-[var(--status-success)] dark:text-green-300" :
+              "text-[var(--danger)] dark:text-red-300"
             }>
               {connectionResult}
             </AlertDescription>
@@ -261,14 +292,14 @@ export function SimpleGithubConnect() {
 
             {/* Saved Configuration Display */}
             {savedConfig && savedConfig.apiToken && (
-              <div className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <div className="p-3 bg-gradient-to-r from-[var(--status-success-bg)] to-[var(--status-success-bg)] dark:from-green-900/20 dark:to-emerald-900/20 border border-[color-mix(in_srgb,var(--success)_30%,transparent)] dark:border-green-800 rounded-lg">
                 <div className="flex items-start gap-3">
-                  <div className="p-1 bg-green-100 dark:bg-green-900/40 rounded-full">
-                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <div className="p-1 bg-[color-mix(in_srgb,var(--success)_20%,transparent)] dark:bg-green-900/40 rounded-full">
+                    <CheckCircle className="h-4 w-4 text-[var(--success)] dark:text-green-400" />
                   </div>
                   <div className="flex-1">
-                    <h5 className="font-semibold text-green-800 dark:text-green-200 mb-1 text-sm">Saved Configuration Found</h5>
-                    <p className="text-xs text-green-700 dark:text-green-300">
+                    <h5 className="font-semibold text-[var(--status-success)] dark:text-green-200 mb-1 text-sm">Saved Configuration Found</h5>
+                    <p className="text-xs text-[var(--status-success)] dark:text-green-300">
                       Personal access token saved{savedConfig.email ? <> for: <span className="font-medium">{savedConfig.email}</span></> : ''}
                     </p>
                   </div>
@@ -296,9 +327,9 @@ export function SimpleGithubConnect() {
                     onClick={() => setShowToken(!showToken)}
                   >
                     {showToken ? (
-                      <EyeOff className="h-3 w-3 text-gray-400 dark:text-gray-500" />
+                      <EyeOff className="h-3 w-3 text-[var(--text-muted)] dark:text-gray-500" />
                     ) : (
-                      <Eye className="h-3 w-3 text-gray-400 dark:text-gray-500" />
+                      <Eye className="h-3 w-3 text-[var(--text-muted)] dark:text-gray-500" />
                     )}
                   </Button>
                 </div>
@@ -321,7 +352,7 @@ export function SimpleGithubConnect() {
               <Button
                 onClick={handleSaveAndConnect}
                 disabled={loading}
-                className="flex items-center gap-2"
+                className="fx-pill flex items-center gap-2"
               >
                 {loading ? (
                   <RefreshCw className="w-3 h-3 animate-spin" />
@@ -352,10 +383,10 @@ export function SimpleGithubConnect() {
             </div>
 
             {/* Help Information */}
-            <Alert className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
-              <KeyRound className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <AlertTitle className="text-blue-800 dark:text-blue-200">How to create a token</AlertTitle>
-              <AlertDescription className="space-y-2 text-xs text-blue-700 dark:text-blue-300">
+            <Alert className="border-[color-mix(in_srgb,var(--accent-cool)_30%,transparent)] dark:border-blue-800 bg-[var(--accent-cool-bg)] dark:bg-blue-900/20">
+              <KeyRound className="h-4 w-4 text-[var(--accent-cool-text)] dark:text-blue-400" />
+              <AlertTitle className="text-[var(--accent-cool-text)] dark:text-blue-200">How to create a token</AlertTitle>
+              <AlertDescription className="space-y-2 text-xs text-[var(--accent-cool-text)] dark:text-blue-300">
                 <p>Go to GitHub → <strong>Settings → Developer settings → Personal access tokens</strong> and generate a token.</p>
                 <p>Grant read access to <strong>repositories, pull requests, and actions</strong> so FalconX can build insights.</p>
               </AlertDescription>

@@ -31,10 +31,10 @@ const COVERAGE_VIEW_URL =
   'https://tableau.cdk.com/#/site/CDKInternal/views/UnitTestingCoverage/UnitTestingCoverage'
 
 // Categorical palettes — validated (dataviz six checks) against the app's
-// card surfaces: light #FCFCFD, dark #1E2028. Fixed assignment order.
-const CAT_LIGHT = ['#A07815', '#2563EB', '#0891B2', '#7C3AED', '#C2410C']
+// card surfaces: light #FFFFFF, dark #1E2028. Fixed assignment order.
+const CAT_LIGHT = ['#1878B9', '#2563EB', '#0891B2', '#7C3AED', '#C2410C']
 const CAT_DARK  = ['#B08A2E', '#3B82F6', '#0891B2', '#8B5CF6', '#EA580C']
-const NEUTRAL_LIGHT = '#9CA3AF'
+const NEUTRAL_LIGHT = '#7C7C95'
 const NEUTRAL_DARK  = '#6B7280'
 
 const TIER_ORDER = ['Elite', 'Good', 'Fair', 'Needs Improvement'] as const
@@ -42,10 +42,10 @@ type Tier = (typeof TIER_ORDER)[number]
 
 // Status colors are reserved for tier state and always paired with icon+label.
 const TIER_STYLE: Record<Tier, { light: string; dark: string; Icon: any }> = {
-  'Elite':             { light: '#15803D', dark: '#4ADE80', Icon: Trophy },
-  'Good':              { light: '#A07815', dark: '#D4A847', Icon: CheckCircle },
-  'Fair':              { light: '#B87700', dark: '#FCD34D', Icon: AlertTriangle },
-  'Needs Improvement': { light: '#C01C1C', dark: '#F87171', Icon: AlertCircle },
+  'Elite':             { light: '#2E7D46', dark: '#4ADE80', Icon: Trophy },
+  'Good':              { light: '#146AA5', dark: '#D4A847', Icon: CheckCircle },
+  'Fair':              { light: '#B45309', dark: '#FCD34D', Icon: AlertTriangle },
+  'Needs Improvement': { light: '#C21F3A', dark: '#F87171', Icon: AlertCircle },
 }
 
 interface Kpi {
@@ -406,8 +406,8 @@ export function TableauInsightsDashboard() {
     }
   }
 
-  // Heatmap cell shading: sequential single hue (brand mustard), light→dark
-  const heatBase = isDarkMode ? '212,168,71' : '160,120,21'
+  // Heatmap cell shading: sequential single hue (gold in dark, action blue in light), light→dark
+  const heatBase = isDarkMode ? '212,168,71' : '24,120,185'
   const heatRange = useMemo(() => {
     const vals = filteredProjects.flatMap(p => visiblePis.map(pi => p.byPi[pi]).filter(v => v !== undefined)) as number[]
     return { min: Math.min(...vals, 100), max: Math.max(...vals, 0) }
@@ -438,7 +438,7 @@ export function TableauInsightsDashboard() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg" style={{ background: 'rgba(212,168,71,0.15)' }}>
+          <div className="p-2 rounded-lg" style={{ background: isDarkMode ? 'rgba(212,168,71,0.15)' : 'var(--accent-cool-bg)' }}>
             <BarChart3 className="w-6 h-6" style={{ color: 'var(--accent-cool)' }} />
           </div>
           <div>
@@ -464,23 +464,23 @@ export function TableauInsightsDashboard() {
         <div className="flex items-center gap-2 print:hidden">
           {shareNote && <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{shareNote}</span>}
           <button onClick={() => setRefreshTick(t => t + 1)} disabled={loading} title="Refresh"
-            className="h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"
+            className="fx-pill h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"
             style={{ border: '1px solid var(--border)', color: 'var(--text-primary)', background: 'var(--bg-card)' }}>
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
           </button>
           <button onClick={exportCsv} title="Export CSV"
-            className="h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5"
+            className="fx-pill h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5"
             style={{ border: '1px solid var(--border)', color: 'var(--text-primary)', background: 'var(--bg-card)' }}>
             <Download className="w-3.5 h-3.5" /> CSV
           </button>
           <button onClick={() => window.print()} title="Print / save as PDF"
-            className="h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5"
+            className="fx-pill h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5"
             style={{ border: '1px solid var(--border)', color: 'var(--text-primary)', background: 'var(--bg-card)' }}>
             <Printer className="w-3.5 h-3.5" /> Print
           </button>
           <button onClick={copySummary} title="Copy executive summary"
-            className="h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5"
-            style={{ background: 'var(--accent-cool)', color: '#13151C' }}>
+            className="fx-pill h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5"
+            style={{ background: 'var(--accent-cool)', color: isDarkMode ? '#13151C' : 'var(--btn-primary-fg)' }}>
             <Share2 className="w-3.5 h-3.5" /> Share
           </button>
         </div>
@@ -626,7 +626,7 @@ export function TableauInsightsDashboard() {
                 style={{ flex: tierCounts[t], background: tierColor(t), minWidth: 24 }}
                 className="flex items-center justify-center text-[11px] font-bold"
               >
-                <span style={{ color: '#13151C' }}>{tierCounts[t]}</span>
+                <span style={{ color: isDarkMode ? '#13151C' : '#FFFFFF' }}>{tierCounts[t]}</span>
               </div>
             ))}
           </div>

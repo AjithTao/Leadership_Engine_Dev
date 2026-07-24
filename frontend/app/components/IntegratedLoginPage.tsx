@@ -175,7 +175,7 @@ export function IntegratedLoginPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.22 }}
               style={{
-                color: T.mustard,
+                color: 'var(--accent-cool-text)',
                 fontSize: 11,
                 fontWeight: 600,
                 letterSpacing: '0.12em',
@@ -237,7 +237,7 @@ export function IntegratedLoginPage() {
                     className="flex items-start gap-3"
                     style={{
                       padding: 'clamp(8px, 1.4vh, 12px) 14px',
-                      borderRadius: 12,
+                      borderRadius: 'var(--radius-card)',
                       background: T.bgCard,
                       border: `1px solid ${T.border}`
                     }}
@@ -323,7 +323,7 @@ export function IntegratedLoginPage() {
             transition={{ delay: 1 }}
             style={{
               height: 1,
-              background: `linear-gradient(to right, ${T.mustard}40, ${T.olive}40, transparent)`,
+              background: `linear-gradient(to right, color-mix(in srgb, ${T.mustard} 25%, transparent), color-mix(in srgb, ${T.olive} 25%, transparent), transparent)`,
               marginBottom: 'clamp(10px, 1.4vh, 16px)',
               marginTop: 'clamp(12px, 2vh, 24px)'
             }}
@@ -396,7 +396,7 @@ export function IntegratedLoginPage() {
                 style={{
                   width: '100%',
                   padding: '10px 14px',
-                  borderRadius: 8,
+                  borderRadius: 'var(--radius-input)',
                   background: T.bgSurface,
                   border: `1px solid ${T.border}`,
                   color: T.text,
@@ -426,7 +426,7 @@ export function IntegratedLoginPage() {
                   style={{
                     width: '100%',
                     padding: '10px 40px 10px 14px',
-                    borderRadius: 8,
+                    borderRadius: 'var(--radius-input)',
                     background: T.bgSurface,
                     border: `1px solid ${T.border}`,
                     color: T.text,
@@ -484,7 +484,7 @@ export function IntegratedLoginPage() {
                   padding: '10px 14px',
                   borderRadius: 8,
                   background: T.redBg,
-                  border: `1px solid rgba(248,113,113,0.25)`,
+                  border: `1px solid color-mix(in srgb, var(--red) 25%, transparent)`,
                   color: T.red,
                   fontSize: 13
                 }}
@@ -503,9 +503,9 @@ export function IntegratedLoginPage() {
               style={{
                 width: '100%',
                 padding: '11px 0',
-                borderRadius: 8,
+                borderRadius: 'var(--radius-pill)',
                 background: T.mustard,
-                color: 'var(--bg-page)',
+                color: 'var(--btn-primary-fg)',
                 fontSize: 14,
                 fontWeight: 700,
                 fontFamily: 'inherit',
@@ -539,7 +539,7 @@ export function IntegratedLoginPage() {
               style={{
                 background: 'none',
                 border: 'none',
-                color: T.mustard,
+                color: 'var(--accent-cool-text)',
                 fontSize: 12,
                 fontFamily: 'inherit',
                 cursor: 'pointer',
@@ -558,7 +558,7 @@ export function IntegratedLoginPage() {
             </p>
             <p style={{ color: T.textMuted, fontSize: 12 }}>
               For assistance, contact{' '}
-              <span style={{ color: T.olive }}>FalconX Support</span>.
+              <span style={{ color: 'var(--accent-cool-text)' }}>FalconX Support</span>.
             </p>
           </div>
 

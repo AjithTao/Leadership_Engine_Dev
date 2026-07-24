@@ -40,7 +40,7 @@ interface TableauStatus {
 }
 
 export function SimpleTableauConnect() {
-  const { currentTheme } = useTheme()
+  const { currentTheme, isDarkMode } = useTheme()
   const [status, setStatus] = useState<TableauStatus | null>(null)
   const [config, setConfig] = useState<TableauConfig>({
     serverUrl: '',
@@ -160,12 +160,12 @@ export function SimpleTableauConnect() {
   }
 
   return (
-    <Card className="h-full shadow-lg border-0 bg-gradient-to-br from-white/80 to-slate-50/50 dark:from-gray-800 dark:to-slate-900/20 backdrop-blur-sm">
+    <Card className="h-full shadow-lg border-0 bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-card)] dark:from-gray-800 dark:to-slate-900/20 backdrop-blur-sm">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg" style={{ background: 'rgba(212,168,71,0.15)' }}>
-              <BarChart3 className="w-6 h-6" style={{ color: '#D4A847' }} />
+            <div className="p-2 rounded-lg" style={{ background: isDarkMode ? 'rgba(212,168,71,0.15)' : 'var(--accent-cool-bg)' }}>
+              <BarChart3 className="w-6 h-6" style={{ color: isDarkMode ? '#D4A847' : 'var(--accent-cool)' }} />
             </div>
             <div>
               <CardTitle className="text-xl" style={{ color: currentTheme.colors.text }}>Tableau Integration</CardTitle>
@@ -201,8 +201,8 @@ export function SimpleTableauConnect() {
           <Button
             onClick={() => setShowManualEntry(!showManualEntry)}
             size="lg"
-            className="flex items-center gap-2 shadow-lg hover:shadow-xl hover:opacity-90 transition-all duration-200 transform hover:scale-105"
-            style={{ backgroundColor: '#D4A847', color: '#13151C' }}
+            className="fx-pill flex items-center gap-2 shadow-lg hover:shadow-xl hover:opacity-90 transition-all duration-200 transform hover:scale-105"
+            style={{ backgroundColor: isDarkMode ? '#D4A847' : 'var(--btn-primary-bg)', color: isDarkMode ? '#13151C' : 'var(--btn-primary-fg)' }}
           >
             <Settings className="w-4 h-4" />
             {status?.configured ? 'Reconfigure Connection' : 'Enter Connection Details'}
@@ -225,12 +225,12 @@ export function SimpleTableauConnect() {
 
         {connectionResult && (
           <Alert className={connectionResult.startsWith('✅') ?
-            'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20' :
-            'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20'
+            'border-[color-mix(in_srgb,var(--success)_30%,transparent)] dark:border-green-800 bg-[var(--status-success-bg)] dark:bg-green-900/20' :
+            'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] dark:border-red-800 bg-[var(--status-danger-bg)] dark:bg-red-900/20'
           }>
             <AlertDescription className={connectionResult.startsWith('✅') ?
-              'text-green-700 dark:text-green-300' :
-              'text-red-700 dark:text-red-300'
+              'text-[var(--status-success)] dark:text-green-300' :
+              'text-[var(--danger)] dark:text-red-300'
             }>
               {connectionResult}
             </AlertDescription>
@@ -301,9 +301,9 @@ export function SimpleTableauConnect() {
                     onClick={() => setShowSecret(!showSecret)}
                   >
                     {showSecret ? (
-                      <EyeOff className="h-3 w-3 text-gray-400 dark:text-gray-500" />
+                      <EyeOff className="h-3 w-3 text-[var(--text-muted)] dark:text-gray-500" />
                     ) : (
-                      <Eye className="h-3 w-3 text-gray-400 dark:text-gray-500" />
+                      <Eye className="h-3 w-3 text-[var(--text-muted)] dark:text-gray-500" />
                     )}
                   </Button>
                 </div>
@@ -317,7 +317,7 @@ export function SimpleTableauConnect() {
               <Button
                 onClick={handleSaveAndConnect}
                 disabled={loading}
-                className="flex items-center gap-2"
+                className="fx-pill flex items-center gap-2"
               >
                 {loading ? (
                   <RefreshCw className="w-3 h-3 animate-spin" />
@@ -336,10 +336,10 @@ export function SimpleTableauConnect() {
               </Button>
             </div>
 
-            <Alert className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
-              <KeyRound className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <AlertTitle className="text-blue-800 dark:text-blue-200">How to create a token</AlertTitle>
-              <AlertDescription className="space-y-2 text-xs text-blue-700 dark:text-blue-300">
+            <Alert className="border-[color-mix(in_srgb,var(--accent-cool)_30%,transparent)] dark:border-blue-800 bg-[var(--accent-cool-bg)] dark:bg-blue-900/20">
+              <KeyRound className="h-4 w-4 text-[var(--accent-cool-text)] dark:text-blue-400" />
+              <AlertTitle className="text-[var(--accent-cool-text)] dark:text-blue-200">How to create a token</AlertTitle>
+              <AlertDescription className="space-y-2 text-xs text-[var(--accent-cool-text)] dark:text-blue-300">
                 <p>In Tableau, click your profile picture → <strong>My Account Settings</strong> → <strong>Personal Access Tokens</strong>.</p>
                 <p>Create a token and copy the secret using the <strong>copy button</strong> in the popup — it is shown only once.</p>
               </AlertDescription>

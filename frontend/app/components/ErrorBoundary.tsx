@@ -58,33 +58,33 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="h-full flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
-          <Card className="max-w-2xl w-full border-2 border-red-200 dark:border-red-800">
+        <div className="h-full flex items-center justify-center p-6 bg-[var(--bg-page)] dark:bg-gray-900">
+          <Card className="max-w-2xl w-full border-2 border-[rgba(194,31,58,0.3)] dark:border-red-800">
             <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-red-600 dark:text-red-400">
+              <CardTitle className="flex items-center gap-3 text-[var(--red)] dark:text-red-400">
                 <AlertTriangle className="h-6 w-6" />
                 Something went wrong
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-gray-700 dark:text-gray-300">
+              <p className="text-[var(--text-secondary)] dark:text-gray-300">
                 We encountered an unexpected error. Please try refreshing the page or contact support if the problem persists.
               </p>
               
               {this.state.error && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                  <p className="text-sm font-mono text-red-800 dark:text-red-200 break-all">
+                <div className="bg-[var(--red-bg)] dark:bg-red-900/20 border border-[rgba(194,31,58,0.3)] dark:border-red-800 rounded-lg p-4">
+                  <p className="text-sm font-mono text-[var(--red)] dark:text-red-200 break-all">
                     {this.state.error.toString()}
                   </p>
                 </div>
               )}
 
               {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
-                <details className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
-                  <summary className="text-sm font-semibold cursor-pointer text-gray-700 dark:text-gray-300">
+                <details className="bg-[var(--bg-surface)] dark:bg-gray-800 rounded-lg p-4">
+                  <summary className="text-sm font-semibold cursor-pointer text-[var(--text-secondary)] dark:text-gray-300">
                     Component Stack
                   </summary>
-                  <pre className="mt-2 text-xs text-gray-600 dark:text-gray-400 overflow-auto max-h-64">
+                  <pre className="mt-2 text-xs text-[var(--text-muted)] dark:text-gray-400 overflow-auto max-h-64">
                     {this.state.errorInfo.componentStack}
                   </pre>
                 </details>
@@ -93,13 +93,14 @@ export class ErrorBoundary extends Component<Props, State> {
               <div className="flex gap-3">
                 <Button
                   onClick={this.handleReset}
-                  className="flex items-center gap-2"
+                  className="fx-pill flex items-center gap-2"
                 >
                   <RefreshCw className="h-4 w-4" />
                   Try Again
                 </Button>
                 <Button
                   variant="outline"
+                  className="fx-pill"
                   onClick={() => window.location.reload()}
                 >
                   Reload Page

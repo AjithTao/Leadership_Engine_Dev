@@ -207,12 +207,12 @@ export function SimpleJiraConnect() {
   }, [])
 
   return (
-    <Card className="h-full shadow-lg border-0 bg-gradient-to-br from-white/80 to-blue-50/50 dark:from-gray-800 dark:to-blue-900/20 backdrop-blur-sm">
+    <Card className="h-full shadow-lg border-0 bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-card)] dark:from-gray-800 dark:to-blue-900/20 backdrop-blur-sm">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg" style={{ background: 'rgba(212,168,71,0.15)' }}>
-              <Database className="w-6 h-6" style={{ color: '#D4A847' }} />
+            <div className="p-2 rounded-lg" style={{ background: isDarkMode ? 'rgba(212,168,71,0.15)' : 'var(--accent-cool-bg)' }}>
+              <Database className="w-6 h-6" style={{ color: isDarkMode ? '#D4A847' : 'var(--accent-cool)' }} />
             </div>
             <div>
               <CardTitle className="text-xl" style={{ color: currentTheme.colors.text }}>Jira Integration</CardTitle>
@@ -231,8 +231,8 @@ export function SimpleJiraConnect() {
             onClick={handleConnect}
             disabled={loading}
             size="lg"
-            className="flex items-center gap-2 shadow-lg hover:shadow-xl hover:opacity-90 transition-all duration-200 transform hover:scale-105"
-            style={{ backgroundColor: '#D4A847', color: '#13151C' }}
+            className="fx-pill flex items-center gap-2 shadow-lg hover:shadow-xl hover:opacity-90 transition-all duration-200 transform hover:scale-105"
+            style={{ backgroundColor: isDarkMode ? '#D4A847' : 'var(--btn-primary-bg)', color: isDarkMode ? '#13151C' : 'var(--btn-primary-fg)' }}
           >
             {loading ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
@@ -262,13 +262,13 @@ export function SimpleJiraConnect() {
 
         {/* Connection Result */}
         {connectionResult && (
-          <Alert className={connectionResult.startsWith('✅') ? 
-            "border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20" : 
-            "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20"
+          <Alert className={connectionResult.startsWith('✅') ?
+            "border-[color-mix(in_srgb,var(--success)_30%,transparent)] dark:border-green-800 bg-[var(--status-success-bg)] dark:bg-green-900/20" :
+            "border-[color-mix(in_srgb,var(--danger)_30%,transparent)] dark:border-red-800 bg-[var(--status-danger-bg)] dark:bg-red-900/20"
           }>
-            <AlertDescription className={connectionResult.startsWith('✅') ? 
-              "text-green-700 dark:text-green-300" : 
-              "text-red-700 dark:text-red-300"
+            <AlertDescription className={connectionResult.startsWith('✅') ?
+              "text-[var(--status-success)] dark:text-green-300" :
+              "text-[var(--danger)] dark:text-red-300"
             }>
               {connectionResult}
             </AlertDescription>
@@ -282,17 +282,17 @@ export function SimpleJiraConnect() {
             
             {/* Saved Configuration Display */}
             {savedConfig && (
-              <div className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <div className="p-3 bg-gradient-to-r from-[var(--status-success-bg)] to-[var(--status-success-bg)] dark:from-green-900/20 dark:to-emerald-900/20 border border-[color-mix(in_srgb,var(--success)_30%,transparent)] dark:border-green-800 rounded-lg">
                 <div className="flex items-start gap-3">
-                  <div className="p-1 bg-green-100 dark:bg-green-900/40 rounded-full">
-                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <div className="p-1 bg-[color-mix(in_srgb,var(--success)_20%,transparent)] dark:bg-green-900/40 rounded-full">
+                    <CheckCircle className="h-4 w-4 text-[var(--success)] dark:text-green-400" />
                   </div>
                   <div className="flex-1">
-                    <h5 className="font-semibold text-green-800 dark:text-green-200 mb-1 text-sm">Saved Configuration Found</h5>
-                    <p className="text-xs text-green-700 dark:text-green-300">
+                    <h5 className="font-semibold text-[var(--status-success)] dark:text-green-200 mb-1 text-sm">Saved Configuration Found</h5>
+                    <p className="text-xs text-[var(--status-success)] dark:text-green-300">
                       Ready to connect as: <span className="font-medium">{savedConfig.email}</span>
                     </p>
-                    <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-mono">
+                    <p className="text-xs text-[var(--status-success)] dark:text-green-400 mt-1 font-mono">
                       {savedConfig.url}
                     </p>
                   </div>
@@ -344,9 +344,9 @@ export function SimpleJiraConnect() {
                     onClick={() => setShowToken(!showToken)}
                   >
                     {showToken ? (
-                      <EyeOff className="h-3 w-3 text-gray-400 dark:text-gray-500" />
+                      <EyeOff className="h-3 w-3 text-[var(--text-muted)] dark:text-gray-500" />
                     ) : (
-                      <Eye className="h-3 w-3 text-gray-400 dark:text-gray-500" />
+                      <Eye className="h-3 w-3 text-[var(--text-muted)] dark:text-gray-500" />
                     )}
                   </Button>
                 </div>
@@ -369,7 +369,7 @@ export function SimpleJiraConnect() {
               <Button
                 onClick={handleSaveAndConnect}
                 disabled={loading}
-                className="flex items-center gap-2"
+                className="fx-pill flex items-center gap-2"
               >
                 {loading ? (
                   <RefreshCw className="w-3 h-3 animate-spin" />
@@ -400,10 +400,10 @@ export function SimpleJiraConnect() {
             </div>
 
             {/* Help Information */}
-            <Alert className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
-              <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <AlertTitle className="text-blue-800 dark:text-blue-200">Authentication options</AlertTitle>
-              <AlertDescription className="space-y-2 text-xs text-blue-700 dark:text-blue-300">
+            <Alert className="border-[color-mix(in_srgb,var(--accent-cool)_30%,transparent)] dark:border-blue-800 bg-[var(--accent-cool-bg)] dark:bg-blue-900/20">
+              <User className="h-4 w-4 text-[var(--accent-cool-text)] dark:text-blue-400" />
+              <AlertTitle className="text-[var(--accent-cool-text)] dark:text-blue-200">Authentication options</AlertTitle>
+              <AlertDescription className="space-y-2 text-xs text-[var(--accent-cool-text)] dark:text-blue-300">
                 <p><strong>Server/Data Center:</strong> Enter your Jira <strong>password</strong> in the field above.</p>
                 <p><strong>Cloud:</strong> Use an <strong>API token</strong> from Atlassian Account Settings → Security → API tokens.</p>
                 <p>The app automatically tries the correct method for your Jira.</p>

@@ -48,11 +48,11 @@ export function LoadingScreen() {
       {/* Mustard radial glow — top */}
       <div
         className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] pointer-events-none"
-        style={{ background: `radial-gradient(ellipse at center, rgba(212,168,71,0.06) 0%, transparent 70%)` }}
+        style={{ background: `radial-gradient(ellipse at center, color-mix(in srgb, ${MUSTARD} 6%, transparent) 0%, transparent 70%)` }}
       />
       {/* Olive radial glow — bottom */}
       <div
-        className="absolute bottom-0 left-1/4 translate-y-1/2 w-[500px] h-[400px] pointer-events-none"
+        className="fx-load-glow-bottom absolute bottom-0 left-1/4 translate-y-1/2 w-[500px] h-[400px] pointer-events-none"
         style={{ background: `radial-gradient(ellipse at center, rgba(122,142,78,0.05) 0%, transparent 70%)` }}
       />
 
@@ -143,7 +143,7 @@ export function LoadingScreen() {
 
         {/* Eyebrow */}
         <p style={{
-          color: MUSTARD,
+          color: 'var(--accent-cool-text)',
           fontSize: 11,
           fontWeight: 600,
           letterSpacing: '0.14em',
@@ -211,9 +211,9 @@ export function LoadingScreen() {
         <div style={{
           width: 120,
           height: 1,
-          background: `linear-gradient(to right, transparent, ${MUSTARD}60, ${OLIVE}60, transparent)`
+          background: `linear-gradient(to right, transparent, color-mix(in srgb, ${MUSTARD} 37.6%, transparent), color-mix(in srgb, ${OLIVE} 37.6%, transparent), transparent)`
         }} />
-        <p style={{ color: '#3A4060', fontSize: 11 }}>
+        <p style={{ color: 'var(--text-hint)', fontSize: 11 }}>
           © {new Date().getFullYear()} CDK Global · FalconX Leadership Engine
         </p>
       </div>
@@ -239,6 +239,11 @@ export function LoadingScreen() {
         @keyframes fx-fade-phase {
           from { opacity: 0; transform: translateY(6px); }
           to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Light mode swaps the legacy olive glow for an indigo tint; dark keeps
+           the inline olive value untouched. */
+        html:not(.dark) .fx-load-glow-bottom {
+          background: radial-gradient(ellipse at center, rgba(80,78,122,0.05) 0%, transparent 70%) !important;
         }
       `}</style>
     </div>

@@ -141,12 +141,12 @@ export function Integrations() {
       return <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--bg-active)', flexShrink: 0 }} />
     }
     if (status.loading) {
-      return <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FCD34D', flexShrink: 0 }} className="animate-pulse" />
+      return <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--status-warning)', flexShrink: 0 }} className="animate-pulse" />
     }
     if (status.connected) {
-      return <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#4ADE80', flexShrink: 0 }} />
+      return <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--status-success)', flexShrink: 0 }} />
     }
-    return <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#F87171', flexShrink: 0 }} />
+    return <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--status-danger)', flexShrink: 0 }} />
   }
 
   const getButtonText = (status: IntegrationStatus | undefined) => {

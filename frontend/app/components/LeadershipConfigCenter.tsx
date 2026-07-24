@@ -97,21 +97,21 @@ JIRA_SHARED_URL=${config.url || 'https://company.atlassian.net'}`
 
     if (status.shared_service_account) {
       return (
-        <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+        <Badge variant="default" className="bg-[var(--status-success-bg)] dark:bg-green-100 text-[var(--status-success)] dark:text-green-800 border-[color-mix(in_srgb,var(--success)_30%,transparent)] dark:border-green-200">
           <Shield className="w-3 h-3 mr-1" />
           Service Account Active
         </Badge>
       )
     } else if (status.cached_data_available) {
       return (
-        <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
+        <Badge variant="secondary" className="bg-[var(--accent-cool-bg)] dark:bg-blue-100 text-[var(--accent-cool-text)] dark:text-blue-800 border-[color-mix(in_srgb,var(--accent-cool)_30%,transparent)] dark:border-blue-200">
           <CheckCircle className="w-3 h-3 mr-1" />
           Cached Data Available
         </Badge>
       )
     } else {
       return (
-        <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200">
+        <Badge variant="destructive" className="bg-[var(--status-danger-bg)] dark:bg-red-100 text-[var(--status-danger)] dark:text-red-800 border-[color-mix(in_srgb,var(--danger)_30%,transparent)] dark:border-red-200">
           <AlertTriangle className="w-3 h-3 mr-1" />
           Setup Required
         </Badge>
@@ -124,7 +124,7 @@ JIRA_SHARED_URL=${config.url || 'https://company.atlassian.net'}`
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Crown className="w-5 h-5 text-purple-600" />
+            <Crown className="w-5 h-5 text-[var(--accent-indigo)] dark:text-purple-600" />
             <CardTitle>Leadership Access Configuration</CardTitle>
           </div>
           {getStatusBadge()}
@@ -137,7 +137,7 @@ JIRA_SHARED_URL=${config.url || 'https://company.atlassian.net'}`
       <CardContent className="space-y-6">
         {/* Current Status */}
         {status && (
-          <Alert className={status.leadership_access_available ? "border-green-200 bg-green-50" : "border-orange-200 bg-orange-50"}>
+          <Alert className={status.leadership_access_available ? "border-[color-mix(in_srgb,var(--success)_30%,transparent)] dark:border-green-200 bg-[var(--status-success-bg)] dark:bg-green-50" : "border-[color-mix(in_srgb,var(--status-warning)_30%,transparent)] dark:border-orange-200 bg-[var(--status-warning-bg)] dark:bg-orange-50"}>
             <Info className="h-4 w-4" />
             <AlertTitle>Current Status</AlertTitle>
             <AlertDescription>
@@ -183,9 +183,9 @@ JIRA_SHARED_URL=${config.url || 'https://company.atlassian.net'}`
                 onClick={() => setShowToken(!showToken)}
               >
                 {showToken ? (
-                  <EyeOff className="h-4 w-4 text-gray-400" />
+                  <EyeOff className="h-4 w-4 text-[var(--text-muted)] dark:text-gray-400" />
                 ) : (
-                  <Eye className="h-4 w-4 text-gray-400" />
+                  <Eye className="h-4 w-4 text-[var(--text-muted)] dark:text-gray-400" />
                 )}
               </Button>
             </div>
@@ -211,7 +211,7 @@ JIRA_SHARED_URL=${config.url || 'https://company.atlassian.net'}`
             <p><strong>Step 1:</strong> Create a Jira service account with read-only permissions</p>
             <p><strong>Step 2:</strong> Generate an API token for the service account</p>
             <p><strong>Step 3:</strong> Add the configuration to your backend environment file:</p>
-            <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded text-sm font-mono mt-2">
+            <div className="bg-[var(--bg-surface)] dark:bg-gray-800 p-3 rounded text-sm font-mono mt-2">
               <div className="flex justify-between items-start">
                 <div>
                   # Add to backend/config.env<br/>
@@ -239,7 +239,7 @@ JIRA_SHARED_URL=${config.url || 'https://company.atlassian.net'}`
           <Button
             onClick={enableLeadershipAccess}
             disabled={loading}
-            className="flex items-center gap-2"
+            className="fx-pill flex items-center gap-2"
           >
             {loading ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
@@ -261,17 +261,17 @@ JIRA_SHARED_URL=${config.url || 'https://company.atlassian.net'}`
 
         {/* Test Result */}
         {testResult && (
-          <Alert className={testResult.startsWith('✅') ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}>
+          <Alert className={testResult.startsWith('✅') ? "border-[color-mix(in_srgb,var(--success)_30%,transparent)] dark:border-green-200 bg-[var(--status-success-bg)] dark:bg-green-50" : "border-[color-mix(in_srgb,var(--danger)_30%,transparent)] dark:border-red-200 bg-[var(--status-danger-bg)] dark:bg-red-50"}>
             <AlertDescription>{testResult}</AlertDescription>
           </Alert>
         )}
 
         {/* Quick Access Commands */}
-        <Alert className="border-blue-200 bg-blue-50">
+        <Alert className="border-[color-mix(in_srgb,var(--accent-cool)_30%,transparent)] dark:border-blue-200 bg-[var(--accent-cool-bg)] dark:bg-blue-50">
           <Info className="h-4 w-4" />
           <AlertTitle>Quick Commands (for IT/Developers)</AlertTitle>
           <AlertDescription className="space-y-2">
-            <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded text-sm font-mono">
+            <div className="bg-[var(--bg-surface)] dark:bg-gray-800 p-3 rounded text-sm font-mono">
               # Check status<br/>
               curl http://localhost:8000/api/leadership/status<br/><br/>
               

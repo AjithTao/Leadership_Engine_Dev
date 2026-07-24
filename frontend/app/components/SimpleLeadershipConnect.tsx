@@ -172,21 +172,21 @@ export function SimpleFalconXConnect() {
 
     if (status.shared_service_account) {
       return (
-        <Badge variant="default" className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700">
+        <Badge variant="default" className="bg-[var(--status-success-bg)] dark:bg-green-900 text-[var(--status-success)] dark:text-green-200 border-[color-mix(in_srgb,var(--success)_30%,transparent)] dark:border-green-700">
           <Shield className="w-3 h-3 mr-1" />
           Connected
         </Badge>
       )
     } else if (status.cached_data_available) {
       return (
-        <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-700">
+        <Badge variant="secondary" className="bg-[var(--accent-cool-bg)] dark:bg-blue-900 text-[var(--accent-cool-text)] dark:text-blue-200 border-[color-mix(in_srgb,var(--accent-cool)_30%,transparent)] dark:border-blue-700">
           <CheckCircle className="w-3 h-3 mr-1" />
           Cached Data
         </Badge>
       )
     } else {
       return (
-        <Badge variant="outline" className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600">
+        <Badge variant="outline" className="bg-[var(--bg-surface)] dark:bg-gray-800 text-[var(--text-muted)] dark:text-gray-300 border-[var(--border)] dark:border-gray-600">
           <AlertTriangle className="w-3 h-3 mr-1" />
           Not Connected
         </Badge>
@@ -199,7 +199,7 @@ export function SimpleFalconXConnect() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Crown className="w-5 h-5 text-purple-600" />
+            <Crown className="w-5 h-5 text-[var(--accent-indigo)] dark:text-purple-600" />
             <CardTitle>Leadership Access</CardTitle>
           </div>
           {getStatusBadge()}
@@ -216,7 +216,7 @@ export function SimpleFalconXConnect() {
             onClick={handleConnect}
             disabled={loading}
             size="lg"
-            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white"
+            className="fx-pill flex items-center gap-2 bg-[var(--btn-primary-bg)] hover:bg-[var(--accent-cool-hover)] text-[var(--btn-primary-fg)] dark:bg-purple-600 dark:hover:bg-purple-700 dark:text-white"
           >
             {loading ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
@@ -240,10 +240,10 @@ export function SimpleFalconXConnect() {
 
         {/* Connection Status */}
         {savedConfig && (
-          <Alert className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
-            <CheckCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            <AlertTitle className="text-blue-800 dark:text-blue-200">Saved Configuration Found</AlertTitle>
-            <AlertDescription className="text-blue-700 dark:text-blue-300">
+          <Alert className="border-[color-mix(in_srgb,var(--accent-cool)_30%,transparent)] dark:border-blue-800 bg-[var(--accent-cool-bg)] dark:bg-blue-900/20">
+            <CheckCircle className="h-4 w-4 text-[var(--accent-cool-text)] dark:text-blue-400" />
+            <AlertTitle className="text-[var(--accent-cool-text)] dark:text-blue-200">Saved Configuration Found</AlertTitle>
+            <AlertDescription className="text-[var(--accent-cool-text)] dark:text-blue-300">
               Ready to connect with: {savedConfig.email} → {savedConfig.url}
             </AlertDescription>
           </Alert>
@@ -251,13 +251,13 @@ export function SimpleFalconXConnect() {
 
         {/* Connection Result */}
         {connectionResult && (
-          <Alert className={connectionResult.startsWith('✅') ? 
-            "border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20" : 
-            "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20"
+          <Alert className={connectionResult.startsWith('✅') ?
+            "border-[color-mix(in_srgb,var(--success)_30%,transparent)] dark:border-green-800 bg-[var(--status-success-bg)] dark:bg-green-900/20" :
+            "border-[color-mix(in_srgb,var(--danger)_30%,transparent)] dark:border-red-800 bg-[var(--status-danger-bg)] dark:bg-red-900/20"
           }>
-            <AlertDescription className={connectionResult.startsWith('✅') ? 
-              "text-green-700 dark:text-green-300" : 
-              "text-red-700 dark:text-red-300"
+            <AlertDescription className={connectionResult.startsWith('✅') ?
+              "text-[var(--status-success)] dark:text-green-300" :
+              "text-[var(--status-danger)] dark:text-red-300"
             }>
               {connectionResult}
             </AlertDescription>
@@ -266,12 +266,12 @@ export function SimpleFalconXConnect() {
 
         {/* Manual Entry Form */}
         {showManualEntry && (
-          <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-4">
-            <h4 className="font-medium text-sm text-gray-700 dark:text-gray-300">Connection Details</h4>
+          <div className="space-y-4 border-t border-[var(--border)] dark:border-gray-700 pt-4">
+            <h4 className="font-medium text-sm text-[var(--text-primary)] dark:text-gray-300">Connection Details</h4>
             
             <div className="space-y-3">
               <div className="space-y-1">
-                <Label htmlFor="service-email" className="text-xs text-gray-600 dark:text-gray-400">Service Account Email</Label>
+                <Label htmlFor="service-email" className="text-xs text-[var(--text-secondary)] dark:text-gray-400">Service Account Email</Label>
                 <Input
                   id="service-email"
                   type="email"
@@ -283,7 +283,7 @@ export function SimpleFalconXConnect() {
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="service-token" className="text-xs text-gray-600 dark:text-gray-400">API Token</Label>
+                <Label htmlFor="service-token" className="text-xs text-[var(--text-secondary)] dark:text-gray-400">API Token</Label>
                 <div className="relative">
                   <Input
                     id="service-token"
@@ -301,16 +301,16 @@ export function SimpleFalconXConnect() {
                     onClick={() => setShowToken(!showToken)}
                   >
                     {showToken ? (
-                      <EyeOff className="h-3 w-3 text-gray-400 dark:text-gray-500" />
+                      <EyeOff className="h-3 w-3 text-[var(--text-muted)] dark:text-gray-500" />
                     ) : (
-                      <Eye className="h-3 w-3 text-gray-400 dark:text-gray-500" />
+                      <Eye className="h-3 w-3 text-[var(--text-muted)] dark:text-gray-500" />
                     )}
                   </Button>
                 </div>
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="service-url" className="text-xs text-gray-600 dark:text-gray-400">Jira URL</Label>
+                <Label htmlFor="service-url" className="text-xs text-[var(--text-secondary)] dark:text-gray-400">Jira URL</Label>
                 <Input
                   id="service-url"
                   type="url"
@@ -326,7 +326,7 @@ export function SimpleFalconXConnect() {
               <Button
                 onClick={handleSaveAndConnect}
                 disabled={loading}
-                className="flex items-center gap-2"
+                className="fx-pill flex items-center gap-2"
               >
                 {loading ? (
                   <RefreshCw className="w-3 h-3 animate-spin" />
@@ -347,12 +347,12 @@ export function SimpleFalconXConnect() {
 
             {/* Backend Configuration Note */}
             {savedConfig && (
-              <Alert className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20">
-                <Settings className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                <AlertTitle className="text-orange-800 dark:text-orange-200">Backend Configuration Required</AlertTitle>
-                <AlertDescription className="space-y-2 text-orange-700 dark:text-orange-300">
-                  <p>Add these to your <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs">backend/config.env</code> file:</p>
-                  <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded text-xs font-mono text-gray-800 dark:text-gray-200">
+              <Alert className="border-[color-mix(in_srgb,var(--status-warning)_30%,transparent)] dark:border-orange-800 bg-[var(--status-warning-bg)] dark:bg-orange-900/20">
+                <Settings className="h-4 w-4 text-[var(--status-warning)] dark:text-orange-400" />
+                <AlertTitle className="text-[var(--status-warning)] dark:text-orange-200">Backend Configuration Required</AlertTitle>
+                <AlertDescription className="space-y-2 text-[var(--status-warning)] dark:text-orange-300">
+                  <p>Add these to your <code className="bg-[var(--bg-surface)] dark:bg-gray-800 px-1 rounded text-xs">backend/config.env</code> file:</p>
+                  <div className="bg-[var(--bg-surface)] dark:bg-gray-800 p-2 rounded text-xs font-mono text-[var(--text-primary)] dark:text-gray-200">
                     JIRA_SHARED_EMAIL={config.email}<br/>
                     JIRA_SHARED_TOKEN={config.token}<br/>
                     JIRA_SHARED_URL={config.url}
@@ -366,7 +366,7 @@ export function SimpleFalconXConnect() {
 
         {/* Quick Status */}
         {status && (
-          <div className="text-xs text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-3">
+          <div className="text-xs text-[var(--text-secondary)] dark:text-gray-400 border-t border-[var(--border)] dark:border-gray-700 pt-3">
             <div className="flex justify-between items-center">
               <span>Status:</span>
               <span className="font-medium">{status.message}</span>

@@ -34,10 +34,10 @@ export default function Leadership() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg-page)] dark:bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-muted-foreground">Loading leadership data...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--accent-cool)] dark:border-blue-600 mx-auto mb-4"></div>
+          <p className="text-[var(--text-muted)] dark:text-muted-foreground">Loading leadership data...</p>
         </div>
       </div>
     );
@@ -45,10 +45,10 @@ export default function Leadership() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg-page)] dark:bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-500 text-xl mb-4">⚠️</div>
-          <p className="text-gray-600 dark:text-muted-foreground">{error}</p>
+          <div className="text-[var(--danger)] dark:text-red-500 text-xl mb-4">⚠️</div>
+          <p className="text-[var(--text-muted)] dark:text-muted-foreground">{error}</p>
         </div>
       </div>
     );
@@ -56,10 +56,10 @@ export default function Leadership() {
 
   if (!data?.success) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg-page)] dark:bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="text-yellow-500 text-xl mb-4">⚠️</div>
-          <p className="text-gray-600 dark:text-muted-foreground">No data available</p>
+          <div className="text-[var(--status-warning)] dark:text-yellow-500 text-xl mb-4">⚠️</div>
+          <p className="text-[var(--text-muted)] dark:text-muted-foreground">No data available</p>
         </div>
       </div>
     );
@@ -69,11 +69,11 @@ export default function Leadership() {
   const charts = d.charts;
   
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-background">
+    <div className="min-h-screen bg-[var(--bg-page)] dark:bg-background">
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-foreground">Leadership Analysis</h1>
-          <div className="text-sm text-gray-500 dark:text-muted-foreground">
+          <h1 className="text-3xl font-bold text-[var(--text-primary)] dark:text-foreground">Leadership Analysis</h1>
+          <div className="text-sm text-[var(--text-muted)] dark:text-muted-foreground">
             Board ID: {boardId}
           </div>
         </div>

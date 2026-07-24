@@ -35,47 +35,49 @@ export interface Theme {
 }
 
 // ─── FalconX CDK palette: Light ───────────────────────────────────────────────
-// Warm ivory/graphite family — premium enterprise feel.
-// Page bg  #F2EFEA   Warm ivory — rich base, not sterile white
-// Card     #FAFAF7   Warm white — elevated above page for clear layer separation
-// Surface  #EDEBE6   Warm surface for table headers, input backgrounds
-// Hover    #E5E2DC   Warm hover state
-// Active   #D9D5CD   Warm selected/active state
-// Border   #DDD9D2   Warm soft border
-// Text     #1C1A17   Deep warm charcoal — rich, high contrast
-// Text sec #1C1A17   Deep warm charcoal — same as text for better readability in light mode
+// Functionize design language — lavender canvas, white surfaces, indigo text,
+// action blue. Chrome (navbar/sidebar) goes dark slate-purple via the
+// --nav-*/--sidebar-* CSS vars in globals.css.
+// Page bg  #F0F1F8   Lavender-gray app canvas
+// Card     #FFFFFF   White cards, tables, modals, panels
+// Surface  #ECEDF3   Table headers, subtle insets
+// Hover    #E9EAF3   Row hover
+// Active   #DFE1EF   Selected states
+// Border   #D8DAE5   Lines & fields
+// Text     #3F3E63   Deep indigo — headings, values
+// Text sec #4A4A5E   Body text
 export const cdkLightTheme: Theme = {
   name: 'cdkLight',
   displayName: 'FalconX Light',
   description: 'FalconX CDK Intelligent Suite — light mode palette',
   colors: {
-    primary: '#1C1A17',       // deep warm charcoal — primary text / actions
-    secondary: '#3D3A35',     // warm dark gray — labels, secondary text
-    accent: '#9E6B18',        // mustard (deepened for warm-bg contrast)
-    background: '#F2EFEA',    // warm ivory page background
-    surface: '#FAFAF7',       // warm white card / sidebar / header
-    surfaceVariant: '#EDEBE6', // table headers, input bg
-    hover: '#E5E2DC',         // nav hover, row hover
-    active: '#D9D5CD',        // active nav, selected states
-    text: '#1C1A17',          // headings, values
-    textSecondary: '#1C1A17', // labels, descriptions — same as text for visibility in light mode
-    border: '#DDD9D2',        // all borders
-    borderStrong: '#B8B2AA',  // focus/hover emphasis
-    success: '#9E6B18',       // semantic: mustard (aligned to brand)
-    warning: '#C96A00',       // semantic: amber
-    error: '#C41E1E',         // semantic: red
-    info: '#1D4ED8',          // semantic: blue
+    primary: '#3F3E63',       // deep indigo — primary text / headings
+    secondary: '#4A4A5E',     // body gray-indigo — labels, secondary text
+    accent: '#1878B9',        // action blue — buttons, active accents
+    background: '#F0F1F8',    // lavender-gray page background
+    surface: '#FFFFFF',       // white card / panel
+    surfaceVariant: '#ECEDF3', // table headers, subtle insets
+    hover: '#E9EAF3',         // nav hover, row hover
+    active: '#DFE1EF',        // active nav, selected states
+    text: '#3F3E63',          // headings, values
+    textSecondary: '#4A4A5E', // labels, descriptions
+    border: '#D8DAE5',        // all borders
+    borderStrong: '#B9BDD1',  // focus/hover emphasis
+    success: '#43A05C',       // semantic: green
+    warning: '#B87700',       // semantic: amber
+    error: '#C21F3A',         // semantic: red
+    info: '#1E88C7',          // semantic: link blue
   },
   gradients: {
-    primary: 'from-[#1C1A17] to-[#3D3A35]',
-    secondary: 'from-[#3D3A35] to-[#6B6660]',
-    background: 'from-[#F2EFEA] to-[#E5E2DC]',
-    surface: 'from-[#FAFAF7] to-[#EDEBE6]',
+    primary: 'from-[#3F3E63] to-[#504E7A]',
+    secondary: 'from-[#504E7A] to-[#8A8AA0]',
+    background: 'from-[#F0F1F8] to-[#E9E8F0]',
+    surface: 'from-[#FFFFFF] to-[#ECEDF3]',
   },
   shadows: {
-    small: '0 1px 3px rgba(30,25,15,0.09), 0 1px 2px rgba(30,25,15,0.06)',
-    medium: '0 4px 12px rgba(30,25,15,0.09), 0 2px 4px rgba(30,25,15,0.06)',
-    large: '0 8px 28px rgba(30,25,15,0.12), 0 4px 8px rgba(30,25,15,0.07)',
+    small: '0 1px 3px rgba(30,30,60,0.08)',
+    medium: '0 4px 12px rgba(30,30,60,0.10), 0 2px 4px rgba(30,30,60,0.06)',
+    large: '0 8px 28px rgba(30,30,60,0.14), 0 4px 8px rgba(30,30,60,0.08)',
   },
 };
 

@@ -38,10 +38,10 @@ const DS = {
 // Theme-aware category colours: light = dark AA hues on near-white, dark = bright
 // hues readable as text on #1E2028. Getters so `${color}NN` alpha tints resolve too.
 const CAT = {
-  automated:              { get color() { return pick('#2E7D5E', '#4ADE80') }, get bg() { return pick('rgba(46,125,94,0.12)',  'rgba(74,222,128,0.12)') },  label: 'Automated' },
-  requires_automation:    { get color() { return pick('#8B6020', '#FCD34D') }, get bg() { return pick('rgba(139,96,32,0.12)',  'rgba(252,211,77,0.12)') },  label: 'Requires Automation' },
+  automated:              { get color() { return pick('#2E7D46', '#4ADE80') }, get bg() { return pick('rgba(46,125,70,0.12)',  'rgba(74,222,128,0.12)') },  label: 'Automated' },
+  requires_automation:    { get color() { return pick('#8A5E10', '#FCD34D') }, get bg() { return pick('rgba(138,94,16,0.12)',  'rgba(252,211,77,0.12)') },  label: 'Requires Automation' },
   automation_not_required:{ get color() { return pick('#555E6B', '#94A3B8') }, get bg() { return pick('rgba(85,94,107,0.12)',  'rgba(148,163,184,0.12)') }, label: 'Not Required' },
-  unclassified:           { get color() { return pick('#9B2C2C', '#F87171') }, get bg() { return pick('rgba(155,44,44,0.10)',  'rgba(248,113,113,0.10)') }, label: 'Unclassified' },
+  unclassified:           { get color() { return pick('#C21F3A', '#F87171') }, get bg() { return pick('rgba(194,31,58,0.10)',  'rgba(248,113,113,0.10)') }, label: 'Unclassified' },
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -518,7 +518,7 @@ function AIInsightsPanel({ modules }: { modules: ModuleData[] }) {
   }
 
   return (
-    <div style={{ border: `1px solid ${DS.border}`, borderRadius: 12, background: DS.card, fontFamily: DS.font }}>
+    <div style={{ border: `1px solid ${DS.border}`, borderRadius: 'var(--radius-card)', background: DS.card, fontFamily: DS.font }}>
       {/* Toggle */}
       <button
         onClick={handleOpen}
@@ -526,7 +526,7 @@ function AIInsightsPanel({ modules }: { modules: ModuleData[] }) {
           width: '100%', display: 'flex', alignItems: 'center', gap: 8,
           padding: '12px 16px', background: 'transparent', border: 'none',
           cursor: 'pointer', fontFamily: DS.font, textAlign: 'left',
-          borderRadius: 12,
+          borderRadius: 'var(--radius-card)',
         }}
       >
         <div style={{
@@ -537,7 +537,7 @@ function AIInsightsPanel({ modules }: { modules: ModuleData[] }) {
           <Zap size={12} style={{ color: '#fff' }} />
         </div>
         <span style={{ color: DS.text, fontSize: 12, fontWeight: 700, flex: 1 }}>AI Insights</span>
-        <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(99,102,241,0.12)', color: '#818cf8' }}>
+        <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(99,102,241,0.12)', color: pick('#4F46E5', '#818cf8') }}>
           Falcon Insights
         </span>
         {open
@@ -665,14 +665,14 @@ function TKCategorizationGadget({ jiraBase }: { jiraBase: string }) {
   const maxTotal = Math.max(...cats.map(c => c.total), 1)
 
   return (
-    <div style={{ border: `1px solid ${DS.border}`, borderRadius: 12, background: DS.card, fontFamily: DS.font }}>
+    <div style={{ border: `1px solid ${DS.border}`, borderRadius: 'var(--radius-card)', background: DS.card, fontFamily: DS.font }}>
       {/* Header toggle */}
       <button
         onClick={handleToggle}
         style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: 8,
           padding: '12px 16px', background: 'transparent', border: 'none',
-          cursor: 'pointer', fontFamily: DS.font, textAlign: 'left', borderRadius: 12,
+          cursor: 'pointer', fontFamily: DS.font, textAlign: 'left', borderRadius: 'var(--radius-card)',
         }}
       >
         <div style={{
@@ -943,10 +943,11 @@ export function ServicesModDashboard() {
         <div style={{ color: DS.text, fontWeight: 600, marginBottom: 6 }}>Failed to load dashboard</div>
         <div style={{ color: DS.textMuted, fontSize: 12, marginBottom: 16, wordBreak: 'break-word' }}>{error}</div>
         <button
+          className="fx-pill"
           onClick={handleRefresh}
           disabled={refreshing}
           style={{
-            background: DS.accent, color: '#000', border: 'none', borderRadius: 8,
+            background: DS.accent, color: pick('#fff', '#000'), border: 'none', borderRadius: pick('9999px', '8px'),
             padding: '8px 16px', fontSize: 13, fontWeight: 600,
             cursor: refreshing ? 'default' : 'pointer', opacity: refreshing ? 0.6 : 1,
             display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -989,12 +990,13 @@ export function ServicesModDashboard() {
           </div>
         </div>
         <button
+          className="fx-pill"
           onClick={handleRefresh}
           disabled={refreshing}
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
             background: 'transparent', border: `1px solid ${DS.border}`,
-            color: DS.textSec, borderRadius: 8, padding: '6px 12px',
+            color: DS.textSec, borderRadius: pick('9999px', '8px'), padding: '6px 12px',
             fontSize: 12, cursor: refreshing ? 'default' : 'pointer',
             opacity: refreshing ? 0.5 : 1,
           }}
@@ -1013,7 +1015,7 @@ export function ServicesModDashboard() {
         <SummaryBar modules={modules} />
 
         {/* Automation bar chart */}
-        <div style={{ background: DS.card, border: `1px solid ${DS.border}`, borderRadius: 12 }}>
+        <div style={{ background: DS.card, border: `1px solid ${DS.border}`, borderRadius: 'var(--radius-card)' }}>
           <div style={{ padding: '10px 16px 6px', borderBottom: `1px solid ${DS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ color: DS.textSec, fontSize: 11, fontWeight: 700 }}>Automation Coverage by Module</span>
             <span style={{ color: DS.textHint, fontSize: 10 }}>Click module name to open in Jira</span>
@@ -1036,7 +1038,7 @@ export function ServicesModDashboard() {
           </div>
         </div>
 
-        <div style={{ background: DS.card, border: `1px solid ${DS.border}`, borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ background: DS.card, border: `1px solid ${DS.border}`, borderRadius: 'var(--radius-card)', overflow: 'hidden' }}>
           <ModuleTable modules={modules} jiraBase={jiraBase} />
         </div>
 

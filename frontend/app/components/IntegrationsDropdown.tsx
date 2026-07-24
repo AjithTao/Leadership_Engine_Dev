@@ -276,7 +276,7 @@ export function IntegrationsDropdown() {
                     <Button
                       onClick={() => handleConnect(integration.id)}
                       disabled={status?.loading || !userDetails.apiToken}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-[var(--btn-primary-bg)] dark:bg-blue-600 hover:bg-[var(--accent-cool-hover)] dark:hover:bg-blue-700 text-[var(--btn-primary-fg)] dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {status?.loading ? (
                         <>

@@ -47,11 +47,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       case 'success':
         return <CheckCircle className="w-4 h-4 text-[var(--text-secondary)]" />
       case 'error':
-        return <AlertCircle className="w-4 h-4 text-red-500" />
+        return <AlertCircle className="w-4 h-4 text-[var(--status-danger)] dark:text-red-500" />
       case 'warning':
         return <AlertCircle className="w-4 h-4 text-[var(--text-secondary)]" />
       case 'info':
-        return <Info className="w-4 h-4 text-blue-500" />
+        return <Info className="w-4 h-4 text-[var(--link)] dark:text-blue-500" />
     }
   }
 
@@ -79,7 +79,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+          <span className="absolute top-0 right-0 w-5 h-5 bg-[var(--danger)] dark:bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}

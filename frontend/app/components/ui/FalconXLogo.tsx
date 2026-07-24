@@ -3,16 +3,24 @@
 import React from 'react'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
-export const MUSTARD  = '#D4A847'   // mustard/beige — primary accent (LEADERSHIP ENGINE)
-export const OLIVE    = '#D4A847'   // mustard — matches primary accent
-export const MUSTARD_DIM = 'rgba(212,168,71,0.15)'
-export const OLIVE_DIM   = 'rgba(122,142,78,0.15)'
+// Brand accent routed through CSS vars: action blue in light mode, the original
+// mustard #D4A847 in dark mode (see globals.css :root / .dark).
+export const MUSTARD  = 'var(--accent-cool)'       // primary accent
+export const OLIVE    = 'var(--accent-cool)'       // matches primary accent
+// 15% translucent accent — resolves to rgba(212,168,71,0.15) in dark (the
+// original MUSTARD_DIM value) and a blue tint in light.
+export const MUSTARD_DIM = 'color-mix(in srgb, var(--accent-cool) 15%, transparent)'
+export const OLIVE_DIM   = 'var(--olive-dim)'
+// Accent variants that pop on the dark chrome (navbar/sidebar) in light mode
+export const CHROME_ACCENT     = 'var(--chrome-accent)'
+export const CHROME_ACCENT_DIM = 'var(--chrome-accent-dim)'
 
 interface FalconXLogoProps {
   size?: number
   color?: string
   showText?: boolean
   textColor?: string
+  xColor?: string
   className?: string
 }
 
@@ -21,6 +29,7 @@ export function FalconXLogo({
   color = MUSTARD,
   showText = true,
   textColor = 'var(--text-primary)',
+  xColor,
   className = ''
 }: FalconXLogoProps) {
   return (
@@ -64,7 +73,7 @@ export function FalconXLogo({
             lineHeight: 1
           }}
         >
-          Falcon<span style={{ color: OLIVE }}>X</span>
+          Falcon<span style={{ color: xColor ?? OLIVE }}>X</span>
         </span>
       )}
     </div>
@@ -74,10 +83,12 @@ export function FalconXLogo({
 export function CDKLogo({
   size = 28,
   textColor = 'var(--text-primary)',
+  markColor = 'var(--text-primary)',
   className = ''
 }: {
   size?: number
   textColor?: string
+  markColor?: string
   className?: string
 }) {
   const r = size * 0.36
@@ -97,10 +108,10 @@ export function CDKLogo({
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
-        <circle cx={cx1} cy={cy} r={r} fill="var(--text-primary)" fillOpacity="0.9" />
-        <circle cx={cx2} cy={cy} r={r} fill="var(--text-primary)" fillOpacity="0.9" />
-        {/* Third circle — mustard accent */}
-        <circle cx={cx3} cy={cy} r={r} fill={MUSTARD} />
+        <circle cx={cx1} cy={cy} r={r} fill={markColor} fillOpacity="0.9" />
+        <circle cx={cx2} cy={cy} r={r} fill={markColor} fillOpacity="0.9" />
+        {/* Third circle — CDK brand dot (green in light, mustard in dark) */}
+        <circle cx={cx3} cy={cy} r={r} fill="var(--cdk-dot)" />
       </svg>
 
       <span

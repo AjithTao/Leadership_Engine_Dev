@@ -39,14 +39,14 @@ const DS = {
   textSec:       'var(--text-secondary)',
   textMuted:     'var(--text-muted)',
   textHint:      'var(--text-hint)',
-  get accent()   { return pick('#816213', '#D4A847') },
-  get accentBg() { return pick('#81621318', '#D4A84718') },
-  get green()    { return pick('#1A7331', '#22C55E') },
-  get greenBg()  { return pick('#1A733118', '#22C55E18') },
+  get accent()   { return pick('#146AA5', '#D4A847') },
+  get accentBg() { return pick('#146AA518', '#D4A84718') },
+  get green()    { return pick('#2E7D46', '#22C55E') },
+  get greenBg()  { return pick('#2E7D4618', '#22C55E18') },
   get amber()    { return pick('#8A5E10', '#F59E0B') },
   get amberBg()  { return pick('#8A5E1018', '#F59E0B18') },
-  get red()      { return pick('#C01C1C', '#EF4444') },
-  get redBg()    { return pick('#C01C1C18', '#EF444418') },
+  get red()      { return pick('#C21F3A', '#EF4444') },
+  get redBg()    { return pick('#C21F3A18', '#EF444418') },
   blue:          'var(--blue)',
   blueBg:        'var(--blue-bg)',
   font:          'var(--font)',
@@ -54,8 +54,8 @@ const DS = {
 
 // ── Zephyr status colours (theme-aware: light variants pass AA as table text) ──
 const STATUS = {
-  PASS:        { get color() { return pick('#4F7A0F', '#75B000') }, get bg() { return pick('#4F7A0F18', '#75B00018') }, label: 'Pass',    icon: CheckCircle2 },
-  FAIL:        { get color() { return pick('#C0330A', '#CC3300') }, get bg() { return pick('#C0330A18', '#CC330018') }, label: 'Fail',    icon: XCircle      },
+  PASS:        { get color() { return pick('#2E7D46', '#75B000') }, get bg() { return pick('#2E7D4618', '#75B00018') }, label: 'Pass',    icon: CheckCircle2 },
+  FAIL:        { get color() { return pick('#C21F3A', '#CC3300') }, get bg() { return pick('#C21F3A18', '#CC330018') }, label: 'Fail',    icon: XCircle      },
   WIP:         { get color() { return pick('#8A5E10', '#F2B000') }, get bg() { return pick('#8A5E1018', '#F2B00018') }, label: 'WIP',     icon: Clock        },
   BLOCKED:     { get color() { return pick('#3D6A8C', '#6693B0') }, get bg() { return pick('#3D6A8C18', '#6693B018') }, label: 'Blocked', icon: MinusCircle  },
   UNEXECUTED:  { get color() { return pick('#5E6573', '#8B929A') }, get bg() { return pick('#5E657318', '#8B929A18') }, label: 'Not Run', icon: MinusCircle  },
@@ -470,7 +470,7 @@ function Card({ children, style = {}, className = '', hover = true }: { children
       whileHover={hover ? { y: -2, boxShadow: '0 8px 32px rgba(0,0,0,0.12)' } : undefined}
       transition={{ duration: 0.18 }}
       style={{
-        background: DS.card, border: `1px solid ${DS.border}`, borderRadius: 16, overflow: 'hidden', ...style,
+        background: DS.card, border: `1px solid ${DS.border}`, borderRadius: pick('var(--radius-card)', '16px'), overflow: 'hidden', ...style,
       }}
     >
       {children}
@@ -1141,8 +1141,8 @@ function BugPriorityByProjectChart({ items = [], total, priorityOrder }: { items
 
 // ── Status pill helper ────────────────────────────────────────────────────────
 const STATUS_STYLE: Record<string, { color: string; bg: string; label: string }> = {
-  bug_logged:  { get color() { return pick('#C0330A', '#CC3300') }, get bg() { return pick('#C0330A18', '#CC330018') }, label: 'Bug'         },
-  resolved:    { get color() { return pick('#1A7331', '#00875A') }, get bg() { return pick('#1A733118', '#00875A18') }, label: 'Resolved'    },
+  bug_logged:  { get color() { return pick('#C21F3A', '#CC3300') }, get bg() { return pick('#C21F3A18', '#CC330018') }, label: 'Bug'         },
+  resolved:    { get color() { return pick('#2E7D46', '#00875A') }, get bg() { return pick('#2E7D4618', '#00875A18') }, label: 'Resolved'    },
   in_progress: { get color() { return pick('#8A5E10', '#F2B000') }, get bg() { return pick('#8A5E1018', '#F2B00018') }, label: 'In Progress' },
   pending:     { get color() { return pick('#5E6573', '#8B929A') }, get bg() { return pick('#5E657318', '#8B929A18') }, label: 'Pending'     },
 }
@@ -1174,11 +1174,11 @@ function DealerChip({ name, confirmed }: { name: string; confirmed: boolean }) {
       display: 'inline-block',
       padding: '1px 5px',
       borderRadius: 4,
-      background: confirmed ? pick('#1A733118', '#00875A18') : pick('#8A5E1018', '#F2B00018'),
-      color: confirmed ? pick('#1A7331', '#00875A') : pick('#8A5E10', '#F2B000'),
+      background: confirmed ? pick('#2E7D4618', '#00875A18') : pick('#8A5E1018', '#F2B00018'),
+      color: confirmed ? pick('#2E7D46', '#00875A') : pick('#8A5E10', '#F2B000'),
       fontSize: 9,
       fontWeight: 700,
-      border: `1px solid ${confirmed ? pick('#1A733130', '#00875A30') : pick('#8A5E1030', '#F2B00030')}`,
+      border: `1px solid ${confirmed ? pick('#2E7D4630', '#00875A30') : pick('#8A5E1030', '#F2B00030')}`,
     }}>
       {abbr[name] ?? name.slice(0, 2).toUpperCase()}
     </span>
@@ -1226,7 +1226,7 @@ function FindingsPanel({ data, jiraBase }: { data: FindingsAnalysis; jiraBase?: 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, padding: '10px 14px', borderBottom: `1px solid ${DS.border}` }}>
         {[
           { label: 'Observations', value: obs.total,               color: DS.accent,                          bg: DS.accentBg                           },
-          { label: 'Bugs Logged',  value: obs.stats.bug_logged,   color: pick('#C0330A', '#CC3300'),         bg: pick('#C0330A18', '#CC330018')         },
+          { label: 'Bugs Logged',  value: obs.stats.bug_logged,   color: pick('#C21F3A', '#CC3300'),         bg: pick('#C21F3A18', '#CC330018')         },
           { label: 'In Progress',  value: obs.stats.in_progress,  color: pick('#8A5E10', '#F2B000'),         bg: pick('#8A5E1018', '#F2B00018')         },
           { label: 'Blockers',     value: blk.active_count,       color: pick('#A82C18', '#FF5630'),         bg: pick('#A82C1818', '#FF563018')         },
         ].map(s => (
@@ -1245,10 +1245,11 @@ function FindingsPanel({ data, jiraBase }: { data: FindingsAnalysis; jiraBase?: 
         ].map(t => (
           <button
             key={t.id}
+            className="fx-pill"
             onClick={() => setTab(t.id)}
             style={{
               padding: '4px 10px',
-              borderRadius: 6,
+              borderRadius: pick('9999px', '6px'),
               border: `1px solid ${tab === t.id ? DS.accent : DS.border}`,
               background: tab === t.id ? DS.accentBg : 'transparent',
               color: tab === t.id ? DS.accent : DS.textMuted,
@@ -1368,7 +1369,7 @@ function FindingsPanel({ data, jiraBase }: { data: FindingsAnalysis; jiraBase?: 
       {/* ── Footer links ────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 8, padding: '8px 14px', borderTop: `1px solid ${DS.border}` }}>
         {[
-          { label: 'Observations ↗', url: data.obs_url, color: pick('#1A7331', '#00875A') },
+          { label: 'Observations ↗', url: data.obs_url, color: pick('#2E7D46', '#00875A') },
           { label: 'Blockers ↗',     url: data.blk_url, color: pick('#A82C18', '#FF5630') },
         ].map(l => (
           <a key={l.label} href={l.url} target="_blank" rel="noopener noreferrer"
@@ -1790,11 +1791,12 @@ export function ServicesDashboard() {
               </span>
             </div>
             <button
+              className="fx-pill"
               onClick={fetchData}
               disabled={loading}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
-                padding: '8px 14px', borderRadius: 10, flexShrink: 0,
+                padding: '8px 14px', borderRadius: pick('9999px', '10px'), flexShrink: 0,
                 background: DS.card, border: `1px solid ${DS.border}`, color: DS.textSec,
                 fontSize: 13, fontWeight: 600, cursor: loading ? 'wait' : 'pointer',
                 fontFamily: DS.font, opacity: loading ? 0.6 : 1, transition: 'opacity 0.15s',
@@ -1838,7 +1840,7 @@ export function ServicesDashboard() {
               whileHover={{ y: -2, boxShadow: 'var(--shadow-medium)' }}
               style={{
                 background: DS.card, border: `1px solid ${DS.border}`,
-                borderRadius: 14, padding: '16px 18px',
+                borderRadius: pick('var(--radius-card)', '14px'), padding: '16px 18px',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>

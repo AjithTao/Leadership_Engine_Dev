@@ -90,8 +90,8 @@ export function NewHeader({
     <header
       className="fixed top-0 left-64 right-0 z-50"
       style={{
-        backgroundColor: 'var(--bg-surface)',
-        borderBottom: '1px solid var(--border)',
+        backgroundColor: 'var(--nav-bg)',
+        borderBottom: '1px solid var(--nav-border)',
         fontFamily: 'var(--font)',
       }}
     >
@@ -104,7 +104,7 @@ export function NewHeader({
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <CDKLogo size={24} />
+          <CDKLogo size={24} textColor="var(--nav-text)" markColor="var(--nav-text)" />
         </motion.div>
 
         {/* Right section */}
@@ -114,9 +114,9 @@ export function NewHeader({
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
         >
-          {/* System status — cool blue (no green) */}
-          <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            <Activity className="w-3.5 h-3.5" style={{ color: 'var(--accent-cool)' }} />
+          {/* System status — chrome accent on the dark navbar */}
+          <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--nav-text-muted)' }}>
+            <Activity className="w-3.5 h-3.5" style={{ color: 'var(--chrome-accent)' }} />
             <span className="hidden sm:inline">System Active</span>
           </div>
 
@@ -145,9 +145,9 @@ export function NewHeader({
                     onClick={() => setShowUserMenu(false)}
                   />
 
-                  {/* Dropdown panel — border only, no box-shadow */}
+                  {/* Dropdown panel — border only in dark; soft shadow in light */}
                   <motion.div
-                    className="absolute right-0 top-full mt-2 w-72 rounded-2xl z-50 overflow-hidden"
+                    className="fx-popover absolute right-0 top-full mt-2 w-72 rounded-2xl z-50 overflow-hidden"
                     style={{
                       backgroundColor: 'var(--bg-surface)',
                       border: '1px solid var(--border-strong)',
@@ -211,7 +211,7 @@ export function NewHeader({
                                   color: 'var(--text-primary)',
                                 }}
                                 onFocus={(e) => {
-                                  e.target.style.borderColor = c.primary
+                                  e.target.style.borderColor = theme === 'dark' ? c.primary : 'var(--focus-ring)'
                                 }}
                                 onBlur={(e) => {
                                   e.target.style.borderColor = 'var(--border)'
@@ -223,7 +223,7 @@ export function NewHeader({
                             <button
                               onClick={handleSaveProfile}
                               className="flex-1 h-8 text-xs font-semibold rounded-full transition-opacity duration-150 hover:opacity-80"
-                              style={{ backgroundColor: c.primary, color: c.background }}
+                              style={{ backgroundColor: 'var(--btn-primary-bg)', color: 'var(--btn-primary-fg)' }}
                             >
                               Save
                             </button>
@@ -373,7 +373,7 @@ export function NewHeader({
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
             style={{
               backgroundColor: isAutoMode ? 'var(--accent-cool-bg)' : 'var(--bg-surface)',
-              border: `1px solid ${isAutoMode ? 'rgba(212,168,71,0.3)' : 'var(--border)'}`,
+              border: `1px solid ${isAutoMode ? 'color-mix(in srgb, var(--accent-cool) 30%, transparent)' : 'var(--border)'}`,
             }}
           >
             <Sparkles
@@ -417,28 +417,28 @@ function UserMenuTrigger({
       onClick={() => setShowUserMenu(!showUserMenu)}
       className="flex items-center gap-2 h-9 px-3 rounded-full transition-colors duration-150"
       style={{
-        color: 'var(--text-primary)',
-        backgroundColor: hovered ? 'var(--bg-hover)' : 'transparent',
+        color: 'var(--nav-text)',
+        backgroundColor: hovered ? 'var(--nav-hover-bg)' : 'transparent',
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <div
         className="w-6 h-6 rounded-full flex items-center justify-center"
-        style={{ backgroundColor: 'var(--bg-active)' }}
+        style={{ backgroundColor: 'var(--nav-active-bg)' }}
       >
-        <User className="w-3.5 h-3.5" style={{ color: primary }} />
+        <User className="w-3.5 h-3.5" style={{ color: 'var(--nav-text)' }} />
       </div>
       <div className="text-left hidden sm:block">
-        <div className="text-xs font-semibold leading-none" style={{ color: 'var(--text-primary)' }}>
+        <div className="text-xs font-semibold leading-none" style={{ color: 'var(--nav-text)' }}>
           {isLoaded ? settings.userProfile.name : 'User'}
         </div>
-        <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+        <div className="text-[10px] mt-0.5" style={{ color: 'var(--nav-text-muted)' }}>
           {isLoaded ? settings.userProfile.role : ''}
         </div>
       </div>
       <motion.div animate={{ rotate: showUserMenu ? 180 : 0 }} transition={{ duration: 0.2 }}>
-        <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--text-secondary)' }} />
+        <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--nav-text-muted)' }} />
       </motion.div>
     </button>
   )

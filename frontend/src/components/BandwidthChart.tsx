@@ -3,7 +3,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } fro
 export default function BandwidthChart({ data }: { data: Record<string, {issues:number; done:number; points?:number}> }) {
   const rows = Object.entries(data).map(([name, v]) => ({ name, Issues: v.issues, Done: v.done }));
   return (
-    <div className="rounded-2xl p-5 bg-white text-slate-900 dark:bg-card dark:text-card-foreground shadow-lg border border-slate-200/50 dark:border-border">
+    <div className="rounded-2xl p-5 bg-[var(--bg-card)] text-[var(--text-primary)] dark:bg-card dark:text-card-foreground shadow-lg border border-[var(--border)] dark:border-border">
       <h3 className="text-lg font-semibold mb-3">Bandwidth by Assignee</h3>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={rows}>

@@ -17,7 +17,7 @@ export default function VelocityChart({
   const all = [...data, next];
 
   return (
-    <div className="rounded-2xl p-5 bg-white text-slate-900 dark:bg-card dark:text-card-foreground shadow-lg border border-slate-200/50 dark:border-border">
+    <div className="rounded-2xl p-5 bg-[var(--bg-card)] text-[var(--text-primary)] dark:bg-card dark:text-card-foreground shadow-lg border border-[var(--border)] dark:border-border">
       <h3 className="text-lg font-semibold mb-3">Velocity (with projection)</h3>
       <ResponsiveContainer width="100%" height={300}>
         <ComposedChart data={all}>

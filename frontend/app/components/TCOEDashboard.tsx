@@ -560,7 +560,7 @@ function MetricSection({ metric, run, portfolioFilter }: { metric: MetricState; 
           padding: '16px 18px',
           borderBottom: '1px solid var(--border)',
           background: metric.status === 'completed'
-            ? 'linear-gradient(90deg, rgba(212,168,71,0.18), rgba(26,91,176,0.08), transparent)'
+            ? 'linear-gradient(90deg, color-mix(in srgb, var(--accent-cool) 18%, transparent), rgba(26,91,176,0.08), transparent)'
             : 'linear-gradient(90deg, var(--bg-card), var(--bg-surface))',
         }}
       >
@@ -578,7 +578,7 @@ function MetricSection({ metric, run, portfolioFilter }: { metric: MetricState; 
                 color: 'var(--accent-cool)',
                 fontSize: 12,
                 fontWeight: 800,
-                boxShadow: 'inset 0 0 0 1px rgba(212,168,71,0.2)',
+                boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--accent-cool) 20%, transparent)',
               }}
             >
               {metric.order}
@@ -798,6 +798,7 @@ export function TCOEDashboard() {
   return (
     <DashboardLayout>
       <div
+        className="tcoe-page-root"
         style={{
           padding: 24,
           fontFamily: 'var(--font)',
@@ -806,6 +807,9 @@ export function TCOEDashboard() {
         }}
       >
         <style>{`
+          html:not(.dark) .tcoe-page-root {
+            background: var(--bg-page) !important;
+          }
           .tcoe-dashboard-row {
             transition: background-color 160ms ease, box-shadow 160ms ease;
           }
@@ -932,7 +936,7 @@ export function TCOEDashboard() {
                 disabled={!run || totals.completed === 0 || exportingPDF}
                 style={{
                   height: 38,
-                  borderRadius: 8,
+                  borderRadius: 'var(--radius-pill)',
                   background: 'var(--bg-card)',
                   color: 'var(--text-primary)',
                   border: '1px solid var(--border)',
@@ -948,11 +952,11 @@ export function TCOEDashboard() {
                 disabled={refreshing}
                 style={{
                   height: 38,
-                  borderRadius: 8,
+                  borderRadius: 'var(--radius-pill)',
                   background: 'var(--accent-cool)',
                   color: '#fff',
                   fontWeight: 900,
-                  boxShadow: '0 10px 22px rgba(212,168,71,0.22)',
+                  boxShadow: '0 10px 22px color-mix(in srgb, var(--accent-cool) 22%, transparent)',
                 }}
               >
                 <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} style={{ marginRight: 8 }} />

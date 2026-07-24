@@ -23,25 +23,25 @@ export function ConnectionPopup({ isVisible, isSuccess, message, onClose }: Conn
 
   const getStatusIcon = () => {
     if (isSuccess) {
-      return <CheckCircle className="w-6 h-6 text-emerald-400" />
+      return <CheckCircle className="w-6 h-6 text-[var(--status-success)] dark:text-emerald-400" />
     } else {
-      return <XCircle className="w-6 h-6 text-red-400" />
+      return <XCircle className="w-6 h-6 text-[var(--status-danger)] dark:text-red-400" />
     }
   }
 
   const getStatusGradient = () => {
     if (isSuccess) {
-      return 'from-emerald-500/20 to-green-500/20'
+      return 'from-[var(--status-success-bg)] to-[var(--status-success-bg)] dark:from-emerald-500/20 dark:to-green-500/20'
     } else {
-      return 'from-red-500/20 to-rose-500/20'
+      return 'from-[var(--status-danger-bg)] to-[var(--status-danger-bg)] dark:from-red-500/20 dark:to-rose-500/20'
     }
   }
 
   const getStatusBorder = () => {
     if (isSuccess) {
-      return 'border-emerald-500/30'
+      return 'border-[color-mix(in_srgb,var(--success)_30%,transparent)] dark:border-emerald-500/30'
     } else {
-      return 'border-red-500/30'
+      return 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] dark:border-red-500/30'
     }
   }
 
@@ -85,8 +85,8 @@ export function ConnectionPopup({ isVisible, isSuccess, message, onClose }: Conn
                     transition={{ delay: 0.3 }}
                     className="flex items-center space-x-2 mb-2"
                   >
-                    <Sparkles className="w-4 h-4 text-blue-400" />
-                    <h4 className="premium-subheading text-white text-sm">
+                    <Sparkles className="w-4 h-4 text-[var(--link)] dark:text-blue-400" />
+                    <h4 className="premium-subheading text-[var(--text-primary)] dark:text-white text-sm">
                       {isSuccess ? 'Connection Successful' : 'Connection Failed'}
                     </h4>
                   </motion.div>
@@ -95,7 +95,7 @@ export function ConnectionPopup({ isVisible, isSuccess, message, onClose }: Conn
                     initial={{ opacity: 0, x: 10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.4 }}
-                    className="premium-text text-white/80 text-sm leading-relaxed"
+                    className="premium-text text-[var(--text-secondary)] dark:text-white/80 text-sm leading-relaxed"
                   >
                     {message}
                   </motion.p>
@@ -107,7 +107,7 @@ export function ConnectionPopup({ isVisible, isSuccess, message, onClose }: Conn
                 initial={{ width: 0 }}
                 animate={{ width: '100%' }}
                 transition={{ duration: 3, ease: "linear" }}
-                className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+                className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-[var(--accent-cool)] to-[var(--accent-indigo)] dark:from-blue-500 dark:to-purple-500 rounded-full"
               />
             </div>
           </div>

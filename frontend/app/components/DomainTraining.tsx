@@ -109,7 +109,7 @@ export default function DomainTraining() {
       {error && (
         <div
           className="p-2 rounded text-sm"
-          style={{ backgroundColor: isDarkMode ? '#7f1d1d33' : '#fee2e2', color: isDarkMode ? '#fecaca' : '#991b1b' }}
+          style={{ backgroundColor: isDarkMode ? '#7f1d1d33' : 'var(--red-bg)', color: isDarkMode ? '#fecaca' : 'var(--red)' }}
         >
           {error}
         </div>
@@ -137,7 +137,7 @@ export default function DomainTraining() {
           <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
             <input type="file" className="hidden" onChange={onUpload} accept=".pdf,.docx,.md,.txt" />
             <span
-              className="px-3 py-1 rounded text-white"
+              className="fx-pill px-3 py-1 rounded text-white"
               style={{ background: `linear-gradient(90deg, ${currentTheme.colors.primary}, ${currentTheme.colors.secondary})` }}
             >
               {uploading ? 'Uploading…' : 'Upload & Index'}
@@ -161,14 +161,14 @@ export default function DomainTraining() {
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           style={{
-            backgroundColor: isDarkMode ? currentTheme.colors.surface : '#fff',
+            backgroundColor: isDarkMode ? currentTheme.colors.surface : 'var(--input-bg)',
             borderColor: currentTheme.colors.border,
             color: currentTheme.colors.text
           }}
         />
         <div className="flex items-center gap-2">
           <button
-            className="px-3 py-1 rounded text-white"
+            className="fx-pill px-3 py-1 rounded text-white"
             onClick={onAsk}
             disabled={asking}
             style={{
@@ -184,7 +184,7 @@ export default function DomainTraining() {
             style={{
               color: isDarkMode ? currentTheme.colors.text : currentTheme.colors.text,
               border: `1px solid ${currentTheme.colors.border}`,
-              backgroundColor: isDarkMode ? currentTheme.colors.surface : '#fff'
+              backgroundColor: isDarkMode ? currentTheme.colors.surface : 'var(--bg-card)'
             }}
           >
             Clear
@@ -193,7 +193,7 @@ export default function DomainTraining() {
 
         {answer && (
           <div className="mt-3 p-3 rounded text-sm whitespace-pre-wrap" style={{
-            backgroundColor: isDarkMode ? `${currentTheme.colors.primary}0F` : '#f9fafb',
+            backgroundColor: isDarkMode ? `${currentTheme.colors.primary}0F` : 'var(--bg-surface)',
             border: `1px solid ${currentTheme.colors.border}`,
             color: currentTheme.colors.text
           }}>{answer}</div>

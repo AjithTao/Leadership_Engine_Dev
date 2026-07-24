@@ -280,6 +280,7 @@ function VisualizationCard({
   textSecondary,
   surface,
   surfaceVariant,
+  isDark,
 }: {
   visualization: AssistantVisualization
   accent: string
@@ -288,8 +289,20 @@ function VisualizationCard({
   textSecondary: string
   surface: string
   surfaceVariant: string
+  isDark: boolean
 }) {
   if (visualization.kind !== 'defectLeakage') return null
+
+  // Gold is no longer the light-mode accent: remap mustard series fills to blue in light only.
+  const chartData = isDark
+    ? visualization.chartData
+    : visualization.chartData.map(d =>
+        d.fill === '#D4A63F'
+          ? { ...d, fill: '#1878B9' }
+          : d.fill === 'rgba(212,166,63,0.28)'
+            ? { ...d, fill: 'rgba(24,120,185,0.28)' }
+            : d
+      )
 
   return (
     <div
@@ -317,7 +330,7 @@ function VisualizationCard({
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_220px] gap-4 items-start">
         <div className="h-52 rounded-2xl p-3" style={{ backgroundColor: surfaceVariant, border: `1px solid ${colorAlpha(border, 0.75)}` }}>
           <ResponsiveContainer width="100%" height="100%">
-            <RechartsBarChart data={visualization.chartData} layout="vertical" margin={{ top: 8, right: 18, left: 8, bottom: 8 }}>
+            <RechartsBarChart data={chartData} layout="vertical" margin={{ top: 8, right: 18, left: 8, bottom: 8 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={`${border}25`} />
               <XAxis
                 type="number"
@@ -435,27 +448,27 @@ function buildStoryDetail(_query: string, text: string): StoryDetail | undefined
   }
 }
 
-function statusTone(status: string | undefined): string {
+function statusTone(status: string | undefined, isDark: boolean): string {
   const s = (status || '').toLowerCase()
-  if (/(done|accepted|closed|resolved|complete|fixed|passed)/.test(s)) return '#34D399'
-  if (/(progress|review|testing|qa|reopen)/.test(s)) return '#60A5FA'
-  if (/(block|reject|fail|cancel)/.test(s)) return '#F87171'
-  return '#8B93A8'
+  if (/(done|accepted|closed|resolved|complete|fixed|passed)/.test(s)) return isDark ? '#34D399' : '#2E7D46'
+  if (/(progress|review|testing|qa|reopen)/.test(s)) return isDark ? '#60A5FA' : '#146AA5'
+  if (/(block|reject|fail|cancel)/.test(s)) return isDark ? '#F87171' : '#C21F3A'
+  return isDark ? '#8B93A8' : '#7C7C95'
 }
 
-function priorityTone(priority: string | undefined, accent: string): string {
+function priorityTone(priority: string | undefined, accent: string, isDark: boolean): string {
   const s = (priority || '').toLowerCase()
-  if (/(highest|critical|blocker)/.test(s)) return '#F87171'
-  if (/high/.test(s)) return '#FB923C'
+  if (/(highest|critical|blocker)/.test(s)) return isDark ? '#F87171' : '#C21F3A'
+  if (/high/.test(s)) return isDark ? '#FB923C' : '#B45309'
   if (/medium/.test(s)) return accent
-  if (/low(est)?/.test(s)) return '#34D399'
-  return '#8B93A8'
+  if (/low(est)?/.test(s)) return isDark ? '#34D399' : '#2E7D46'
+  return isDark ? '#8B93A8' : '#7C7C95'
 }
 
-function StoryDetailCard({ storyDetail, accent, border, text, textSecondary, surface }: {
-  storyDetail: StoryDetail; accent: string; border: string; text: string; textSecondary: string; surface: string
+function StoryDetailCard({ storyDetail, accent, border, text, textSecondary, surface, isDark }: {
+  storyDetail: StoryDetail; accent: string; border: string; text: string; textSecondary: string; surface: string; isDark: boolean
 }) {
-  const tone = statusTone(storyDetail.status)
+  const tone = statusTone(storyDetail.status, isDark)
   const cells = [...storyDetail.fields]
   if (cells.length % 2 === 1) cells.push({ label: '', value: '' })
 
@@ -492,7 +505,7 @@ function StoryDetailCard({ storyDetail, accent, border, text, textSecondary, sur
               <>
                 <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: textSecondary }}>{f.label}</p>
                 <p className="text-[13px] flex items-center gap-2" style={{ color: text }}>
-                  {f.label === 'Priority' && <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ backgroundColor: priorityTone(f.value, accent) }} />}
+                  {f.label === 'Priority' && <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ backgroundColor: priorityTone(f.value, accent, isDark) }} />}
                   {f.value}
                 </p>
               </>
@@ -557,8 +570,8 @@ function buildIssueList(_query: string, text: string): IssueList | undefined {
   return { count, items }
 }
 
-function IssueListCard({ issueList, accent, border, text, textSecondary, surface }: {
-  issueList: IssueList; accent: string; border: string; text: string; textSecondary: string; surface: string
+function IssueListCard({ issueList, accent, border, text, textSecondary, surface, isDark }: {
+  issueList: IssueList; accent: string; border: string; text: string; textSecondary: string; surface: string; isDark: boolean
 }) {
   return (
     <div className="mt-4 max-w-2xl rounded-2xl border overflow-hidden" style={{ backgroundColor: surface, borderColor: `${border}99` }}>
@@ -571,7 +584,7 @@ function IssueListCard({ issueList, accent, border, text, textSecondary, surface
       {/* Rows */}
       <div className="overflow-y-auto wb-scroll" style={{ maxHeight: 380 }}>
         {issueList.items.map((it, i) => {
-          const tone = statusTone(it.status)
+          const tone = statusTone(it.status, isDark)
           return (
             <div
               key={`${it.key}-${i}`}
@@ -597,7 +610,7 @@ function IssueListCard({ issueList, accent, border, text, textSecondary, surface
               )}
               {it.priority && (
                 <span className="flex-shrink-0 inline-flex items-center gap-1.5 text-[11.5px]" style={{ color: textSecondary, minWidth: 76 }}>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: priorityTone(it.priority, accent) }} />
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: priorityTone(it.priority, accent, isDark) }} />
                   {it.priority}
                 </span>
               )}
@@ -686,15 +699,15 @@ export function NewLeadershipCopilot({
   const strongBorder = borderStrong ?? border
   const mutedText = isDarkMode ? textSecondary : secondary
   const chatPanel = isDarkMode ? '#1A1D25' : '#FFFFFF'
-  const messageCanvas = isDarkMode ? '#161922' : '#F7F4EF'
+  const messageCanvas = isDarkMode ? '#161922' : '#F0F1F8'
   const assistantBubble = isDarkMode ? surface : '#FFFFFF'
-  const userBubble = isDarkMode ? colorAlpha(accent, 0.13) : '#FFF7E3'
+  const userBubble = isDarkMode ? colorAlpha(accent, 0.13) : 'rgba(24,120,185,0.08)'
   const inputSurface = isDarkMode ? surfaceVariant : '#FFFFFF'
-  const subtleSurface = isDarkMode ? colorAlpha(text, 0.04) : '#F2EFEA'
+  const subtleSurface = isDarkMode ? colorAlpha(text, 0.04) : '#F0F1F8'
   const buttonSurface = isDarkMode ? colorAlpha(text, 0.05) : '#FFFFFF'
-  const buttonHover = isDarkMode ? hover : '#F0EDE7'
+  const buttonHover = isDarkMode ? hover : '#E9EAF3'
   const focusRing = colorAlpha(accent, isDarkMode ? 0.18 : 0.16)
-  const accentText = isDarkMode ? accent : '#7A4D08'
+  const accentText = isDarkMode ? accent : '#146AA5'
   const accentButtonText = isDarkMode ? '#13151C' : '#FFFFFF'
 
   // ── ChatContext: the single source of truth ────────────────────────────────
@@ -1149,7 +1162,7 @@ export function NewLeadershipCopilot({
                 </div>
                 <button
                   onClick={createNewSession}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 active:scale-[0.98]"
+                  className="fx-pill w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 active:scale-[0.98]"
                   style={{ backgroundColor: `${accent}15`, color: accent, border: `1px solid ${accent}25` }}
                   onMouseEnter={e => { e.currentTarget.style.backgroundColor = `${accent}25` }}
                   onMouseLeave={e => { e.currentTarget.style.backgroundColor = `${accent}15` }}
@@ -1431,6 +1444,7 @@ export function NewLeadershipCopilot({
                                   text={text}
                                   textSecondary={textSecondary}
                                   surface={surface}
+                                  isDark={isDarkMode}
                                 />
                               ) : msg.metadata?.issueList ? (
                                 <IssueListCard
@@ -1440,6 +1454,7 @@ export function NewLeadershipCopilot({
                                   text={text}
                                   textSecondary={textSecondary}
                                   surface={surface}
+                                  isDark={isDarkMode}
                                 />
                               ) : msg.metadata?.countStat ? (
                                 <CountStat
@@ -1471,6 +1486,7 @@ export function NewLeadershipCopilot({
                                   textSecondary={mutedText}
                                   surface={assistantBubble}
                                   surfaceVariant={subtleSurface}
+                                  isDark={isDarkMode}
                                 />
                               )}
                               {msg.ragCitations && msg.ragCitations.length > 0 && (
@@ -1535,7 +1551,7 @@ export function NewLeadershipCopilot({
                   {isSupported && (
                     <button
                       onClick={() => { if (isListening) { stopListening() } else { resetTranscript(); startListening() } }}
-                      className="group relative h-11 px-3.5 flex items-center justify-center gap-2 rounded-xl transition-all duration-150"
+                      className="fx-pill group relative h-11 px-3.5 flex items-center justify-center gap-2 rounded-xl transition-all duration-150"
                       style={{
                         backgroundColor: isListening ? error : buttonSurface,
                         color: isListening ? '#FFFFFF' : accentText,
@@ -1556,7 +1572,7 @@ export function NewLeadershipCopilot({
                   <button
                     onClick={() => sendMessage()}
                     disabled={!canSend}
-                    className="group relative h-11 px-4 flex items-center justify-center gap-2 rounded-xl transition-all duration-150 disabled:cursor-not-allowed active:scale-95"
+                    className="fx-pill group relative h-11 px-4 flex items-center justify-center gap-2 rounded-xl transition-all duration-150 disabled:cursor-not-allowed active:scale-95"
                     style={{
                       backgroundColor: canSend ? accent : buttonSurface,
                       border: `1px solid ${canSend ? accent : colorAlpha(strongBorder, 0.75)}`,
@@ -1592,7 +1608,7 @@ export function NewLeadershipCopilot({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button onClick={() => setShowManualRoutingPopup(false)} style={{ backgroundColor: accent, color: '#000', border: 'none' }}>Got it</Button>
+            <Button className="fx-pill" onClick={() => setShowManualRoutingPopup(false)} style={{ backgroundColor: accent, color: isDarkMode ? '#000' : '#FFFFFF', border: 'none' }}>Got it</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

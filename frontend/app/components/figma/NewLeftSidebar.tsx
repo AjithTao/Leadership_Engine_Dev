@@ -39,7 +39,7 @@ import {
   FolderOpen,
   Layers
 } from 'lucide-react'
-import { FalconXLogo, MUSTARD, MUSTARD_DIM, OLIVE } from '../ui/FalconXLogo'
+import { FalconXLogo } from '../ui/FalconXLogo'
 import { getApiUrl } from '../../../lib/api-config'
 import { useRouter } from 'next/navigation'
 import { useTheme } from '../../contexts/ThemeContext'
@@ -195,21 +195,21 @@ export function NewLeftSidebar({
 
   return (
     <>
-      {/* Sidebar — bg-card with border-right only, no shadow */}
+      {/* Sidebar — dark indigo panel in light mode, unchanged card panel in dark */}
       <aside
         className="w-64 flex flex-col h-full min-h-0 overflow-hidden transition-all duration-500 ease-in-out"
         style={{
-          backgroundColor: 'var(--bg-card)',
-          borderRight: '1px solid var(--border)',
+          backgroundColor: 'var(--sidebar-bg)',
+          borderRight: '1px solid var(--sidebar-item-border)',
           fontFamily: 'var(--font)',
         }}
       >
         {/* Header */}
-        <div className="p-5" style={{ borderBottom: '1px solid var(--border)' }}>
-          <FalconXLogo size={28} color={MUSTARD} textColor={text} showText={true} />
+        <div className="p-5" style={{ borderBottom: '1px solid var(--sidebar-item-border)' }}>
+          <FalconXLogo size={28} color="var(--chrome-accent)" textColor="var(--sidebar-text)" xColor="var(--chrome-accent)" showText={true} />
           <p
             className="mt-1 ml-9 font-medium tracking-wider uppercase"
-            style={{ color: MUSTARD, opacity: 0.9, fontSize: '10px', letterSpacing: '0.08em' }}
+            style={{ color: 'var(--chrome-accent)', opacity: 0.9, fontSize: '10px', letterSpacing: '0.08em' }}
           >
             LEADERSHIP ENGINE
           </p>
@@ -225,8 +225,8 @@ export function NewLeftSidebar({
                   transition: { duration: 1, ease: "easeOut" }
                 }}
               >
-                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Welcome back,</p>
-                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                <p className="text-sm" style={{ color: 'var(--sidebar-text-muted)' }}>Welcome back,</p>
+                <p className="text-sm font-medium" style={{ color: 'var(--sidebar-text)' }}>
                   {isLoaded ? settings.userProfile.name : "User"}! 👋
                 </p>
               </motion.div>
@@ -242,7 +242,7 @@ export function NewLeftSidebar({
               <h4
                 className="font-semibold uppercase px-1"
                 style={{
-                  color: 'var(--text-hint)',
+                  color: 'var(--sidebar-section-label)',
                   fontSize: '11px',
                   letterSpacing: '0.07em',
                   marginBottom: '8px',
@@ -257,7 +257,7 @@ export function NewLeftSidebar({
                 onClick={() => setActiveView('copilot')}
                 primary={primary}
               >
-                <MessagesSquare className="w-4 h-4 flex-shrink-0" style={{ color: activeView === 'copilot' ? MUSTARD : 'var(--text-secondary)' }} />
+                <MessagesSquare className="w-4 h-4 flex-shrink-0" style={{ color: activeView === 'copilot' ? 'var(--chrome-accent)' : 'var(--sidebar-text-muted)' }} />
                 <div className="text-left min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-medium leading-none">Work Buddy</span>
@@ -271,16 +271,16 @@ export function NewLeftSidebar({
                         lineHeight: 1,
                         padding: '2px 6px',
                         borderRadius: 999,
-                        color: MUSTARD,
-                        background: MUSTARD_DIM,
-                        border: `1px solid ${MUSTARD}40`,
+                        color: 'var(--chrome-accent)',
+                        background: 'var(--chrome-accent-dim)',
+                        border: '1px solid var(--chrome-accent-border)',
                         flexShrink: 0
                       }}
                     >
                       Beta
                     </span>
                   </div>
-                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>AI Assistant</div>
+                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--sidebar-subtext)' }}>AI Assistant</div>
                 </div>
               </NavButton>
 
@@ -299,21 +299,21 @@ export function NewLeftSidebar({
                         onClick={() => setInsightsExpanded(!insightsExpanded)}
                         primary={primary}
                       >
-                        <LineChart className="w-4 h-4 flex-shrink-0" style={{ color: insightsActive ? MUSTARD : 'var(--text-secondary)' }} />
+                        <LineChart className="w-4 h-4 flex-shrink-0" style={{ color: insightsActive ? 'var(--chrome-accent)' : 'var(--sidebar-text-muted)' }} />
                         <div className="text-left flex-1 min-w-0">
                           <div className="text-sm font-medium leading-none">Insights</div>
-                          <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Analytics</div>
+                          <div className="text-[11px] mt-0.5" style={{ color: 'var(--sidebar-subtext)' }}>Analytics</div>
                         </div>
                         {insightsExpanded
-                          ? <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
-                          : <ChevronRight className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
+                          ? <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--sidebar-subtext)' }} />
+                          : <ChevronRight className="w-3.5 h-3.5" style={{ color: 'var(--sidebar-subtext)' }} />
                         }
                       </NavButton>
 
                       {insightsExpanded && (
                         <div
                           className="ml-7 pl-3 space-y-0.5"
-                          style={{ borderLeft: '1px solid var(--border)' }}
+                          style={{ borderLeft: '1px solid var(--sidebar-item-border)' }}
                         >
                           <SubNavButton
                             active={activeView === 'insights'}
@@ -377,21 +377,21 @@ export function NewLeftSidebar({
                         onClick={() => setMercuryExpanded(!mercuryExpanded)}
                         primary={primary}
                       >
-                        <Rocket className="w-4 h-4 flex-shrink-0" style={{ color: mercuryActive ? MUSTARD : 'var(--text-secondary)' }} />
+                        <Rocket className="w-4 h-4 flex-shrink-0" style={{ color: mercuryActive ? 'var(--chrome-accent)' : 'var(--sidebar-text-muted)' }} />
                         <div className="text-left flex-1 min-w-0">
                           <div className="text-sm font-medium leading-none">Project Mercury</div>
-                          <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>T&L Execution</div>
+                          <div className="text-[11px] mt-0.5" style={{ color: 'var(--sidebar-subtext)' }}>T&L Execution</div>
                         </div>
                         {mercuryExpanded
-                          ? <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
-                          : <ChevronRight className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
+                          ? <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--sidebar-subtext)' }} />
+                          : <ChevronRight className="w-3.5 h-3.5" style={{ color: 'var(--sidebar-subtext)' }} />
                         }
                       </NavButton>
 
                       {mercuryExpanded && (
                         <div
                           className="ml-7 pl-3 space-y-0.5 overflow-hidden"
-                          style={{ borderLeft: '1px solid var(--border)' }}
+                          style={{ borderLeft: '1px solid var(--sidebar-item-border)' }}
                         >
                           <SubNavButton
                             active={activeView === 'services-dashboard'}
@@ -432,9 +432,9 @@ export function NewLeftSidebar({
                               lineHeight: 1,
                               padding: '2px 5px',
                               borderRadius: 999,
-                              color: MUSTARD,
-                              background: MUSTARD_DIM,
-                              border: `1px solid ${MUSTARD}40`,
+                              color: 'var(--chrome-accent)',
+                              background: 'var(--chrome-accent-dim)',
+                              border: '1px solid var(--chrome-accent-border)',
                               flexShrink: 0,
                               whiteSpace: 'nowrap' as const,
                             }}>
@@ -454,7 +454,7 @@ export function NewLeftSidebar({
                 onClick={() => setActiveView('salesforce-insights')}
                 primary={primary}
               >
-                <Cloud className="w-4 h-4 flex-shrink-0" style={{ color: activeView === 'salesforce-insights' ? MUSTARD : 'var(--text-secondary)' }} />
+                <Cloud className="w-4 h-4 flex-shrink-0" style={{ color: activeView === 'salesforce-insights' ? 'var(--chrome-accent)' : 'var(--sidebar-text-muted)' }} />
                 <div className="text-left min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-medium leading-none">Salesforce</span>
@@ -468,9 +468,9 @@ export function NewLeftSidebar({
                         lineHeight: 1,
                         padding: '2px 6px',
                         borderRadius: 999,
-                        color: MUSTARD,
-                        background: MUSTARD_DIM,
-                        border: `1px solid ${MUSTARD}40`,
+                        color: 'var(--chrome-accent)',
+                        background: 'var(--chrome-accent-dim)',
+                        border: '1px solid var(--chrome-accent-border)',
                         flexShrink: 0
                       }}
                     >
@@ -488,7 +488,7 @@ export function NewLeftSidebar({
                 <h4
                   className="font-semibold uppercase"
                   style={{
-                    color: 'var(--text-hint)',
+                    color: 'var(--sidebar-section-label)',
                     fontSize: '11px',
                     letterSpacing: '0.07em',
                   }}
@@ -498,7 +498,7 @@ export function NewLeftSidebar({
                 <button
                   onClick={() => setIntegrationsExpanded(!integrationsExpanded)}
                   className="h-5 w-5 flex items-center justify-center rounded transition-colors"
-                  style={{ color: 'var(--text-secondary)' }}
+                  style={{ color: 'var(--sidebar-text-muted)' }}
                 >
                   {integrationsExpanded
                     ? <ChevronDown className="w-3 h-3" />
@@ -538,8 +538,8 @@ export function NewLeftSidebar({
               {!hasActiveConnections && (
                 <button
                   onClick={() => setShowSettings(true)}
-                  className="w-full h-9 flex items-center justify-center gap-2 rounded-xl text-sm font-medium transition-opacity duration-200 active:scale-[0.98] hover:opacity-90"
-                  style={{ backgroundColor: primary, color: background }}
+                  className="fx-pill w-full h-9 flex items-center justify-center gap-2 rounded-xl text-sm font-medium transition-opacity duration-200 active:scale-[0.98] hover:opacity-90"
+                  style={{ backgroundColor: 'var(--btn-primary-bg)', color: 'var(--btn-primary-fg)' }}
                 >
                   <Plug className="w-3.5 h-3.5" />
                   Connect Integrations
@@ -549,13 +549,13 @@ export function NewLeftSidebar({
                 <div className="space-y-2">
                   <button
                     onClick={() => setShowSettings(true)}
-                    className="w-full h-9 flex items-center justify-center gap-2 rounded-xl text-sm font-medium transition-colors duration-200 active:scale-[0.98]"
+                    className="fx-pill w-full h-9 flex items-center justify-center gap-2 rounded-xl text-sm font-medium transition-colors duration-200 active:scale-[0.98]"
                     style={{
-                      border: '1px solid var(--border)',
-                      color: 'var(--text-primary)',
+                      border: '1px solid var(--sidebar-item-border)',
+                      color: 'var(--sidebar-text)',
                       backgroundColor: 'transparent',
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-hover)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--sidebar-hover-bg)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
                   >
                     <Settings className="w-3.5 h-3.5" />
@@ -568,10 +568,10 @@ export function NewLeftSidebar({
                         try { await fetch(getApiUrl('/api/confluence/disconnect'), { method: 'POST' }) } catch {}
                         try { toggleConnection(-1) } catch {}
                       }}
-                      className="w-full h-9 flex items-center justify-center gap-2 rounded-xl text-sm font-medium transition-colors duration-200 active:scale-[0.98]"
+                      className="fx-pill w-full h-9 flex items-center justify-center gap-2 rounded-xl text-sm font-medium transition-colors duration-200 active:scale-[0.98]"
                       style={{
-                        border: '1px solid var(--red)',
-                        color: 'var(--red)',
+                        border: '1px solid var(--chrome-danger)',
+                        color: 'var(--chrome-danger)',
                         backgroundColor: 'transparent',
                       }}
                       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(248,113,113,0.08)' }}
@@ -590,7 +590,7 @@ export function NewLeftSidebar({
               <h4
                 className="font-semibold uppercase px-1"
                 style={{
-                  color: 'var(--text-hint)',
+                  color: 'var(--sidebar-section-label)',
                   fontSize: '11px',
                   letterSpacing: '0.07em',
                 }}
@@ -603,19 +603,19 @@ export function NewLeftSidebar({
                     key={action.label}
                     onClick={() => onQuickAction(action.prompt)}
                     className="w-full flex items-center gap-3 h-10 px-3 rounded-xl text-left transition-colors duration-200"
-                    style={{ color: 'var(--text-primary)', backgroundColor: 'transparent' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-hover)' }}
+                    style={{ color: 'var(--sidebar-text)', backgroundColor: 'transparent' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--sidebar-hover-bg)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
                   >
                     <div
                       className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: 'var(--bg-surface)' }}
+                      style={{ backgroundColor: isDarkMode ? 'var(--bg-surface)' : 'var(--sidebar-hover-bg)' }}
                     >
-                      <action.icon className="w-3.5 h-3.5" style={{ color: primary }} />
+                      <action.icon className="w-3.5 h-3.5" style={{ color: isDarkMode ? primary : 'var(--chrome-accent)' }} />
                     </div>
                     <div className="min-w-0">
                       <div className="text-sm font-medium leading-none truncate">{action.label}</div>
-                      <div className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}>{action.subtext}</div>
+                      <div className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--sidebar-text-muted)' }}>{action.subtext}</div>
                     </div>
                   </button>
                 ))}
@@ -625,12 +625,12 @@ export function NewLeftSidebar({
         </ScrollArea>
 
         {/* Footer */}
-        <div className="px-4 py-3" style={{ borderTop: '1px solid var(--border)' }}>
+        <div className="px-4 py-3" style={{ borderTop: '1px solid var(--sidebar-item-border)' }}>
           <button
             onClick={() => setShowAboutUs(true)}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-200"
-            style={{ color: 'var(--text-secondary)', backgroundColor: 'transparent' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-hover)' }}
+            style={{ color: 'var(--sidebar-text-muted)', backgroundColor: 'transparent' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--sidebar-hover-bg)' }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
           >
             <Globe className="w-4 h-4 flex-shrink-0" />
@@ -717,7 +717,7 @@ export function NewLeftSidebar({
                     style={{ backgroundColor: primary }}
                   >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                      <path d="M3 3L21 12L13 14L10 21L3 3Z" fill="#000000" />
+                      <path d="M3 3L21 12L13 14L10 21L3 3Z" fill={isDarkMode ? '#000000' : 'var(--surface)'} />
                     </svg>
                   </div>
                   <div>
@@ -921,7 +921,7 @@ export function NewLeftSidebar({
                           style={{ backgroundColor: primary }}
                         >
                           <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                            <path d="M1 4L3.5 6.5L9 1" stroke="#000000" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M1 4L3.5 6.5L9 1" stroke={isDarkMode ? '#000000' : 'var(--surface)'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                           </svg>
                         </div>
                         <div>
@@ -946,8 +946,8 @@ export function NewLeftSidebar({
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold transition-opacity duration-200 hover:opacity-80"
                     style={{
-                      backgroundColor: primary,
-                      color: background,
+                      backgroundColor: 'var(--btn-primary-bg)',
+                      color: 'var(--btn-primary-fg)',
                     }}
                   >
                     <Globe className="w-4 h-4" />
@@ -983,9 +983,9 @@ function NavButton({
   const [hovered, setHovered] = useState(false)
 
   const bg = active
-    ? 'var(--bg-active)'
+    ? 'var(--sidebar-active-bg)'
     : hovered
-    ? 'var(--bg-hover)'
+    ? 'var(--sidebar-hover-bg)'
     : 'transparent'
 
   return (
@@ -994,7 +994,7 @@ function NavButton({
       className="w-full flex items-center gap-3 h-11 px-3 rounded-xl transition-colors duration-150 relative"
       style={{
         backgroundColor: bg,
-        color: active ? primary : 'var(--text-secondary)',
+        color: active ? 'var(--sidebar-text)' : 'var(--sidebar-text-muted)',
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -1002,7 +1002,7 @@ function NavButton({
       {active && (
         <span
           className="absolute top-1/2 -translate-y-1/2 rounded-full"
-          style={{ left: 5, width: 3, height: 18, backgroundColor: MUSTARD }}
+          style={{ left: 5, width: 3, height: 18, backgroundColor: 'var(--chrome-accent)' }}
         />
       )}
       {children}
@@ -1025,9 +1025,9 @@ function SubNavButton({
   const [hovered, setHovered] = useState(false)
 
   const bg = active
-    ? 'var(--bg-active)'
+    ? 'var(--sidebar-active-bg)'
     : hovered
-    ? 'var(--bg-hover)'
+    ? 'var(--sidebar-hover-bg)'
     : 'transparent'
 
   return (
@@ -1036,7 +1036,7 @@ function SubNavButton({
       className="w-full flex items-center gap-2 h-9 px-2 rounded-lg text-sm transition-colors duration-150 overflow-hidden"
       style={{
         backgroundColor: bg,
-        color: active ? primary : 'var(--text-secondary)',
+        color: active ? 'var(--sidebar-text)' : 'var(--sidebar-text-muted)',
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -1066,10 +1066,10 @@ function IntegrationRow({
 
   // Status dot color: green = connected, red = disconnected, gray = coming-soon
   const dotColor = coming
-    ? 'var(--text-muted)'
+    ? 'var(--sidebar-subtext)'
     : isConnected
-    ? 'var(--status-success)'
-    : 'var(--red)'
+    ? 'var(--chrome-success)'
+    : 'var(--chrome-danger)'
 
   return (
     <div
@@ -1077,7 +1077,7 @@ function IntegrationRow({
       style={{
         opacity: coming ? 0.4 : 1,
         cursor: coming ? 'default' : 'default',
-        backgroundColor: hovered && !coming ? 'var(--bg-hover)' : 'transparent',
+        backgroundColor: hovered && !coming ? 'var(--sidebar-hover-bg)' : 'transparent',
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -1085,24 +1085,24 @@ function IntegrationRow({
       <div className="flex items-center gap-3 min-w-0">
         <Icon
           className="w-4 h-4 flex-shrink-0"
-          style={{ color: isConnected ? primary : 'var(--text-secondary)' }}
+          style={{ color: isConnected ? 'var(--sidebar-text)' : 'var(--sidebar-text-muted)' }}
         />
         <div className="min-w-0">
           <div
             className="text-sm font-medium truncate"
-            style={{ color: isConnected ? primary : 'var(--text-primary)' }}
+            style={{ color: 'var(--sidebar-text)' }}
           >
             {name}
           </div>
-          <div className="text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>{label}</div>
+          <div className="text-[11px] truncate" style={{ color: 'var(--sidebar-text-muted)' }}>{label}</div>
         </div>
       </div>
       {coming ? (
         <span
           className="text-[10px] px-2 py-0.5 rounded-full"
           style={{
-            border: '1px solid var(--border)',
-            color: 'var(--text-secondary)',
+            border: '1px solid var(--sidebar-item-border)',
+            color: 'var(--sidebar-text-muted)',
           }}
         >
           Soon

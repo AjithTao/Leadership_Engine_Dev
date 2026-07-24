@@ -64,7 +64,7 @@ const DS = {
 
 // ── Category colours (mirrors the backend taxonomy) ──────────────────────────
 
-const CATEGORY_COLORS: Record<string, string> = {
+const CATEGORY_COLORS_DARK: Record<string, string> = {
   'UI / Frontend Issue':       '#D4A847',
   'Backend / API Issue':       '#F87171',
   'Data / Database Issue':     '#93C5FD',
@@ -72,18 +72,40 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Product / Feature Request': '#D4A847',
 };
 
-const PRIORITY_COLORS: Record<string, string> = {
+// Light-mode equivalents — AA-safe as badge text on white cards.
+const CATEGORY_COLORS_LIGHT: Record<string, string> = {
+  'UI / Frontend Issue':       '#1878B9',
+  'Backend / API Issue':       '#C21F3A',
+  'Data / Database Issue':     '#504E7A',
+  'Infrastructure / DevOps':   '#B45309',
+  'Product / Feature Request': '#1878B9',
+};
+
+const PRIORITY_COLORS_DARK: Record<string, string> = {
   High:     '#F87171',
   Medium:   '#FCD34D',
   Low:      '#D4A847',
   Critical: '#F87171',
 };
 
+const PRIORITY_COLORS_LIGHT: Record<string, string> = {
+  High:     '#C21F3A',
+  Medium:   '#B45309',
+  Low:      '#2E7D46',
+  Critical: '#C21F3A',
+};
+
+const FALLBACK_BADGE_DARK = '#8B93A8';
+const FALLBACK_BADGE_LIGHT = '#7C7C95';
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function CategoryBadge({ category, color }: { category: string | null; color?: string | null }) {
+  const { isDarkMode } = useTheme();
   if (!category) return <span style={{ color: DS.textMuted, fontSize: 12 }}>Unclassified</span>;
-  const bg = color || CATEGORY_COLORS[category] || '#8B93A8';
+  const bg = color
+    || (isDarkMode ? CATEGORY_COLORS_DARK : CATEGORY_COLORS_LIGHT)[category]
+    || (isDarkMode ? FALLBACK_BADGE_DARK : FALLBACK_BADGE_LIGHT);
   return (
     <span
       style={{
@@ -103,7 +125,9 @@ function CategoryBadge({ category, color }: { category: string | null; color?: s
 }
 
 function PriorityBadge({ priority }: { priority: string }) {
-  const color = PRIORITY_COLORS[priority] || '#8B93A8';
+  const { isDarkMode } = useTheme();
+  const color = (isDarkMode ? PRIORITY_COLORS_DARK : PRIORITY_COLORS_LIGHT)[priority]
+    || (isDarkMode ? FALLBACK_BADGE_DARK : FALLBACK_BADGE_LIGHT);
   return (
     <span
       style={{
@@ -130,6 +154,7 @@ function DonutChart({
   colors: Record<string, string>;
   total: number;
 }) {
+  const { isDarkMode } = useTheme();
   const entries = Object.entries(distribution);
   if (!entries.length || total === 0) return null;
 
@@ -166,7 +191,12 @@ function DonutChart({
       'Z',
     ].join(' ');
 
-    return { cat, count, pct, d, color: colors[cat] || CATEGORY_COLORS[cat] || '#8B93A8' };
+    return {
+      cat, count, pct, d,
+      color: colors[cat]
+        || (isDarkMode ? CATEGORY_COLORS_DARK : CATEGORY_COLORS_LIGHT)[cat]
+        || (isDarkMode ? FALLBACK_BADGE_DARK : FALLBACK_BADGE_LIGHT),
+    };
   });
 
   return (
@@ -200,6 +230,7 @@ function DonutChart({
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export function SalesforceInsightsDashboard() {
+  const { isDarkMode } = useTheme();
   const [loading, setLoading] = useState(false);
   const [classifying, setClassifying] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -301,7 +332,7 @@ export function SalesforceInsightsDashboard() {
           style={{
             background: DS.amberBg,
             border: `1px solid ${DS.border}`,
-            borderRadius: 12,
+            borderRadius: isDarkMode ? 12 : 10,
             padding: '14px 16px',
             display: 'flex',
             alignItems: 'center',
@@ -358,7 +389,7 @@ export function SalesforceInsightsDashboard() {
               disabled={loading}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
-                padding: '7px 14px', borderRadius: 8, fontSize: 13,
+                padding: '7px 14px', borderRadius: isDarkMode ? 8 : 9999, fontSize: 13,
                 background: DS.surface, border: `1px solid ${DS.border}`, color: DS.textSecondary,
                 cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
                 fontFamily: DS.font,
@@ -374,8 +405,8 @@ export function SalesforceInsightsDashboard() {
               disabled={classifying}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
-                padding: '7px 14px', borderRadius: 8, fontSize: 13,
-                background: 'var(--accent-cool)', color: 'var(--bg-page)', border: 'none',
+                padding: '7px 14px', borderRadius: isDarkMode ? 8 : 9999, fontSize: 13,
+                background: 'var(--accent-cool)', color: isDarkMode ? 'var(--bg-page)' : 'var(--btn-primary-fg)', border: 'none',
                 cursor: classifying ? 'not-allowed' : 'pointer', opacity: classifying ? 0.7 : 1,
                 fontWeight: 700, fontFamily: "'Plus Jakarta Sans', sans-serif",
               }}
@@ -394,7 +425,7 @@ export function SalesforceInsightsDashboard() {
             style={{
               background: DS.redBg,
               border: `1px solid ${DS.border}`,
-              borderRadius: 12,
+              borderRadius: isDarkMode ? 12 : 10,
               padding: '14px 16px',
               display: 'flex',
               alignItems: 'center',
@@ -415,7 +446,7 @@ export function SalesforceInsightsDashboard() {
                 style={{
                   background: DS.cardBg,
                   border: `1px solid ${DS.border}`,
-                  borderRadius: 12,
+                  borderRadius: isDarkMode ? 12 : 10,
                   padding: '20px 18px',
                 }}
               >
@@ -441,21 +472,21 @@ export function SalesforceInsightsDashboard() {
 
         {/* ── Category Distribution ── */}
         {metrics && Object.keys(metrics.category_distribution || {}).length > 0 && (
-          <div style={{ background: DS.cardBg, border: `1px solid ${DS.border}`, borderRadius: 12, padding: '20px 22px' }}>
+          <div style={{ background: DS.cardBg, border: `1px solid ${DS.border}`, borderRadius: isDarkMode ? 12 : 10, padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
               <BarChart3 style={{ width: 18, height: 18, color: DS.blue }} />
               <span style={{ color: DS.textPrimary, fontSize: 14, fontWeight: 600 }}>Category Distribution</span>
             </div>
             <DonutChart
               distribution={metrics.category_distribution}
-              colors={metrics.category_colors || CATEGORY_COLORS}
+              colors={metrics.category_colors || (isDarkMode ? CATEGORY_COLORS_DARK : CATEGORY_COLORS_LIGHT)}
               total={metrics.classified_cases}
             />
           </div>
         )}
 
         {/* ── Cases Table ── */}
-        <div style={{ background: DS.cardBg, border: `1px solid ${DS.border}`, borderRadius: 12 }}>
+        <div style={{ background: DS.cardBg, border: `1px solid ${DS.border}`, borderRadius: isDarkMode ? 12 : 10 }}>
           <div style={{ padding: '18px 22px', borderBottom: `1px solid ${DS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Ticket style={{ width: 18, height: 18, color: DS.blue }} />
@@ -477,7 +508,7 @@ export function SalesforceInsightsDashboard() {
               onChange={e => setStatusFilter(e.target.value)}
               style={{
                 background: DS.surface, border: `1px solid ${DS.border}`, color: DS.textPrimary,
-                borderRadius: 8, padding: '7px 10px', fontSize: 13,
+                borderRadius: isDarkMode ? 8 : 6, padding: '7px 10px', fontSize: 13,
                 fontFamily: "'Plus Jakarta Sans', sans-serif", cursor: 'pointer',
               }}
             >
@@ -553,7 +584,7 @@ export function SalesforceInsightsDashboard() {
                           <button
                             onClick={e => { e.stopPropagation(); openCaseDetail(caseItem); }}
                             style={{
-                              padding: '4px 12px', borderRadius: 8, fontSize: 12,
+                              padding: '4px 12px', borderRadius: isDarkMode ? 8 : 9999, fontSize: 12,
                               background: DS.blueBg, color: DS.blue,
                               border: `1px solid ${DS.blue}30`,
                               cursor: 'pointer',

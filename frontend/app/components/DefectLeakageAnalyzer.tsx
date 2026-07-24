@@ -5133,6 +5133,7 @@ export function DefectLeakageAnalyzer() {
             <DialogFooter>
               <Button
                 type="button"
+                className="fx-pill"
                 onClick={() => setMailDialogOpen(false)}
                 disabled={sendingMail}
                 style={{
@@ -5147,6 +5148,7 @@ export function DefectLeakageAnalyzer() {
               </Button>
               <Button
                 type="button"
+                className="fx-pill"
                 onClick={handleSendMail}
                 disabled={sendingMail || !mailTo.trim()}
                 style={{
@@ -5189,7 +5191,7 @@ export function DefectLeakageAnalyzer() {
                     fontSize: 11, fontWeight: 600,
                     color: 'var(--accent-cool)',
                     backgroundColor: 'var(--accent-cool-bg)',
-                    border: '1px solid rgba(212,168,71,0.25)',
+                    border: isDarkMode ? '1px solid rgba(212,168,71,0.25)' : '1px solid rgba(24,120,185,0.25)',
                     borderRadius: 6, padding: '2px 8px',
                   }}
                 >
@@ -5201,11 +5203,11 @@ export function DefectLeakageAnalyzer() {
           <div className="flex gap-3">
             <Button
               onClick={analyzeLeakage}
-              className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-opacity duration-150 hover:opacity-85 focus-visible:outline-none"
+              className="fx-pill flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-opacity duration-150 hover:opacity-85 focus-visible:outline-none"
               style={{
                 backgroundColor: 'var(--accent-cool)',
                 color: 'var(--bg-page)',
-                borderRadius: '12px',
+                borderRadius: isDarkMode ? '12px' : undefined,
                 border: 'none',
               }}
               disabled={loading}
@@ -5215,14 +5217,14 @@ export function DefectLeakageAnalyzer() {
             </Button>
             <Button
               onClick={handleExportExcel}
-              className="rounded-xl px-4 py-2 text-sm font-medium transition-opacity duration-150 hover:opacity-85"
+              className="fx-pill rounded-xl px-4 py-2 text-sm font-medium transition-opacity duration-150 hover:opacity-85"
               style={{
                 backgroundColor: cardBackground,
                 color: headingColor,
                 borderColor: borderColor,
                 borderWidth: '1px',
                 borderStyle: 'solid',
-                borderRadius: '12px'
+                borderRadius: isDarkMode ? '12px' : undefined
               }}
               disabled={!hasGeneratedReport || exportingExcel}
             >
@@ -5231,14 +5233,14 @@ export function DefectLeakageAnalyzer() {
             </Button>
             <Button
               onClick={handleExportPDF}
-              className="rounded-xl px-4 py-2 text-sm font-medium transition-opacity duration-150 hover:opacity-85"
+              className="fx-pill rounded-xl px-4 py-2 text-sm font-medium transition-opacity duration-150 hover:opacity-85"
               style={{
                 backgroundColor: cardBackground,
                 color: headingColor,
                 borderColor: borderColor,
                 borderWidth: '1px',
                 borderStyle: 'solid',
-                borderRadius: '12px'
+                borderRadius: isDarkMode ? '12px' : undefined
               }}
               disabled={!hasGeneratedReport || exportingPDF}
             >
@@ -5247,14 +5249,14 @@ export function DefectLeakageAnalyzer() {
             </Button>
             <Button
               onClick={openMailDialog}
-              className="rounded-xl px-4 py-2 text-sm font-medium transition-opacity duration-150 hover:opacity-85"
+              className="fx-pill rounded-xl px-4 py-2 text-sm font-medium transition-opacity duration-150 hover:opacity-85"
               style={{
                 backgroundColor: cardBackground,
                 color: headingColor,
                 borderColor: borderColor,
                 borderWidth: '1px',
                 borderStyle: 'solid',
-                borderRadius: '12px'
+                borderRadius: isDarkMode ? '12px' : undefined
               }}
               disabled={!hasGeneratedReport || sendingMail}
             >
@@ -5281,7 +5283,7 @@ export function DefectLeakageAnalyzer() {
               Portfolio
             </label>
               <div
-                className="w-full px-3 py-2 rounded-xl border cursor-pointer flex items-center justify-between transition-all duration-200 hover:shadow-md focus-within:ring-2 focus-within:ring-blue-500/70 focus-within:border-blue-500"
+                className="w-full px-3 py-2 rounded-xl border cursor-pointer flex items-center justify-between transition-all duration-200 hover:shadow-md focus-within:ring-2 focus-within:ring-[#1878B9]/70 focus-within:border-[#1878B9] dark:focus-within:ring-blue-500/70 dark:focus-within:border-blue-500"
                 style={{
                   background: isDarkMode
                     ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(51, 65, 85, 0.8))'
@@ -5326,7 +5328,7 @@ export function DefectLeakageAnalyzer() {
                   style={{
                     background: isDarkMode
                       ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95))'
-                      : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98))',
+                      : 'var(--bg-card)',
                     borderColor: currentTheme.colors.primary,
                     minWidth: '280px',
                     maxHeight: '400px',
@@ -5363,7 +5365,7 @@ export function DefectLeakageAnalyzer() {
                   onClick={(e) => e.stopPropagation()}
                   className="w-full mb-3 px-3 py-2 rounded-lg text-sm outline-none border"
                   style={{
-                    background: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                    background: isDarkMode ? 'rgba(255,255,255,0.06)' : 'var(--bg-surface)',
                     borderColor: currentTheme.colors.border,
                     color: currentTheme.colors.text,
                   }}
@@ -5416,7 +5418,7 @@ export function DefectLeakageAnalyzer() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 fx-pill"
                     onClick={(e) => { e.stopPropagation(); cancelPortfolioMultiSelect(); }}
                     style={{
                       borderColor: currentTheme.colors.border,
@@ -5427,7 +5429,7 @@ export function DefectLeakageAnalyzer() {
                   </Button>
                   <Button
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 fx-pill"
                     onClick={(e) => { e.stopPropagation(); applyPortfolioMultiSelect(); }}
                     disabled={tempSelectedPortfolios.length === 0}
                     style={{
@@ -5449,7 +5451,7 @@ export function DefectLeakageAnalyzer() {
               Project
             </label>
             <div
-              className="w-full px-3 py-2 rounded-xl border cursor-pointer flex items-center justify-between transition-all duration-200 hover:shadow-md focus-within:ring-2 focus-within:ring-blue-500/70 focus-within:border-blue-500"
+              className="w-full px-3 py-2 rounded-xl border cursor-pointer flex items-center justify-between transition-all duration-200 hover:shadow-md focus-within:ring-2 focus-within:ring-[#1878B9]/70 focus-within:border-[#1878B9] dark:focus-within:ring-blue-500/70 dark:focus-within:border-blue-500"
                 style={{
                   background: isDarkMode
                     ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(51, 65, 85, 0.8))'
@@ -5502,7 +5504,7 @@ export function DefectLeakageAnalyzer() {
                 style={{
                   background: isDarkMode
                     ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95))'
-                    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98))',
+                    : 'var(--bg-card)',
                   borderColor: currentTheme.colors.primary,
                   minWidth: '300px',
                   maxHeight: '400px',
@@ -5539,7 +5541,7 @@ export function DefectLeakageAnalyzer() {
                   onClick={(e) => e.stopPropagation()}
                   className="w-full mb-3 px-3 py-2 rounded-lg text-sm outline-none border"
                   style={{
-                    background: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                    background: isDarkMode ? 'rgba(255,255,255,0.06)' : 'var(--bg-surface)',
                     borderColor: currentTheme.colors.border,
                     color: currentTheme.colors.text,
                   }}
@@ -5604,7 +5606,7 @@ export function DefectLeakageAnalyzer() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 fx-pill"
                     onClick={(e) => { e.stopPropagation(); cancelMultiSelect(); }}
                     style={{
                       borderColor: currentTheme.colors.border,
@@ -5615,7 +5617,7 @@ export function DefectLeakageAnalyzer() {
                   </Button>
                   <Button
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 fx-pill"
                     onClick={(e) => { e.stopPropagation(); applyMultiSelect(); }}
                     disabled={tempSelectedProjectKeys.length === 0}
                     style={{
@@ -5678,7 +5680,7 @@ export function DefectLeakageAnalyzer() {
                 style={{
                   background: isDarkMode
                     ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95))'
-                    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98))',
+                    : 'var(--bg-card)',
                   borderColor: currentTheme.colors.primary,
                   minWidth: '300px',
                   maxHeight: '400px',
@@ -5715,7 +5717,7 @@ export function DefectLeakageAnalyzer() {
                   onClick={(e) => e.stopPropagation()}
                   className="w-full mb-3 px-3 py-2 rounded-lg text-sm outline-none border"
                   style={{
-                    background: isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                    background: isDarkMode ? 'rgba(255,255,255,0.06)' : 'var(--bg-surface)',
                     borderColor: currentTheme.colors.border,
                     color: currentTheme.colors.text,
                   }}
@@ -5801,7 +5803,7 @@ export function DefectLeakageAnalyzer() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 fx-pill"
                     onClick={(e) => { e.stopPropagation(); cancelMetricMultiSelect(); }}
                     style={{
                       borderColor: currentTheme.colors.border,
@@ -5812,7 +5814,7 @@ export function DefectLeakageAnalyzer() {
                   </Button>
                   <Button
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 fx-pill"
                     onClick={(e) => { e.stopPropagation(); applyMetricMultiSelect(); }}
                     disabled={onlyVisibleTcoeMetrics(tempSelectedMetrics).length === 0}
                     style={{
@@ -5859,7 +5861,7 @@ export function DefectLeakageAnalyzer() {
                     <button
                       key={mode.value}
                       onClick={() => selectDateFilterMode(mode.value as DateFilterMode)}
-                      className="px-3 py-1.5 text-sm rounded-xl border transition-all duration-200 font-medium"
+                      className="fx-pill px-3 py-1.5 text-sm rounded-xl border transition-all duration-200 font-medium"
                       style={{
                         background: dateFilterMode === mode.value
                           ? 'var(--accent-cool)'
@@ -5867,10 +5869,10 @@ export function DefectLeakageAnalyzer() {
                             ? `linear-gradient(135deg, ${currentTheme.colors.surface}, ${currentTheme.colors.background})`
                             : `linear-gradient(135deg, ${cardBackground}, ${currentTheme.colors.background})`,
                         borderColor: dateFilterMode === mode.value ? 'var(--accent-cool)' : borderColor,
-                        color: dateFilterMode === mode.value ? '#000000' : headingColor,
-                        borderRadius: '12px',
+                        color: dateFilterMode === mode.value ? (isDarkMode ? '#000000' : '#FFFFFF') : headingColor,
+                        borderRadius: isDarkMode ? '12px' : undefined,
                         boxShadow: dateFilterMode === mode.value
-                          ? '0 4px 12px rgba(212,168,71,0.25)'
+                          ? (isDarkMode ? '0 4px 12px rgba(212,168,71,0.25)' : '0 4px 12px rgba(24,120,185,0.25)')
                           : '0 1px 2px rgba(0, 0, 0, 0.05)',
                         fontFamily: 'var(--font)'
                       }}
@@ -6407,13 +6409,13 @@ export function DefectLeakageAnalyzer() {
         <Alert
           className="border flex items-start gap-3"
           style={{
-            backgroundColor: isDarkMode ? `${currentTheme.colors.error}20` : '#FEF2F2',
-            borderColor: isDarkMode ? `${currentTheme.colors.error}60` : '#FCA5A5',
-            color: isDarkMode ? '#FECACA' : '#991B1B'
+            backgroundColor: isDarkMode ? `${currentTheme.colors.error}20` : '#F9E3E7',
+            borderColor: isDarkMode ? `${currentTheme.colors.error}60` : '#E9B0BA',
+            color: isDarkMode ? '#FECACA' : '#C21F3A'
           }}
         >
           <AlertTriangle className="h-4 w-4" style={{ color: isDarkMode ? '#FECACA' : currentTheme.colors.error }} />
-          <AlertDescription className="text-sm" style={{ color: isDarkMode ? '#FECACA' : '#991B1B' }}>
+          <AlertDescription className="text-sm" style={{ color: isDarkMode ? '#FECACA' : '#C21F3A' }}>
             {error}
           </AlertDescription>
         </Alert>
@@ -6425,13 +6427,13 @@ export function DefectLeakageAnalyzer() {
           data-pdf-exclude="true"
           className="border flex items-start gap-3"
           style={{
-            backgroundColor: isDarkMode ? '#78350F20' : '#FFFBEB',
-            borderColor: isDarkMode ? '#D9770660' : '#FCD34D',
-            color: isDarkMode ? '#FDE68A' : '#92400E'
+            backgroundColor: isDarkMode ? '#78350F20' : '#FAF1DE',
+            borderColor: isDarkMode ? '#D9770660' : '#E4C878',
+            color: isDarkMode ? '#FDE68A' : '#8A5E10'
           }}
         >
-          <AlertTriangle className="h-4 w-4" style={{ color: isDarkMode ? '#FDE68A' : '#D97706' }} />
-          <AlertDescription className="text-sm" style={{ color: isDarkMode ? '#FDE68A' : '#92400E' }}>
+          <AlertTriangle className="h-4 w-4" style={{ color: isDarkMode ? '#FDE68A' : '#B45309' }} />
+          <AlertDescription className="text-sm" style={{ color: isDarkMode ? '#FDE68A' : '#8A5E10' }}>
             <div className="space-y-1">
               <p>{warning}</p>
               {warningDetails.length > 0 && (
@@ -6440,14 +6442,14 @@ export function DefectLeakageAnalyzer() {
                     type="button"
                     onClick={() => setWarningExpanded((prev) => !prev)}
                     className="text-xs underline font-medium"
-                    style={{ color: isDarkMode ? '#FDE68A' : '#78350F' }}
+                    style={{ color: isDarkMode ? '#FDE68A' : '#8A5E10' }}
                   >
                     {warningExpanded
                       ? 'Hide details'
                       : `Show details (${warningDetails.length} portfolio${warningDetails.length > 1 ? 's' : ''})`}
                   </button>
                   {warningExpanded && (
-                    <div className="text-xs" style={{ color: isDarkMode ? '#FDE68A' : '#78350F' }}>
+                    <div className="text-xs" style={{ color: isDarkMode ? '#FDE68A' : '#8A5E10' }}>
                       {warningDetails.map((group) => (
                         <div key={`warning-${group.portfolio}`}>Portfolio {group.portfolio}: {group.projects.join(', ')}</div>
                       ))}
@@ -7351,9 +7353,9 @@ export function DefectLeakageAnalyzer() {
                     .sort((a, b) => b.current - a.current); // Sort by current value descending
 
                   const chartColors = {
-                    primary: isDarkMode ? '#D4A847' : '#3B82F6',
-                    secondary: isDarkMode ? '#34D399' : '#10B981',
-                    negative: isDarkMode ? '#F87171' : '#EF4444',
+                    primary: isDarkMode ? '#D4A847' : '#1878B9',
+                    secondary: isDarkMode ? '#34D399' : '#43A05C',
+                    negative: isDarkMode ? '#F87171' : '#C21F3A',
                     text: currentTheme.colors.text,
                     grid: currentTheme.colors.border
                   };
@@ -9448,8 +9450,8 @@ export function DefectLeakageAnalyzer() {
         <Alert
           className="border flex items-start gap-3"
           style={{
-            backgroundColor: isDarkMode ? `${currentTheme.colors.info}15` : '#EFF6FF',
-            borderColor: isDarkMode ? `${currentTheme.colors.info}40` : '#BFDBFE',
+            backgroundColor: isDarkMode ? `${currentTheme.colors.info}15` : 'var(--accent-cool-bg)',
+            borderColor: isDarkMode ? `${currentTheme.colors.info}40` : '#B0D5EB',
             color: currentTheme.colors.info
           }}
         >

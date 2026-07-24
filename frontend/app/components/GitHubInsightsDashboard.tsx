@@ -278,12 +278,12 @@ export function GitHubInsightsDashboard() {
   // match the hardcoded CI bar colors already used below.
   const colors = {
     bg: 'var(--bg-page)', surface: 'var(--bg-surface)', card: 'var(--bg-card)',
-    primary: '#D4A847', text: 'var(--text-primary)',
+    primary: isDarkMode ? '#D4A847' : '#1878B9', text: 'var(--text-primary)',
     textSecondary: 'var(--text-secondary)', textMuted: 'var(--text-muted)',
     border: 'var(--border)',
-    success: '#22C55E',
-    error: '#EF4444',
-    warning: '#F59E0B',
+    success: isDarkMode ? '#22C55E' : '#2E7D46',
+    error: isDarkMode ? '#EF4444' : '#C21F3A',
+    warning: isDarkMode ? '#F59E0B' : '#B45309',
   };
 
   // ── Initial load: only connect + fetch repo list ──────────────────────────
@@ -557,7 +557,7 @@ export function GitHubInsightsDashboard() {
             <p style={{ fontSize: 13, color: colors.textSecondary, margin: '0 0 20px' }}>
               {connectionError || 'Set GITHUB_TOKEN in your .env file and restart the backend.'}
             </p>
-            <button onClick={loadRepos} style={{ background: colors.primary, color: '#000', border: 'none', borderRadius: 10, padding: '10px 24px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            <button onClick={loadRepos} style={{ background: colors.primary, color: isDarkMode ? '#000' : '#FFFFFF', border: 'none', borderRadius: isDarkMode ? 10 : 9999, padding: '10px 24px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
               Retry Connection
             </button>
           </div>
@@ -602,7 +602,7 @@ export function GitHubInsightsDashboard() {
             </div>
             <button
               onClick={loadRepos}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: colors.surface, color: colors.text, border: `1px solid ${colors.border}`, borderRadius: 10, padding: '8px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: colors.surface, color: colors.text, border: `1px solid ${colors.border}`, borderRadius: isDarkMode ? 10 : 9999, padding: '8px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
             >
               <RefreshCw size={13} />
               Refresh repos
@@ -673,7 +673,7 @@ export function GitHubInsightsDashboard() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   background: insightsLoading ? `${colors.primary}60` : colors.primary,
-                  color: '#000', border: 'none', borderRadius: 10,
+                  color: isDarkMode ? '#000' : '#FFFFFF', border: 'none', borderRadius: isDarkMode ? 10 : 9999,
                   padding: '10px 22px', fontSize: 13, fontWeight: 700,
                   cursor: insightsLoading ? 'not-allowed' : 'pointer',
                   transition: 'opacity 0.2s', whiteSpace: 'nowrap',
@@ -738,7 +738,7 @@ export function GitHubInsightsDashboard() {
               <button
                 onClick={getInsights}
                 disabled={repos.length === 0}
-                style={{ background: colors.primary, color: '#000', border: 'none', borderRadius: 10, padding: '10px 24px', fontSize: 13, fontWeight: 700, cursor: repos.length === 0 ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}
+                style={{ background: colors.primary, color: isDarkMode ? '#000' : '#FFFFFF', border: 'none', borderRadius: isDarkMode ? 10 : 9999, padding: '10px 24px', fontSize: 13, fontWeight: 700, cursor: repos.length === 0 ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}
               >
                 <Play size={13} /> Get Insights
               </button>
@@ -784,7 +784,7 @@ export function GitHubInsightsDashboard() {
                     <span style={{ fontSize: 14, fontWeight: 700, color: overallRate >= 70 ? colors.success : colors.error }}>{overallRate.toFixed(1)}%</span>
                   </div>
                   <div style={{ height: 8, borderRadius: 999, overflow: 'hidden', background: `${colors.error}25` }}>
-                    <div style={{ width: `${overallRate}%`, height: '100%', borderRadius: 999, background: overallRate >= 70 ? 'linear-gradient(90deg,#22C55E,#16A34A)' : 'linear-gradient(90deg,#EF4444,#DC2626)', transition: 'width 0.8s ease' }} />
+                    <div style={{ width: `${overallRate}%`, height: '100%', borderRadius: 999, background: overallRate >= 70 ? (isDarkMode ? 'linear-gradient(90deg,#22C55E,#16A34A)' : 'linear-gradient(90deg,#43A05C,#2E7D46)') : (isDarkMode ? 'linear-gradient(90deg,#EF4444,#DC2626)' : 'linear-gradient(90deg,#C21F3A,#A21A31)'), transition: 'width 0.8s ease' }} />
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
                     <span style={{ fontSize: 11, color: colors.textMuted }}>{totalSuccess} passed</span>
@@ -826,7 +826,7 @@ export function GitHubInsightsDashboard() {
                   {/* Activity metrics (PRs / branches / recency) */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
                     {[
-                      { label: 'Open PRs',        icon: GitPullRequest, color: '#22C55E',      value: openPrCount,     sub: draftPrCount > 0 ? `${draftPrCount} draft` : 'awaiting review', loading: repoDetailLoading, tooltip: 'Number of currently open Pull Requests on this repository. Open PRs represent work-in-progress code waiting for review or merge. A high count may indicate a review bottleneck or large feature branches.' },
+                      { label: 'Open PRs',        icon: GitPullRequest, color: colors.success,      value: openPrCount,     sub: draftPrCount > 0 ? `${draftPrCount} draft` : 'awaiting review', loading: repoDetailLoading, tooltip: 'Number of currently open Pull Requests on this repository. Open PRs represent work-in-progress code waiting for review or merge. A high count may indicate a review bottleneck or large feature branches.' },
                       { label: 'Active Branches', icon: GitBranch,      color: colors.primary, value: activeBranches7d, sub: 'last 7 days', loading: repoDetailLoading, tooltip: 'Number of branches with commits pushed in the last 7 days. Active branches indicate areas of the codebase currently under development. A high count can mean many parallel work streams.' },
                       { label: 'Commits',         icon: GitCommit,      color: colors.primary, value: commits7d,       sub: 'last 7 days', loading: repoDetailLoading, tooltip: undefined as string | undefined },
                       { label: 'Last CI Run',     icon: Clock,          color: lastRun ? runConclusionColor(lastRun) : colors.textMuted, value: lastRun ? timeAgo(lastRun.created_at) : '—', sub: lastRun ? (lastRun.conclusion || lastRun.status || 'pending') : 'no runs in range', loading: false, tooltip: undefined as string | undefined },
@@ -895,7 +895,7 @@ export function GitHubInsightsDashboard() {
                           <span style={{ fontSize: 13, fontWeight: 600, color: colors.text, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wf.name}</span>
                           <span style={{ fontSize: 11, color: colors.textMuted, flexShrink: 0, minWidth: 56, textAlign: 'right' }}>{wf.total} run{wf.total !== 1 ? 's' : ''}</span>
                           <div style={{ flex: 1, maxWidth: 160, height: 6, background: `${colors.error}25`, borderRadius: 3, overflow: 'hidden', flexShrink: 0 }}>
-                            <div style={{ height: '100%', width: `${wf.success_rate}%`, background: wf.success_rate >= 70 ? 'linear-gradient(90deg,#22C55E,#16A34A)' : 'linear-gradient(90deg,#EF4444,#DC2626)', borderRadius: 3 }} />
+                            <div style={{ height: '100%', width: `${wf.success_rate}%`, background: wf.success_rate >= 70 ? (isDarkMode ? 'linear-gradient(90deg,#22C55E,#16A34A)' : 'linear-gradient(90deg,#43A05C,#2E7D46)') : (isDarkMode ? 'linear-gradient(90deg,#EF4444,#DC2626)' : 'linear-gradient(90deg,#C21F3A,#A21A31)'), borderRadius: 3 }} />
                           </div>
                           <span style={{ fontSize: 12, fontWeight: 700, color: wf.success_rate >= 70 ? colors.success : colors.error, minWidth: 44, textAlign: 'right', flexShrink: 0 }}>{wf.success_rate.toFixed(0)}%</span>
                           <span style={{ display: 'flex', gap: 8, flexShrink: 0, minWidth: 72, justifyContent: 'flex-end' }}>
@@ -997,11 +997,11 @@ export function GitHubInsightsDashboard() {
                     {repoDetail.open_prs?.length > 0 && (
                       <div style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 16, overflow: 'hidden' }}>
                         <div style={{ padding: '13px 20px', borderBottom: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <GitPullRequest size={14} style={{ color: '#22C55E' }} />
+                          <GitPullRequest size={14} style={{ color: colors.success }} />
                           <Tooltip text="Pull Requests currently open for review on this repository. Each PR represents a set of code changes proposed by a developer, awaiting review and approval before being merged into the main branch. Author and branch info help identify ownership.">
                             <span style={{ fontWeight: 600, fontSize: 13, color: colors.text, cursor: 'help', borderBottom: '1px dashed var(--border)' }}>Open Pull Requests</span>
                           </Tooltip>
-                          <span style={{ marginLeft: 'auto', background: '#16653425', color: '#22C55E', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
+                          <span style={{ marginLeft: 'auto', background: isDarkMode ? '#16653425' : '#43A05C20', color: colors.success, borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
                             {repoDetail.open_prs.length} open
                           </span>
                         </div>
@@ -1100,7 +1100,7 @@ export function GitHubInsightsDashboard() {
                                 <span style={{ fontSize: 12, fontWeight: 700, color: rate >= 70 ? colors.success : colors.error }}>{rate.toFixed(0)}%</span>
                               </div>
                               <div style={{ height: 5, background: `${colors.error}25`, borderRadius: 3, overflow: 'hidden' }}>
-                                <div style={{ height: '100%', width: `${rate}%`, background: rate >= 70 ? 'linear-gradient(90deg,#22C55E,#16A34A)' : 'linear-gradient(90deg,#EF4444,#DC2626)', borderRadius: 3 }} />
+                                <div style={{ height: '100%', width: `${rate}%`, background: rate >= 70 ? (isDarkMode ? 'linear-gradient(90deg,#22C55E,#16A34A)' : 'linear-gradient(90deg,#43A05C,#2E7D46)') : (isDarkMode ? 'linear-gradient(90deg,#EF4444,#DC2626)' : 'linear-gradient(90deg,#C21F3A,#A21A31)'), borderRadius: 3 }} />
                               </div>
                               <div style={{ display: 'flex', gap: 10, marginTop: 5 }}>
                                 <span style={{ fontSize: 11, color: colors.success }}>✓ {stats.successful}</span>

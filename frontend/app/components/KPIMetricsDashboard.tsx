@@ -383,7 +383,7 @@ export function KPIMetricsDashboard() {
               <button
                 onClick={fetchKPIMetrics}
                 disabled={loading}
-                style={{ background: '#D4A847', color: '#1C1A17', border: 'none', borderRadius: '10px', padding: '9px 18px', fontSize: '13px', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px', opacity: loading ? 0.7 : 1, fontFamily: DS.font, boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
+                style={{ background: 'var(--accent-cool)', color: isDarkMode ? '#1C1A17' : '#FFFFFF', border: 'none', borderRadius: isDarkMode ? '10px' : '9999px', padding: '9px 18px', fontSize: '13px', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px', opacity: loading ? 0.7 : 1, fontFamily: DS.font, boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}
               >
                 <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
                 Refresh
@@ -391,7 +391,7 @@ export function KPIMetricsDashboard() {
               <button
                 onClick={exportToCSV}
                 disabled={!data}
-                style={{ background: DS.surface, color: DS.textPrimary, border: `1px solid ${DS.border}`, borderRadius: '10px', padding: '9px 16px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: DS.font }}
+                style={{ background: DS.surface, color: DS.textPrimary, border: `1px solid ${DS.border}`, borderRadius: isDarkMode ? '10px' : '9999px', padding: '9px 16px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: DS.font }}
               >
                 <Sheet size={14} />
                 CSV
@@ -399,7 +399,7 @@ export function KPIMetricsDashboard() {
               <button
                 onClick={exportToPDF}
                 disabled={!data}
-                style={{ background: DS.surface, color: DS.textPrimary, border: `1px solid ${DS.border}`, borderRadius: '10px', padding: '9px 16px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: DS.font }}
+                style={{ background: DS.surface, color: DS.textPrimary, border: `1px solid ${DS.border}`, borderRadius: isDarkMode ? '10px' : '9999px', padding: '9px 16px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: DS.font }}
               >
                 <FileText size={14} />
                 PDF

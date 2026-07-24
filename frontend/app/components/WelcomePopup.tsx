@@ -28,7 +28,7 @@ function getFirstName(fullName: string): string {
 }
 
 export function WelcomePopup({ onClose, userHasTyped = false }: WelcomePopupProps) {
-  const { currentTheme } = useTheme()
+  const { currentTheme, isDarkMode } = useTheme()
   const { settings, isLoaded } = useSettings()
   const [isVisible, setIsVisible] = useState(false)
 
@@ -77,7 +77,7 @@ export function WelcomePopup({ onClose, userHasTyped = false }: WelcomePopupProp
               borderRadius: 16,
               backgroundColor: surfaceVariant,
               border: `1px solid ${border}`,
-              boxShadow: '0 12px 32px rgba(0,0,0,0.45)',
+              boxShadow: isDarkMode ? '0 12px 32px rgba(0,0,0,0.45)' : 'var(--shadow-large)',
               maxWidth: 340,
             }}
           >

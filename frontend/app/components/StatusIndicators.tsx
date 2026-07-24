@@ -83,21 +83,21 @@ export function StatusIndicators() {
   const getStatusIcon = (status: boolean | string) => {
     if (typeof status === 'boolean') {
       return status ? (
-        <CheckCircle className="w-4 h-4 text-green-600" />
+        <CheckCircle className="w-4 h-4 text-[var(--status-success)] dark:text-green-600" />
       ) : (
-        <XCircle className="w-4 h-4 text-red-600" />
+        <XCircle className="w-4 h-4 text-[var(--status-danger)] dark:text-red-600" />
       )
     }
     
     switch (status) {
       case 'online':
-        return <CheckCircle className="w-4 h-4 text-green-600" />
+        return <CheckCircle className="w-4 h-4 text-[var(--status-success)] dark:text-green-600" />
       case 'offline':
-        return <XCircle className="w-4 h-4 text-red-600" />
+        return <XCircle className="w-4 h-4 text-[var(--status-danger)] dark:text-red-600" />
       case 'error':
-        return <AlertCircle className="w-4 h-4 text-yellow-600" />
+        return <AlertCircle className="w-4 h-4 text-[var(--status-warning)] dark:text-yellow-600" />
       default:
-        return <Clock className="w-4 h-4 text-gray-600" />
+        return <Clock className="w-4 h-4 text-[var(--text-muted)] dark:text-gray-600" />
     }
   }
 
@@ -142,12 +142,12 @@ export function StatusIndicators() {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Jira Status */}
-        <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-card border border-gray-200 dark:border-border rounded-lg">
+        <div className="flex items-center justify-between p-3 bg-[var(--bg-surface)] dark:bg-card border border-[var(--border)] dark:border-border rounded-lg">
           <div className="flex items-center space-x-3">
             {getStatusIcon(status.jira.configured)}
             <div>
               <p className="font-medium text-sm">Jira Integration</p>
-              <p className="text-xs text-gray-600 dark:text-muted-foreground">
+              <p className="text-xs text-[var(--text-secondary)] dark:text-muted-foreground">
                 {status.jira.configured ? 'Project Management' : 'Not Configured'}
               </p>
             </div>
@@ -156,12 +156,12 @@ export function StatusIndicators() {
         </div>
 
         {/* Confluence Status */}
-        <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-card border border-gray-200 dark:border-border rounded-lg">
+        <div className="flex items-center justify-between p-3 bg-[var(--bg-surface)] dark:bg-card border border-[var(--border)] dark:border-border rounded-lg">
           <div className="flex items-center space-x-3">
             {getStatusIcon(status.confluence.configured)}
             <div>
               <p className="font-medium text-sm">Confluence Integration</p>
-              <p className="text-xs text-gray-600 dark:text-muted-foreground">
+              <p className="text-xs text-[var(--text-secondary)] dark:text-muted-foreground">
                 {status.confluence.configured ? 'Knowledge Management' : 'Not Configured'}
               </p>
             </div>
@@ -170,12 +170,12 @@ export function StatusIndicators() {
         </div>
 
         {/* API Status */}
-        <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-card border border-gray-200 dark:border-border rounded-lg">
+        <div className="flex items-center justify-between p-3 bg-[var(--bg-surface)] dark:bg-card border border-[var(--border)] dark:border-border rounded-lg">
           <div className="flex items-center space-x-3">
             {getStatusIcon(status.api.status)}
             <div>
               <p className="font-medium text-sm">API Service</p>
-              <p className="text-xs text-gray-600 dark:text-muted-foreground">
+              <p className="text-xs text-[var(--text-secondary)] dark:text-muted-foreground">
                 {status.api.status === 'online' ? 'All systems operational' : 'Service unavailable'}
               </p>
             </div>
@@ -184,7 +184,7 @@ export function StatusIndicators() {
         </div>
 
         {/* Last Updated */}
-        <div className="text-xs text-gray-500 dark:text-muted-foreground text-center pt-2 border-t border-gray-200 dark:border-border">
+        <div className="text-xs text-[var(--text-muted)] dark:text-muted-foreground text-center pt-2 border-t border-[var(--border)] dark:border-border">
           Last updated: {lastUpdated || 'Loading...'}
         </div>
       </CardContent>

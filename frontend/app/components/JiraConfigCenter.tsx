@@ -176,14 +176,14 @@ export function JiraConfigCenter() {
         {!showConfig ? (
           isConnected ? (
             <div className="text-center py-8">
-              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+              <div className="w-16 h-16 bg-[var(--status-success-bg)] dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-8 h-8 text-[var(--success)] dark:text-green-400" />
               </div>
               <h3 className="text-lg font-semibold mb-2">Jira Connected</h3>
-              <p className="text-gray-600 dark:text-muted-foreground mb-4">
+              <p className="text-[var(--text-secondary)] dark:text-muted-foreground mb-4">
                 Connected to {currentConfig?.url}
               </p>
-              <div className="bg-gray-50 dark:bg-card p-4 rounded-lg mb-6 text-left border border-gray-200 dark:border-border">
+              <div className="bg-[var(--bg-surface)] dark:bg-card p-4 rounded-lg mb-6 text-left border border-[var(--border)] dark:border-border">
                 <p className="text-sm"><strong>Email:</strong> {currentConfig?.email}</p>
                 <p className="text-sm"><strong>Board ID:</strong> {currentConfig?.board_id}</p>
               </div>
@@ -203,14 +203,14 @@ export function JiraConfigCenter() {
             </div>
           ) : (
             <div className="text-center py-8">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <Settings className="w-8 h-8 text-gray-400 dark:text-muted-foreground" />
+              <div className="w-16 h-16 bg-[var(--bg-surface)] dark:bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                <Settings className="w-8 h-8 text-[var(--text-muted)] dark:text-muted-foreground" />
               </div>
               <h3 className="text-lg font-semibold mb-2">Configure Jira Integration</h3>
-              <p className="text-gray-600 dark:text-muted-foreground mb-6">
+              <p className="text-[var(--text-secondary)] dark:text-muted-foreground mb-6">
                 Set up your Jira connection to unlock powerful project management and analytics features
               </p>
-              <Button onClick={() => setShowConfig(true)} className="w-full">
+              <Button onClick={() => setShowConfig(true)} className="fx-pill w-full">
                 Configure Jira
               </Button>
             </div>
@@ -262,13 +262,13 @@ export function JiraConfigCenter() {
                   value={config.api_token}
                   onChange={(e) => handleConfigChange('api_token', e.target.value)}
                 />
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-[var(--text-muted)] dark:text-gray-500 mt-1">
                   Get your API token from{' '}
                   <a 
                     href="https://id.atlassian.com/manage-profile/security/api-tokens" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
+                    className="text-[var(--link)] dark:text-blue-600 hover:underline"
                   >
                     Atlassian Account Settings
                   </a>
@@ -284,7 +284,7 @@ export function JiraConfigCenter() {
                   value={config.board_id}
                   onChange={(e) => handleConfigChange('board_id', e.target.value)}
                 />
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-[var(--text-muted)] dark:text-gray-500 mt-1">
                   Find this in your Jira board URL
                 </p>
               </div>
@@ -292,10 +292,10 @@ export function JiraConfigCenter() {
 
             {/* Action Buttons */}
             <div className="flex space-x-3">
-              <Button 
-                onClick={handleSaveConfig} 
+              <Button
+                onClick={handleSaveConfig}
                 disabled={isLoading || !config.url || !config.email || !config.api_token}
-                className="flex-1"
+                className="fx-pill flex-1"
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
