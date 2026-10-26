@@ -16,7 +16,7 @@ openai_stub.AsyncOpenAI = DummyAsyncOpenAI
 sys.modules.setdefault("openai", openai_stub)
 
 from services.test_coverage_analyzer import CUMULATIVE_START, TestCoverageAnalyzer
-from services.portfolio_mapping import build_project_jql, get_portfolio_projects
+from services.qcoe_project_catalog import QcoeProjectCatalog
 
 
 class FakeJiraClient:
@@ -27,7 +27,11 @@ class FakeJiraClient:
 class TestCoverageJqlTests(unittest.TestCase):
     def setUp(self):
         os.environ.setdefault("OPENAI_API_KEY", "test-key")
-        self.analyzer = TestCoverageAnalyzer(FakeJiraClient())
+        self.catalog = QcoeProjectCatalog.from_jira_projects([
+            {"id": "1", "key": "NDP", "name": "NDP", "projectCategory": {"id": "10", "name": "Data"}},
+            {"id": "2", "key": "NET", "name": "Network", "projectCategory": {"id": "20", "name": "Network & Communication Services"}},
+        ])
+        self.analyzer = TestCoverageAnalyzer(FakeJiraClient(), self.catalog)
 
     def test_stories_with_tests_uses_resolved_dev_story_scope_and_any_linked_active_test(self):
         project_filter = 'project = "NDP"'
@@ -73,8 +77,8 @@ class TestCoverageJqlTests(unittest.TestCase):
 
     def test_cumulative_coverage_start_is_locked_to_2022(self):
         class RecordingCoverageAnalyzer(TestCoverageAnalyzer):
-            def __init__(self, jira_client):
-                super().__init__(jira_client)
+            def __init__(self, jira_client, project_catalog):
+                super().__init__(jira_client, project_catalog)
                 self.snapshot_calls = []
 
             async def _coverage_snapshot(self, project_filter, period_from, period_to):
@@ -99,7 +103,7 @@ class TestCoverageJqlTests(unittest.TestCase):
             async def _generate_ai_analysis(self, *args, **kwargs):
                 return "Analysis suppressed for test."
 
-        analyzer = RecordingCoverageAnalyzer(FakeJiraClient())
+        analyzer = RecordingCoverageAnalyzer(FakeJiraClient(), self.catalog)
 
         import asyncio
         result = asyncio.run(
@@ -112,21 +116,11 @@ class TestCoverageJqlTests(unittest.TestCase):
         self.assertIn(('project = "NDP"', "2022-01-01", "2026-04-03"), analyzer.snapshot_calls)
         self.assertIn(('project = "NDP"', "2022-01-01", "2026-04-10"), analyzer.snapshot_calls)
 
-    def test_network_portfolio_name_resolves_to_jira_project_keys(self):
-        projects = get_portfolio_projects("Network & Communication Services")
-
-        self.assertEqual(projects, ["NEUTRON", "PROTON", "COLLAB", "VCI"])
-        self.assertEqual(
-            build_project_jql("Network & Communication Services"),
-            'project IN ("NEUTRON", "PROTON", "COLLAB", "VCI")',
-        )
-
-    def test_test_coverage_mapping_uses_confirmed_project_keys(self):
-        self.assertIn("MDSIA", self.analyzer._get_portfolio_projects("Data Platform"))
-        self.assertNotIn("MDSIAPF", self.analyzer._get_portfolio_projects("Data Platform"))
+    def test_test_coverage_mapping_uses_jira_catalog(self):
+        self.assertEqual(self.analyzer._get_portfolio_projects("Data"), ["NDP"])
         self.assertEqual(
             self.analyzer._build_project_jql("Network & Communication Services"),
-            'project IN ("NEUTRON", "PROTON", "COLLAB", "VCI")',
+            'project = "NET"',
         )
 
 

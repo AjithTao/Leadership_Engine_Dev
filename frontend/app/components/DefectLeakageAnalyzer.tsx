@@ -190,7 +190,20 @@ interface DropdownOptions {
   portfolios: string[];
   project_keys: string[];
   project_names: string[];
-  projectKeyToPortfolio: Record<string, string>; // Maps project key to portfolio
+  projectKeyToPortfolio: Record<string, string>;
+  projectKeyToName: Record<string, string>;
+}
+
+interface QcoeProjectOption {
+  id: string;
+  key: string;
+  name: string;
+}
+
+interface QcoePortfolioOption {
+  category_id: string | null;
+  name: string;
+  projects: QcoeProjectOption[];
 }
 
 const METRIC_OPTIONS: MetricOption[] = [
@@ -428,1090 +441,6 @@ const MONTH_OPTIONS = [
   { value: 10, label: 'October' }, { value: 11, label: 'November' }, { value: 12, label: 'December' },
 ];
 
-// TCOE Portfolio → Product → Project mapping (hardcoded as per requirements)
-const TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string, { name: string; key: string }[]> }> = {
-  'SERVICE': {
-    products: {
-      'CDK Service – Classic': [
-        { name: 'DMS Agnostics', key: 'ADMSE' },
-        { name: 'RO Service (ROS)', key: 'FXDOPSINSP' },
-      ],
-      'Tech Pic': [
-        { name: 'Pick Mod', key: '' },
-      ],
-    }
-  },
-  'MODERN RETAIL': {
-    products: {
-      'CRM': [
-        { name: 'Sales CRM', key: 'ELSCRM' },
-        { name: 'Call Center', key: 'CCEL' },
-        { name: 'Desking', key: 'DESKEL' },
-        { name: 'Communications', key: 'ELCOMT' },
-        { name: 'Retail Mobile', key: 'RM' },
-        { name: 'Modern Retail Digital Retailing', key: 'MRDRT' },
-        { name: 'Embedded Reporting', key: 'ELEMRS' },
-        { name: 'Elead Sales Modernization', key: 'ELSMOD' },
-      ],
-      'CRM Marketing': [
-        { name: 'Data Mining', key: 'ELDM' },
-        { name: 'PoH Convertor eForms', key: 'MODTAO' },
-      ],
-      'CRM Forms': [
-        { name: 'Modern Retail Forms', key: 'EFORMS' },
-      ],
-    }
-  },
-  'PARTS': {
-    products: {
-      'Parts (Modernized)': [
-        { name: 'Parts Inventory', key: 'MPDS' },
-        { name: 'Parts Master', key: 'MODPRT' },
-        { name: 'Back Counter', key: 'FIX' },
-        { name: 'Front Counter', key: 'FIX' },
-        { name: 'Electronic Part Catalogue', key: 'FIX' },
-      ],
-    }
-  },
-  'SHARED SERVICES': {
-    products: {
-      'Vehicle Cloud': [
-        { name: 'CDK Vehicle Cloud', key: '' },
-      ],
-      'Lot Merchandizer': [
-        { name: 'Modernization Vehicle', key: 'MODVHCL' },
-      ],
-      'VIN Cleanse': [
-        { name: 'CDS Convergence to MDM', key: '' },
-      ],
-      'Single Customer Identification': [
-        { name: 'Single Customer Identification', key: '' },
-      ],
-    }
-  },
-  'DMS': {
-    products: {
-      'Drive OEM Integrations (Modern)': [
-        { name: 'Modernization OEMi', key: '' },
-      ],
-    }
-  },
-  'DATA SOLUTIONS': {
-    products: {
-      'Modern APIs': [
-        { name: 'APITRON - MBD Modernization for Data Your Way!', key: 'APITRON' },
-      ],
-      'Data Integration Platform': [
-        { name: 'Data Integration Platform', key: '' },
-      ],
-      'CDK Intelligence Suite': [
-        { name: 'Intelligence Suite (CDK IS)', key: 'NDP' },
-        { name: 'Intelligence Suite (BYOD on IS)', key: 'SSBYOD' },
-        { name: 'Yassi Integration', key: '' },
-      ],
-    }
-  },
-  'PAYMENTS': {
-    products: {
-      'CDK SimplePay': [
-        { name: 'Payments', key: '' },
-      ],
-    }
-  },
-  'DATA PLATFORM': {
-    products: {
-      'Enterprise Data Pipeline (EDP)': [
-        { name: 'EDP Integration', key: 'DNAST' },
-      ],
-    }
-  },
-};
-
-const UPDATED_TCOE_PORTFOLIO_STRUCTURE_UNUSED: Record<string, { products: Record<string, { name: string; key: string }[]> }> = {
-  "Data Platform": {
-    products: {
-      "ICAP": [
-        { "name": "ICAP", "key": "MDSICAP" },
-      ],
-      "InfoIQ Admin (IA)": [
-        { "name": "InfoIQ Admin (IA)", "key": "MDSIA" },
-      ],
-      "OEM Integration Platform (OIP)": [
-        { "name": "OEM Integration Platform (OIP)", "key": "OIP" },
-      ],
-      "Manufacturer Data Updates (Media Pubs)": [
-        { "name": "Manufacturer Data Updates (Media Pubs)", "key": "MPSMOD" },
-        { "name": "Manufacturer Data Updates (Media Pubs)", "key": "MPSUPDATES" },
-      ],
-      "AI Acceleration Program": [
-        { "name": "AI Acceleration Program", "key": "AAP" },
-        { "name": "AI Acceleration Program", "key": "AIVAPL" },
-      ],
-      "Conversational AI": [
-        { "name": "Conversational AI", "key": "AIVA" },
-      ],
-      "Enterprise Data Pipeline (EDP)": [
-        { "name": "Enterprise Data Pipeline (EDP)", "key": "ASYNCAPI" },
-        { "name": "Enterprise Data Pipeline (EDP)", "key": "DNAST" },
-        { "name": "Enterprise Data Pipeline (EDP)", "key": "DNASYND" },
-        { "name": "Enterprise Data Pipeline (EDP)", "key": "EDPOEMI" },
-        { "name": "Enterprise Data Pipeline (EDP)", "key": "MDSEDP" },
-        { "name": "Enterprise Data Pipeline (EDP)", "key": "MDSMIG" },
-      ],
-      "Retired Products / Advanced Vehicle Lookup (AVL)": [
-        { "name": "Retired Products / Advanced Vehicle Lookup (AVL)", "key": "OEMBD" },
-      ],
-      "Titan - Data Lake": [
-        { "name": "Titan - Data Lake", "key": "TDI" },
-        { "name": "Titan - Data Lake", "key": "TDO" },
-        { "name": "Titan - Data Lake", "key": "TDOPS" },
-        { "name": "Titan - Data Lake", "key": "TDP" },
-        { "name": "Titan - Data Lake", "key": "TOB" },
-        { "name": "Titan - Data Lake", "key": "TST" },
-        { "name": "Titan - Data Lake", "key": "UDC" },
-        { "name": "Titan - Data Lake", "key": "UDI" },
-      ],
-    },
-  },
-  "Data Solutions": {
-    products: {
-      "CDK Intelligence Suite": [
-        { "name": "CDK Intelligence Suite", "key": "NDP" },
-        { "name": "CDK Intelligence Suite", "key": "SSBYOD" },
-      ],
-      "CS Performance Dashboard": [
-        { "name": "CS Performance Dashboard", "key": "DNACS" },
-      ],
-      "Performance Suite": [
-        { "name": "Performance Suite", "key": "NPS" },
-      ],
-      "Managed Bi-Directional (MBD)": [
-        { "name": "Managed Bi-Directional (MBD)", "key": "DNADEDGE" },
-      ],
-      "Dealer Data Exchange (DDX)": [
-        { "name": "Dealer Data Exchange (DDX)", "key": "DNADDX" },
-      ],
-      "Modern APIs": [
-        { "name": "Modern APIs", "key": "APITRON" },
-      ],
-      "Data Export Tool": [
-        { "name": "Data Export Tool", "key": "DET" },
-      ],
-      "Warranty Revenue Assistance Program (WRAP)": [
-        { "name": "Warranty Revenue Assistance Program (WRAP)", "key": "WRP" },
-      ],
-    },
-  },
-  "DMS": {
-    products: {
-      "DMS Accounting (Modern)": [
-        { "name": "DMS Accounting (Modern)", "key": "APMODACC" },
-        { "name": "DMS Accounting (Modern)", "key": "ARMODACC" },
-        { "name": "DMS Accounting (Modern)", "key": "FSMODACC" },
-        { "name": "DMS Accounting (Modern)", "key": "MDWP" },
-        { "name": "DMS Accounting (Modern)", "key": "MODBETC" },
-        { "name": "DMS Accounting (Modern)", "key": "MODDWTC" },
-        { "name": "DMS Accounting (Modern)", "key": "MODPLAT" },
-        { "name": "DMS Accounting (Modern)", "key": "MODSRCH" },
-        { "name": "DMS Accounting (Modern)", "key": "MODTOOL" },
-        { "name": "DMS Accounting (Modern)", "key": "POMODACC" },
-      ],
-      "DMS Accounting (Modern) / Drive SaaS - UI": [
-        { "name": "DMS Accounting (Modern) / Drive SaaS - UI", "key": "BRMODACC" },
-      ],
-      "Drive Accounting (Legacy)": [
-        { "name": "Drive Accounting (Legacy)", "key": "ACC" },
-        { "name": "Drive Accounting (Legacy)", "key": "FSACC" },
-      ],
-      "Drive Platform (Legacy)": [
-        { "name": "Drive Platform (Legacy)", "key": "DRV" },
-        { "name": "Drive Platform (Legacy)", "key": "QTCLOUD" },
-      ],
-      "Heavy Truck (Legacy)": [
-        { "name": "Heavy Truck (Legacy)", "key": "TRKMOD" },
-      ],
-      "Heavy Truck (Modern)": [
-        { "name": "Heavy Truck (Modern)", "key": "TRKMISC" },
-      ],
-      "Drive OEM Integrations (Modern)": [
-        { "name": "Drive OEM Integrations (Modern)", "key": "MODOEM" },
-        { "name": "Drive OEM Integrations (Modern)", "key": "OEMI" },
-        { "name": "Drive OEM Integrations (Modern)", "key": "PSRD" },
-      ],
-    },
-  },
-  "Engineering Excellence": {
-    products: {
-      "Intelligent Automation and Reporting Ecosystem": [
-        { "name": "Intelligent Automation and Reporting Ecosystem", "key": "REP" },
-      ],
-      "Quality Intelligence": [
-        { "name": "Quality Intelligence", "key": "EQAP" },
-        { "name": "Quality Intelligence", "key": "QUEN" },
-      ],
-      "RM Portal": [
-        { "name": "RM Portal", "key": "RMD" },
-      ],
-    },
-  },
-  "Fixed Ops": {
-    products: {
-      "Parts (Modernized)": [
-        { "name": "Parts (Modernized)", "key": "FIX" },
-        { "name": "Parts (Modernized)", "key": "FIXPRTSMKT" },
-        { "name": "Parts (Modernized)", "key": "FIXPRTSORD" },
-        { "name": "Parts (Modernized)", "key": "FXOPKIT" },
-        { "name": "Parts (Modernized)", "key": "MODPRT" },
-        { "name": "Parts (Modernized)", "key": "MPDS" },
-        { "name": "Parts (Modernized)", "key": "SER" },
-      ],
-      "CDK Service (Classic)": [
-        { "name": "CDK Service (Classic)", "key": "CDKSRVAPL" },
-        { "name": "CDK Service (Classic)", "key": "CDKSRVDAT" },
-        { "name": "CDK Service (Classic)", "key": "CDKSRVPLT" },
-        { "name": "CDK Service (Classic)", "key": "FXDOPSHT" },
-        { "name": "CDK Service (Classic)", "key": "FXDPSCN" },
-        { "name": "CDK Service (Classic)", "key": "PPR" },
-      ],
-      "CDK Service (Modern) / Modern Foundations": [
-        { "name": "CDK Service (Modern) / Modern Foundations", "key": "CDKSRVAN" },
-        { "name": "CDK Service (Modern) / Modern Foundations", "key": "CDKSRVFRD" },
-        { "name": "CDK Service (Modern) / Modern Foundations", "key": "CDKSRVOEM" },
-        { "name": "CDK Service (Modern) / Modern Foundations", "key": "CSFM" },
-        { "name": "CDK Service (Modern) / Modern Foundations", "key": "FPE" },
-        { "name": "CDK Service (Modern) / Modern Foundations", "key": "FXDOPSDLM" },
-        { "name": "CDK Service (Modern) / Modern Foundations", "key": "FXDOPSQMS" },
-        { "name": "CDK Service (Modern) / Modern Foundations", "key": "FXOPSSRE" },
-      ],
-      "CDK Service Appointment (Classic)": [
-        { "name": "CDK Service Appointment (Classic)", "key": "CDKSRVAPT" },
-      ],
-      "CDK Service Appointment (Modern)": [
-        { "name": "CDK Service Appointment (Modern)", "key": "FXDOPSTOY" },
-      ],
-      "CDK Service Inspect (Classic)": [
-        { "name": "CDK Service Inspect (Classic)", "key": "EUM" },
-      ],
-      "CDK Service Inspect (Modern)": [
-        { "name": "CDK Service Inspect (Modern)", "key": "ADMSE" },
-        { "name": "CDK Service Inspect (Modern)", "key": "CDKSRVACC" },
-        { "name": "CDK Service Inspect (Modern)", "key": "FXDOPSAPT" },
-        { "name": "CDK Service Inspect (Modern)", "key": "FXDOPSINSP" },
-        { "name": "CDK Service Inspect (Modern)", "key": "ROS" },
-      ],
-      "CDK Service Lane (Classic)": [
-        { "name": "CDK Service Lane (Classic)", "key": "CDKSRVLNI" },
-      ],
-      "Drive Parts": [
-        { "name": "Drive Parts", "key": "PARTSDEV" },
-      ],
-      "Drive Service": [
-        { "name": "Drive Service", "key": "SVEDRVE" },
-      ],
-      "Elead Service ServiceOne / Elead Service Appointment": [
-        { "name": "Elead Service ServiceOne / Elead Service Appointment", "key": "ELESRV" },
-      ],
-    },
-  },
-  "Fortellis": {
-    products: {
-      "Fortellis Platform": [
-        { "name": "Fortellis Platform", "key": "FORT" },
-        { "name": "Fortellis Platform", "key": "FORTAPPAPI" },
-        { "name": "Fortellis Platform", "key": "FORTQA" },
-      ],
-      "Fortellis Developer Community": [
-        { "name": "Fortellis Developer Community", "key": "FORTCORE" },
-      ],
-      "Fortellis Marketplace": [
-        { "name": "Fortellis Marketplace", "key": "FORTMP" },
-      ],
-    },
-  },
-  "Inventory Management Solutions": {
-    products: {
-      "Mobile Shared Services": [
-        { "name": "Mobile Shared Services", "key": "SM" },
-      ],
-      "Vehicle Inventory Suite (VIS)": [
-        { "name": "Vehicle Inventory Suite (VIS)", "key": "CI" },
-      ],
-      "Lot Merchandizer": [
-        { "name": "Lot Merchandizer", "key": "EDGEINV" },
-      ],
-      "Used Lot Intelligence": [
-        { "name": "Used Lot Intelligence", "key": "ULI" },
-      ],
-      "Vehicle Cloud": [
-        { "name": "Vehicle Cloud", "key": "CVC" },
-        { "name": "Vehicle Cloud", "key": "MODVHCL" },
-      ],
-    },
-  },
-  "Modern Retail": {
-    products: {
-      "CRM": [
-        { "name": "CRM", "key": "CCEL" },
-        { "name": "CRM", "key": "CRMMYDAY" },
-        { "name": "CRM", "key": "CRMP4S" },
-        { "name": "CRM", "key": "EKC" },
-        { "name": "CRM", "key": "ELCRMHE" },
-        { "name": "CRM", "key": "ELCRMHT" },
-        { "name": "CRM", "key": "ELDBD" },
-        { "name": "CRM", "key": "ELEMRS" },
-        { "name": "CRM", "key": "ELMOB" },
-        { "name": "CRM", "key": "ELQAA" },
-        { "name": "CRM", "key": "ELRPT" },
-        { "name": "CRM", "key": "ELSCRM" },
-        { "name": "CRM", "key": "ELSMOD" },
-        { "name": "CRM", "key": "ELSRE" },
-        { "name": "CRM", "key": "ELSTCAP" },
-        { "name": "CRM", "key": "ELSUPPORT" },
-        { "name": "CRM", "key": "ELSWEM" },
-        { "name": "CRM", "key": "MRSSO" },
-        { "name": "CRM", "key": "RM" },
-      ],
-      "CRM / CRM Shared Capabilities": [
-        { "name": "CRM / CRM Shared Capabilities", "key": "ELDMSI" },
-        { "name": "CRM / CRM Shared Capabilities", "key": "ELLRT" },
-        { "name": "CRM / CRM Shared Capabilities", "key": "ELTPI" },
-      ],
-      "CRM AI": [
-        { "name": "CRM AI", "key": "CRMAI" },
-      ],
-      "CRM DBA & ETL": [
-        { "name": "CRM DBA & ETL", "key": "CDCDEB" },
-        { "name": "CRM DBA & ETL", "key": "ELDBAPR" },
-        { "name": "CRM DBA & ETL", "key": "ELDBCR" },
-        { "name": "CRM DBA & ETL", "key": "ELDBP" },
-        { "name": "CRM DBA & ETL", "key": "ELDBS" },
-        { "name": "CRM DBA & ETL", "key": "ELETL" },
-      ],
-      "CRM Desking": [
-        { "name": "CRM Desking", "key": "CRMCM" },
-        { "name": "CRM Desking", "key": "DESKEL" },
-        { "name": "CRM Desking", "key": "MOD2SC" },
-      ],
-      "CRM Marketing": [
-        { "name": "CRM Marketing", "key": "ELCOMT" },
-        { "name": "CRM Marketing", "key": "ELDM" },
-      ],
-      "Modern Retail Integrated Experience": [
-        { "name": "Modern Retail Integrated Experience", "key": "FRMSMOD" },
-        { "name": "Modern Retail Integrated Experience", "key": "MRIX" },
-      ],
-      "One-Eighty (180)": [
-        { "name": "One-Eighty (180)", "key": "OEDARWIN" },
-        { "name": "One-Eighty (180)", "key": "OEGRDTETON" },
-        { "name": "One-Eighty (180)", "key": "OEHIMALAYA" },
-        { "name": "One-Eighty (180)", "key": "OEK2" },
-        { "name": "One-Eighty (180)", "key": "OEKIRKJUFE" },
-        { "name": "One-Eighty (180)", "key": "OET" },
-        { "name": "One-Eighty (180)", "key": "OETWINMOU" },
-        { "name": "One-Eighty (180)", "key": "OLYMPUS" },
-      ],
-      "CDK Desking": [
-        { "name": "CDK Desking", "key": "CDESK" },
-      ],
-      "Credit Services": [
-        { "name": "Credit Services", "key": "CREDIT" },
-        { "name": "Credit Services", "key": "LDET" },
-      ],
-      "Digital Contracting": [
-        { "name": "Digital Contracting", "key": "DC" },
-        { "name": "Digital Contracting", "key": "MODTAI" },
-      ],
-      "Storefront": [
-        { "name": "Storefront", "key": "MR" },
-        { "name": "Storefront", "key": "MRDRT" },
-      ],
-      "CDK Sign Platform": [
-        { "name": "CDK Sign Platform", "key": "CSP" },
-      ],
-      "Cloud Printing": [
-        { "name": "Cloud Printing", "key": "HW" },
-      ],
-      "eForms": [
-        { "name": "eForms", "key": "EFORM" },
-      ],
-      "Global Content Management (GCM)": [
-        { "name": "Global Content Management (GCM)", "key": "GCMT" },
-      ],
-      "Drive Sales F&I": [
-        { "name": "Drive Sales F&I", "key": "FI" },
-        { "name": "Drive Sales F&I", "key": "KEYSTONE" },
-        { "name": "Drive Sales F&I", "key": "MODSFI" },
-      ],
-      "Modern F&I": [
-        { "name": "Modern F&I", "key": "LIEN" },
-        { "name": "Modern F&I", "key": "MODTAO" },
-      ],
-      "Communication Service (CSMSG)": [
-        { "name": "Communication Service (CSMSG)", "key": "CSMSGISSUE" },
-      ],
-      "Connected Communications Platform": [
-        { "name": "Connected Communications Platform", "key": "CCPADMIN" },
-        { "name": "Connected Communications Platform", "key": "CCPAPPS" },
-        { "name": "Connected Communications Platform", "key": "CCPBKND" },
-        { "name": "Connected Communications Platform", "key": "CCPDATA" },
-        { "name": "Connected Communications Platform", "key": "CCPTXT" },
-        { "name": "Connected Communications Platform", "key": "MRC2" },
-      ],
-      "Text Connect": [
-        { "name": "Text Connect", "key": "CC" },
-      ],
-    },
-  },
-  "Network & Communication Services": {
-    products: {
-      "Neutron": [
-        { "name": "Neutron", "key": "NEUTRON" },
-      ],
-      "Proton Tooling & Automation": [
-        { "name": "Proton Tooling & Automation", "key": "PROTON" },
-      ],
-      "IPNS": [
-        { "name": "IPNS", "key": "COLLAB" },
-      ],
-      "Voice Connect API": [
-        { "name": "Voice Connect API", "key": "VCI" },
-      ],
-    },
-  },
-  "Payments": {
-    products: {
-      "ePayments": [
-        { "name": "ePayments", "key": "EPAYTEAM" },
-      ],
-      "CDK SimplePay": [
-        { "name": "CDK SimplePay", "key": "CDKPAY" },
-        { "name": "CDK SimplePay", "key": "CDKPAYIN" },
-        { "name": "CDK SimplePay", "key": "CDKPAYM" },
-      ],
-    },
-  },
-  "Shared Services": {
-    products: {
-      "Common Audit": [
-        { "name": "Common Audit", "key": "CA" },
-      ],
-      "VIN Cleanse": [
-        { "name": "VIN Cleanse", "key": "CDS" },
-      ],
-      "Centralized Dealer Configuration Management (CDCM)": [
-        { "name": "Centralized Dealer Configuration Management (CDCM)", "key": "CDCM" },
-      ],
-      "Dealer Onboarding Tools (DOT)": [
-        { "name": "Dealer Onboarding Tools (DOT)", "key": "CNV" },
-      ],
-      "Unified Setups": [
-        { "name": "Unified Setups", "key": "USA" },
-      ],
-      "ConnectCDK Portal (Common Admin)": [
-        { "name": "ConnectCDK Portal (Common Admin)", "key": "CAM" },
-      ],
-      "Enterprise Information Service (EIS)": [
-        { "name": "Enterprise Information Service (EIS)", "key": "EIS" },
-      ],
-      "Identity & Access Management Service (IAM)": [
-        { "name": "Identity & Access Management Service (IAM)", "key": "FSRE" },
-        { "name": "Identity & Access Management Service (IAM)", "key": "IAM" },
-      ],
-      "Consumer Canonical Hub / MDM 1.0": [
-        { "name": "Consumer Canonical Hub / MDM 1.0", "key": "DNADD" },
-        { "name": "Consumer Canonical Hub / MDM 1.0", "key": "MRCANON" },
-      ],
-      "Global Search": [
-        { "name": "Global Search", "key": "GS" },
-      ],
-      "Radial Design System": [
-        { "name": "Radial Design System", "key": "RDSDEV" },
-      ],
-      "Unify": [
-        { "name": "Unify", "key": "CAR" },
-      ],
-    },
-  },
-  "Title & Registration-CVR": {
-    products: {
-      "AVRS - California": [
-        { "name": "AVRS - California", "key": "CVRS" },
-      ],
-      "CVR Converged": [
-        { "name": "CVR Converged", "key": "CVRCACONV" },
-        { "name": "CVR Converged", "key": "CVRCBE" },
-        { "name": "CVR Converged", "key": "CVRCFE" },
-      ],
-      "CVR EVR (Delphi)": [
-        { "name": "CVR EVR (Delphi)", "key": "CVRAL" },
-        { "name": "CVR EVR (Delphi)", "key": "CVRHOST" },
-        { "name": "CVR EVR (Delphi)", "key": "CVRIN" },
-        { "name": "CVR EVR (Delphi)", "key": "CVRMA" },
-        { "name": "CVR EVR (Delphi)", "key": "CVRMD" },
-        { "name": "CVR EVR (Delphi)", "key": "CVRNC" },
-        { "name": "CVR EVR (Delphi)", "key": "CVRPA" },
-        { "name": "CVR EVR (Delphi)", "key": "CVRRC" },
-        { "name": "CVR EVR (Delphi)", "key": "CVRSC" },
-        { "name": "CVR EVR (Delphi)", "key": "CVRVA" },
-        { "name": "CVR EVR (Delphi)", "key": "CVRWV" },
-      ],
-      "CVR FL Connect": [
-        { "name": "CVR FL Connect", "key": "CVRFL" },
-      ],
-      "CVR GA EVR": [
-        { "name": "CVR GA EVR", "key": "CVRGA" },
-      ],
-      "CVR IL Connect": [
-        { "name": "CVR IL Connect", "key": "CVRIL" },
-        { "name": "CVR IL Connect", "key": "CVRILSUP" },
-      ],
-      "CVR Interface Services (CIS)": [
-        { "name": "CVR Interface Services (CIS)", "key": "CVRCH" },
-        { "name": "CVR Interface Services (CIS)", "key": "CVRCIS" },
-        { "name": "CVR Interface Services (CIS)", "key": "CVRCLA" },
-        { "name": "CVR Interface Services (CIS)", "key": "CVRDAESIGN" },
-        { "name": "CVR Interface Services (CIS)", "key": "CVRDOCIMG" },
-        { "name": "CVR Interface Services (CIS)", "key": "CVRNMVTI" },
-      ],
-      "CVR MI Connect": [
-        { "name": "CVR MI Connect", "key": "CVRMIWEB" },
-      ],
-      "CVR NC Connect": [
-        { "name": "CVR NC Connect", "key": "CVRNCC" },
-      ],
-      "CVR NJ Web": [
-        { "name": "CVR NJ Web", "key": "CVRNJ" },
-      ],
-      "CVR NY Verifi": [
-        { "name": "CVR NY Verifi", "key": "CVRNY" },
-      ],
-      "CVR PA Connect": [
-        { "name": "CVR PA Connect", "key": "CVRPAC" },
-      ],
-      "CVR WI Connect": [
-        { "name": "CVR WI Connect", "key": "WICON" },
-      ],
-    },
-  },
-};
-void UPDATED_TCOE_PORTFOLIO_STRUCTURE_UNUSED;
-
-// Active QCOE/TCOE scope synced from TAC Bar Chart.csv.
-// Source file is UTF-16 LE + tab-delimited and has one row per automation status.
-const ACTIVE_TCOE_PORTFOLIO_STRUCTURE: Record<string, { products: Record<string, { name: string; key: string }[]> }> = {
-  "Data Platform": {
-    products: {
-      "ICAP": [
-        { "name": "ICAP", "key": "MDSICAP" },
-      ],
-      "InfoIQ Admin (IA)": [
-        { "name": "InfoIQ Admin (IA)", "key": "MDSIA" },
-      ],
-      "OEM Integration Platform (OIP)": [
-        { "name": "OEM Integration Platform (OIP)", "key": "OIP" },
-      ],
-      "Manufacturer Data Updates (Media Pubs)": [
-        { "name": "Manufacturer Data Updates (Media Pubs)", "key": "MPSMOD" },
-        { "name": "Manufacturer Data Updates (Media Pubs) (MPSUPDATES)", "key": "MPSUPDATES" },
-      ],
-      "Advanced Vehicle Lookup (AVL)": [
-        { "name": "Advanced Vehicle Lookup (AVL)", "key": "OEMBD" },
-      ],
-      "AI Acceleration Program": [
-        { "name": "AI Acceleration Program", "key": "AAP" },
-        { "name": "AI Acceleration Program (AIVAPL)", "key": "AIVAPL" },
-      ],
-      "Conversational AI": [
-        { "name": "Conversational AI", "key": "AIVA" },
-      ],
-      "Enterprise Data Pipeline (EDP)": [
-        { "name": "Enterprise Data Pipeline (EDP)", "key": "ASYNCAPI" },
-        { "name": "Enterprise Data Pipeline (EDP) (DNAST)", "key": "DNAST" },
-        { "name": "Enterprise Data Pipeline (EDP) (DNASYND)", "key": "DNASYND" },
-        { "name": "Enterprise Data Pipeline (EDP) (EDPOEMI)", "key": "EDPOEMI" },
-        { "name": "Enterprise Data Pipeline (EDP) (MDSEDP)", "key": "MDSEDP" },
-        { "name": "Enterprise Data Pipeline (EDP) (MDSMIG)", "key": "MDSMIG" },
-      ],
-      "Titan - Data Lake": [
-        { "name": "Titan - Data Lake", "key": "TDI" },
-        { "name": "Titan - Data Lake (TDO)", "key": "TDO" },
-        { "name": "Titan - Data Lake (TDOPS)", "key": "TDOPS" },
-        { "name": "Titan - Data Lake (TDP)", "key": "TDP" },
-        { "name": "Titan - Data Lake (TOB)", "key": "TOB" },
-        { "name": "Titan - Data Lake (TST)", "key": "TST" },
-        { "name": "Titan - Data Lake (UDC)", "key": "UDC" },
-        { "name": "Titan - Data Lake (UDI)", "key": "UDI" },
-      ],
-    },
-  },
-  "Data Solutions": {
-    products: {
-      "CDK Intelligence Suite": [
-        { "name": "CDK Intelligence Suite", "key": "NDP" },
-        { "name": "CDK Intelligence Suite (SSBYOD)", "key": "SSBYOD" },
-      ],
-      "CS Performance Dashboard": [
-        { "name": "CS Performance Dashboard", "key": "DNACS" },
-      ],
-      "Performance Suite": [
-        { "name": "Performance Suite", "key": "NPS" },
-      ],
-      "Managed Bi-Directional (MBD)": [
-        { "name": "Managed Bi-Directional (MBD)", "key": "DNADEDGE" },
-      ],
-      "Data Access Bulk Extract (DABE)": [
-        { "name": "Data Access Bulk Extract (DABE)", "key": "DNALPS" },
-      ],
-      "Dealer Data Exchange (DDX)": [
-        { "name": "Dealer Data Exchange (DDX)", "key": "DNADDX" },
-      ],
-      "Modern APIs": [
-        { "name": "Modern APIs", "key": "APITRON" },
-      ],
-      "Data Export Tool": [
-        { "name": "Data Export Tool", "key": "DET" },
-      ],
-      "Warranty Revenue Assistance Program (WRAP)": [
-        { "name": "Warranty Revenue Assistance Program (WRAP)", "key": "WRP" },
-      ],
-    },
-  },
-  "DMS": {
-    products: {
-      "DMS Accounting (Modern)": [
-        { "name": "DMS Accounting (Modern)", "key": "APMODACC" },
-        { "name": "DMS Accounting (Modern) (ARMODACC)", "key": "ARMODACC" },
-        { "name": "DMS Accounting (Modern) (FSMODACC)", "key": "FSMODACC" },
-        { "name": "DMS Accounting (Modern) (MDWP)", "key": "MDWP" },
-        { "name": "DMS Accounting (Modern) (MODACCRPTS)", "key": "MODACCRPTS" },
-        { "name": "DMS Accounting (Modern) (MODBETC)", "key": "MODBETC" },
-        { "name": "DMS Accounting (Modern) (MODDWTC)", "key": "MODDWTC" },
-        { "name": "DMS Accounting (Modern) (MODPLAT)", "key": "MODPLAT" },
-        { "name": "DMS Accounting (Modern) (MODSRCH)", "key": "MODSRCH" },
-        { "name": "DMS Accounting (Modern) (MODTOOL)", "key": "MODTOOL" },
-        { "name": "DMS Accounting (Modern) (POMODACC)", "key": "POMODACC" },
-      ],
-      "DMS Accounting (Modern) / Drive SaaS - UI": [
-        { "name": "DMS Accounting (Modern) / Drive SaaS - UI", "key": "BRMODACC" },
-      ],
-      "Drive Accounting (Legacy)": [
-        { "name": "Drive Accounting (Legacy)", "key": "ACC" },
-        { "name": "Drive Accounting (Legacy) (FSACC)", "key": "FSACC" },
-      ],
-      "Drive Platform (Legacy)": [
-        { "name": "Drive Platform (Legacy)", "key": "DE" },
-        { "name": "Drive Platform (Legacy) (DRV)", "key": "DRV" },
-        { "name": "Drive Platform (Legacy) (QTCLOUD)", "key": "QTCLOUD" },
-      ],
-      "Heavy Truck (Legacy)": [
-        { "name": "Heavy Truck (Legacy)", "key": "TRKMOD" },
-      ],
-      "Heavy Truck (Modern)": [
-        { "name": "Heavy Truck (Modern)", "key": "TRKMISC" },
-      ],
-      "Drive OEM Integrations (Modern)": [
-        { "name": "Drive OEM Integrations (Modern)", "key": "MODOEM" },
-        { "name": "Drive OEM Integrations (Modern) (OEMI)", "key": "OEMI" },
-        { "name": "Drive OEM Integrations (Modern) (PSRD)", "key": "PSRD" },
-      ],
-    },
-  },
-  "Fixed Ops": {
-    products: {
-      "Parts (Modernized)": [
-        { "name": "Parts (Modernized)", "key": "FIX" },
-        { "name": "Parts (Modernized) (FIXPRTSMKT)", "key": "FIXPRTSMKT" },
-        { "name": "Parts (Modernized) (FIXPRTSORD)", "key": "FIXPRTSORD" },
-        { "name": "Parts (Modernized) (FXOPKIT)", "key": "FXOPKIT" },
-        { "name": "Parts (Modernized) (MODPRT)", "key": "MODPRT" },
-        { "name": "Parts (Modernized) (MPDS)", "key": "MPDS" },
-        { "name": "Parts (Modernized) (SER)", "key": "SER" },
-      ],
-      "CDK Service (Classic)": [
-        { "name": "CDK Service (Classic)", "key": "CDKSRVAPL" },
-        { "name": "CDK Service (Classic) (CDKSRVDAT)", "key": "CDKSRVDAT" },
-        { "name": "CDK Service (Classic) (CDKSRVPLT)", "key": "CDKSRVPLT" },
-        { "name": "CDK Service (Classic) (FXDOPSHT)", "key": "FXDOPSHT" },
-        { "name": "CDK Service (Classic) (FXDPSCN)", "key": "FXDPSCN" },
-        { "name": "CDK Service (Classic) (PPR)", "key": "PPR" },
-      ],
-      "CDK Service (Modern)": [
-        { "name": "CDK Service (Modern)", "key": "FXDOPSHTT" },
-      ],
-      "CDK Service (Modern) / Modern Foundations": [
-        { "name": "CDK Service (Modern) / Modern Foundations", "key": "CDKSRVAN" },
-        { "name": "CDK Service (Modern) / Modern Foundations (CDKSRVFRD)", "key": "CDKSRVFRD" },
-        { "name": "CDK Service (Modern) / Modern Foundations (CDKSRVOEM)", "key": "CDKSRVOEM" },
-        { "name": "CDK Service (Modern) / Modern Foundations (CSFM)", "key": "CSFM" },
-        { "name": "CDK Service (Modern) / Modern Foundations (FPE)", "key": "FPE" },
-        { "name": "CDK Service (Modern) / Modern Foundations (FXDOPSDLM)", "key": "FXDOPSDLM" },
-        { "name": "CDK Service (Modern) / Modern Foundations (FXDOPSQMS)", "key": "FXDOPSQMS" },
-        { "name": "CDK Service (Modern) / Modern Foundations (FXOPSSRE)", "key": "FXOPSSRE" },
-      ],
-      "CDK Service Appointment (Classic)": [
-        { "name": "CDK Service Appointment (Classic)", "key": "CDKSRVAPT" },
-      ],
-      "CDK Service Appointment (Modern)": [
-        { "name": "CDK Service Appointment (Modern)", "key": "FXDOPSTOY" },
-      ],
-      "CDK Service Inspect (Classic)": [
-        { "name": "CDK Service Inspect (Classic)", "key": "EUM" },
-      ],
-      "CDK Service Inspect (Modern)": [
-        { "name": "CDK Service Inspect (Modern)", "key": "ADMSE" },
-        { "name": "CDK Service Inspect (Modern) (CDKSRVACC)", "key": "CDKSRVACC" },
-        { "name": "CDK Service Inspect (Modern) (FXDOPSAPT)", "key": "FXDOPSAPT" },
-        { "name": "CDK Service Inspect (Modern) (FXDOPSINSP)", "key": "FXDOPSINSP" },
-        { "name": "CDK Service Inspect (Modern) (ROS)", "key": "ROS" },
-      ],
-      "CDK Service Lane (Classic)": [
-        { "name": "CDK Service Lane (Classic)", "key": "CDKSRVLNI" },
-      ],
-      "Drive Parts": [
-        { "name": "Drive Parts", "key": "PARTSDEV" },
-      ],
-      "Drive Service": [
-        { "name": "Drive Service", "key": "SVEDRVE" },
-      ],
-      "Elead Service ServiceOne / Elead Service Appointment": [
-        { "name": "Elead Service ServiceOne / Elead Service Appointment", "key": "ELESRV" },
-      ],
-    },
-  },
-  "Fortellis": {
-    products: {
-      "Fortellis Platform": [
-        { "name": "Fortellis Platform", "key": "FORT" },
-        { "name": "Fortellis Platform (FORTAPPAPI)", "key": "FORTAPPAPI" },
-        { "name": "Fortellis Platform (FORTQA)", "key": "FORTQA" },
-      ],
-      "Fortellis Developer Community": [
-        { "name": "Fortellis Developer Community", "key": "FORTCORE" },
-      ],
-      "Fortellis Marketplace": [
-        { "name": "Fortellis Marketplace", "key": "FORTMP" },
-      ],
-    },
-  },
-  "Inventory Management Solutions": {
-    products: {
-      "Mobile Shared Services": [
-        { "name": "Mobile Shared Services", "key": "SM" },
-      ],
-      "Vehicle Inventory Suite (VIS)": [
-        { "name": "Vehicle Inventory Suite (VIS)", "key": "CI" },
-      ],
-      "Lot Merchandizer": [
-        { "name": "Lot Merchandizer", "key": "EDGEINV" },
-      ],
-      "Used Lot Intelligence": [
-        { "name": "Used Lot Intelligence", "key": "ULI" },
-      ],
-      "Vehicle Cloud": [
-        { "name": "Vehicle Cloud", "key": "CVC" },
-        { "name": "Vehicle Cloud (MODVHCL)", "key": "MODVHCL" },
-      ],
-    },
-  },
-  "Modern Retail": {
-    products: {
-      "CRM": [
-        { "name": "CRM", "key": "CCEL" },
-        { "name": "CRM (CRMMYDAY)", "key": "CRMMYDAY" },
-        { "name": "CRM (CRMP4S)", "key": "CRMP4S" },
-        { "name": "CRM (EKC)", "key": "EKC" },
-        { "name": "CRM (ELCRMHE)", "key": "ELCRMHE" },
-        { "name": "CRM (ELCRMHT)", "key": "ELCRMHT" },
-        { "name": "CRM (ELDBD)", "key": "ELDBD" },
-        { "name": "CRM (ELEMRS)", "key": "ELEMRS" },
-        { "name": "CRM (ELMOB)", "key": "ELMOB" },
-        { "name": "CRM (ELQAA)", "key": "ELQAA" },
-        { "name": "CRM (ELRPT)", "key": "ELRPT" },
-        { "name": "CRM (ELSCRM)", "key": "ELSCRM" },
-        { "name": "CRM (ELSMOD)", "key": "ELSMOD" },
-        { "name": "CRM (ELSRE)", "key": "ELSRE" },
-        { "name": "CRM (ELSTCAP)", "key": "ELSTCAP" },
-        { "name": "CRM (ELSUPPORT)", "key": "ELSUPPORT" },
-        { "name": "CRM (ELSWEM)", "key": "ELSWEM" },
-        { "name": "CRM (MRC1)", "key": "MRC1" },
-        { "name": "CRM (MRSSO)", "key": "MRSSO" },
-        { "name": "CRM (RM)", "key": "RM" },
-      ],
-      "CRM / CRM Shared Capabilities": [
-        { "name": "CRM / CRM Shared Capabilities", "key": "ELDMSI" },
-        { "name": "CRM / CRM Shared Capabilities (ELLRT)", "key": "ELLRT" },
-        { "name": "CRM / CRM Shared Capabilities (ELTPI)", "key": "ELTPI" },
-      ],
-      "CRM AI": [
-        { "name": "CRM AI", "key": "CRMAI" },
-      ],
-      "CRM DBA & ETL": [
-        { "name": "CRM DBA & ETL", "key": "CDCDEB" },
-        { "name": "CRM DBA & ETL (ELDBAPR)", "key": "ELDBAPR" },
-        { "name": "CRM DBA & ETL (ELDBCR)", "key": "ELDBCR" },
-        { "name": "CRM DBA & ETL (ELDBP)", "key": "ELDBP" },
-        { "name": "CRM DBA & ETL (ELDBS)", "key": "ELDBS" },
-        { "name": "CRM DBA & ETL (ELETL)", "key": "ELETL" },
-      ],
-      "CRM Desking": [
-        { "name": "CRM Desking", "key": "CRMCM" },
-        { "name": "CRM Desking (DESKEL)", "key": "DESKEL" },
-        { "name": "CRM Desking (MOD2SC)", "key": "MOD2SC" },
-      ],
-      "CRM Marketing": [
-        { "name": "CRM Marketing", "key": "ELCOMT" },
-        { "name": "CRM Marketing (ELDM)", "key": "ELDM" },
-      ],
-      "Modern Retail Integrated Experience": [
-        { "name": "Modern Retail Integrated Experience", "key": "FRMSMOD" },
-        { "name": "Modern Retail Integrated Experience (MRIX)", "key": "MRIX" },
-      ],
-      "One-Eighty (180)": [
-        { "name": "One-Eighty (180)", "key": "OEDARWIN" },
-        { "name": "One-Eighty (180) (OEGRDTETON)", "key": "OEGRDTETON" },
-        { "name": "One-Eighty (180) (OEHIMALAYA)", "key": "OEHIMALAYA" },
-        { "name": "One-Eighty (180) (OEK2)", "key": "OEK2" },
-        { "name": "One-Eighty (180) (OEKIRKJUFE)", "key": "OEKIRKJUFE" },
-        { "name": "One-Eighty (180) (OET)", "key": "OET" },
-        { "name": "One-Eighty (180) (OETWINMOU)", "key": "OETWINMOU" },
-        { "name": "One-Eighty (180) (OLYMPUS)", "key": "OLYMPUS" },
-      ],
-      "Credit Services": [
-        { "name": "Credit Services", "key": "CREDIT" },
-        { "name": "Credit Services (LDET)", "key": "LDET" },
-      ],
-      "Digital Contracting": [
-        { "name": "Digital Contracting", "key": "DC" },
-        { "name": "Digital Contracting (MODTAI)", "key": "MODTAI" },
-      ],
-      "Storefront": [
-        { "name": "Storefront", "key": "MR" },
-        { "name": "Storefront (MRDRT)", "key": "MRDRT" },
-      ],
-      "CDK Sign Platform": [
-        { "name": "CDK Sign Platform", "key": "CSP" },
-      ],
-      "Cloud Printing": [
-        { "name": "Cloud Printing", "key": "HW" },
-      ],
-      "eForms": [
-        { "name": "eForms", "key": "EFORM" },
-      ],
-      "Global Content Management (GCM)": [
-        { "name": "Global Content Management (GCM)", "key": "GCMT" },
-      ],
-      "Drive Sales F&I": [
-        { "name": "Drive Sales F&I", "key": "FI" },
-        { "name": "Drive Sales F&I (KEYSTONE)", "key": "KEYSTONE" },
-        { "name": "Drive Sales F&I (MODSFI)", "key": "MODSFI" },
-      ],
-      "Modern F&I": [
-        { "name": "Modern F&I", "key": "LIEN" },
-        { "name": "Modern F&I (MODTAO)", "key": "MODTAO" },
-      ],
-      "Communication Service (CSMSG)": [
-        { "name": "Communication Service (CSMSG)", "key": "CSMSGISSUE" },
-      ],
-      "Connected Communications Platform": [
-        { "name": "Connected Communications Platform", "key": "CCPADMIN" },
-        { "name": "Connected Communications Platform (CCPAPPS)", "key": "CCPAPPS" },
-        { "name": "Connected Communications Platform (CCPBKND)", "key": "CCPBKND" },
-        { "name": "Connected Communications Platform (CCPDATA)", "key": "CCPDATA" },
-        { "name": "Connected Communications Platform (CCPTXT)", "key": "CCPTXT" },
-        { "name": "Connected Communications Platform (MRC2)", "key": "MRC2" },
-      ],
-      "Text Connect": [
-        { "name": "Text Connect", "key": "CC" },
-      ],
-    },
-  },
-  "Payments": {
-    products: {
-      "ePayments": [
-        { "name": "ePayments", "key": "EPAYTEAM" },
-      ],
-      "CDK SimplePay": [
-        { "name": "CDK SimplePay", "key": "CDKPAY" },
-        { "name": "CDK SimplePay (CDKPAYIN)", "key": "CDKPAYIN" },
-        { "name": "CDK SimplePay (CDKPAYM)", "key": "CDKPAYM" },
-      ],
-    },
-  },
-  "Shared Services": {
-    products: {
-      "Common Audit": [
-        { "name": "Common Audit", "key": "CA" },
-      ],
-      "VIN Cleanse": [
-        { "name": "VIN Cleanse", "key": "CDS" },
-      ],
-      "Centralized Dealer Configuration Management (CDCM)": [
-        { "name": "Centralized Dealer Configuration Management (CDCM)", "key": "CDCM" },
-      ],
-      "Dealer Onboarding Tools (DOT)": [
-        { "name": "Dealer Onboarding Tools (DOT)", "key": "CNV" },
-      ],
-      "Unified Setups": [
-        { "name": "Unified Setups", "key": "USA" },
-      ],
-      "ConnectCDK Portal (Common Admin)": [
-        { "name": "ConnectCDK Portal (Common Admin)", "key": "CAM" },
-      ],
-      "Enterprise Information Service (EIS)": [
-        { "name": "Enterprise Information Service (EIS)", "key": "EIS" },
-      ],
-      "Identity & Access Management Service (IAM)": [
-        { "name": "Identity & Access Management Service (IAM)", "key": "FSRE" },
-        { "name": "Identity & Access Management Service (IAM) (IAM)", "key": "IAM" },
-      ],
-      "Consumer Canonical Hub / MDM 1.0": [
-        { "name": "Consumer Canonical Hub / MDM 1.0", "key": "DNADD" },
-        { "name": "Consumer Canonical Hub / MDM 1.0 (MRCANON)", "key": "MRCANON" },
-      ],
-      "Global Search": [
-        { "name": "Global Search", "key": "GS" },
-      ],
-      "Radial Design System": [
-        { "name": "Radial Design System", "key": "RDSDEV" },
-      ],
-      "Unify": [
-        { "name": "Unify", "key": "CAR" },
-      ],
-    },
-  },
-  "Title & Registration-CVR": {
-    products: {
-      "AVRS - California": [
-        { "name": "AVRS - California", "key": "CVRS" },
-      ],
-      "CVR Converged": [
-        { "name": "CVR Converged", "key": "CVRCACONV" },
-        { "name": "CVR Converged (CVRCBE)", "key": "CVRCBE" },
-      ],
-      "CVR EVR (Delphi)": [
-        { "name": "CVR EVR (Delphi)", "key": "CVRIN" },
-        { "name": "CVR EVR (Delphi) (CVRNC)", "key": "CVRNC" },
-      ],
-      "CVR EVR (Delphi) / CVR EVR AL": [
-        { "name": "CVR EVR (Delphi) / CVR EVR AL", "key": "CVRAL" },
-      ],
-      "CVR EVR (Delphi) / CVR EVR MA": [
-        { "name": "CVR EVR (Delphi) / CVR EVR MA", "key": "CVRMA" },
-      ],
-      "CVR EVR (Delphi) / CVR EVR MD": [
-        { "name": "CVR EVR (Delphi) / CVR EVR MD", "key": "CVRMD" },
-      ],
-      "CVR EVR (Delphi) / CVR EVR PA": [
-        { "name": "CVR EVR (Delphi) / CVR EVR PA", "key": "CVRPA" },
-      ],
-      "CVR EVR (Delphi) / CVR EVR SC": [
-        { "name": "CVR EVR (Delphi) / CVR EVR SC", "key": "CVRSC" },
-      ],
-      "CVR EVR (Delphi) / CVR EVR VA": [
-        { "name": "CVR EVR (Delphi) / CVR EVR VA", "key": "CVRVA" },
-      ],
-      "CVR EVR (Delphi) / CVR EVR WV": [
-        { "name": "CVR EVR (Delphi) / CVR EVR WV", "key": "CVRWV" },
-      ],
-      "CVR EVR (Delphi) / CVR Host": [
-        { "name": "CVR EVR (Delphi) / CVR Host", "key": "CVRHOST" },
-      ],
-      "CVR FL Connect": [
-        { "name": "CVR FL Connect", "key": "CVRFL" },
-      ],
-      "CVR GA EVR": [
-        { "name": "CVR GA EVR", "key": "CVRGA" },
-      ],
-      "CVR IL Connect": [
-        { "name": "CVR IL Connect", "key": "CVRIL" },
-        { "name": "CVR IL Connect (CVRILSUP)", "key": "CVRILSUP" },
-      ],
-      "CVR Interface Services (CIS)": [
-        { "name": "CVR Interface Services (CIS)", "key": "CVRCH" },
-        { "name": "CVR Interface Services (CIS) (CVRCIS)", "key": "CVRCIS" },
-        { "name": "CVR Interface Services (CIS) (CVRCLA)", "key": "CVRCLA" },
-        { "name": "CVR Interface Services (CIS) (CVRDAESIGN)", "key": "CVRDAESIGN" },
-        { "name": "CVR Interface Services (CIS) (CVRDOCIMG)", "key": "CVRDOCIMG" },
-        { "name": "CVR Interface Services (CIS) (CVRJE)", "key": "CVRJE" },
-        { "name": "CVR Interface Services (CIS) (CVRNMVTI)", "key": "CVRNMVTI" },
-        { "name": "CVR Interface Services (CIS) (CVRRC)", "key": "CVRRC" },
-      ],
-      "CVR MI Connect": [
-        { "name": "CVR MI Connect", "key": "CVRMIWEB" },
-      ],
-      "CVR NC Connect": [
-        { "name": "CVR NC Connect", "key": "CVRNCC" },
-      ],
-      "CVR NJ Web": [
-        { "name": "CVR NJ Web", "key": "CVRNJ" },
-      ],
-      "CVR NY Verifi": [
-        { "name": "CVR NY Verifi", "key": "CVRNY" },
-      ],
-      "CVR PA Connect": [
-        { "name": "CVR PA Connect", "key": "CVRPAC" },
-      ],
-      "CVR WI Connect": [
-        { "name": "CVR WI Connect", "key": "WICON" },
-      ],
-    },
-  },
-};
-
-// Build flat lists from TCOE structure
-const buildTcoeOptions = (): {
-  portfolios: string[];
-  allProjectKeys: string[];
-  allProjectNames: string[];
-  projectKeyToPortfolio: Record<string, string>;
-  projectKeyToName: Record<string, string>;
-} => {
-  const portfolios = ['All', ...Object.keys(ACTIVE_TCOE_PORTFOLIO_STRUCTURE)];
-  const projectKeyToPortfolio: Record<string, string> = {};
-  const projectKeyToName: Record<string, string> = {};
-  const allProjectKeys: string[] = ['All'];
-  const allProjectNames: string[] = ['All'];
-
-  Object.entries(ACTIVE_TCOE_PORTFOLIO_STRUCTURE).forEach(([portfolio, { products }]) => {
-    Object.values(products).forEach(projects => {
-      projects.forEach(({ name, key }) => {
-        if (key && key !== '') {
-          projectKeyToPortfolio[key] = portfolio;
-          projectKeyToName[key] = name;
-          if (!allProjectKeys.includes(key)) {
-            allProjectKeys.push(key);
-          }
-          if (!allProjectNames.includes(name)) {
-            allProjectNames.push(name);
-          }
-        }
-      });
-    });
-  });
-
-  return { portfolios, allProjectKeys, allProjectNames, projectKeyToPortfolio, projectKeyToName };
-};
-
-// Get project keys for specific portfolios
-const getProjectKeysForPortfolios = (portfolios: string[]): string[] => {
-  const keys: string[] = [];
-  portfolios.forEach(portfolio => {
-    const portfolioData = ACTIVE_TCOE_PORTFOLIO_STRUCTURE[portfolio];
-    if (portfolioData) {
-      Object.values(portfolioData.products).forEach(projects => {
-        projects.forEach(({ key }) => {
-          if (key && key !== '' && !keys.includes(key)) {
-            keys.push(key);
-          }
-        });
-      });
-    }
-  });
-  return keys;
-};
-
-const TCOE_OPTIONS = buildTcoeOptions();
-
 export function DefectLeakageAnalyzer() {
   const { currentTheme, isDarkMode } = useTheme();
   const formatDateInput = (date: Date) => {
@@ -1543,12 +472,15 @@ export function DefectLeakageAnalyzer() {
   const [reportGenerationTime, setReportGenerationTime] = useState<number | null>(null);
   const [debugBreakdown, setDebugBreakdown] = useState<DebugBreakdownItem[] | null>(null);
 
-  // TCOE dropdown options (using hardcoded TCOE structure)
+  const [projectCatalog, setProjectCatalog] = useState<QcoePortfolioOption[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [options, setOptions] = useState<DropdownOptions>({
-    portfolios: TCOE_OPTIONS.portfolios,
-    project_keys: TCOE_OPTIONS.allProjectKeys,
-    project_names: TCOE_OPTIONS.allProjectNames,
-    projectKeyToPortfolio: TCOE_OPTIONS.projectKeyToPortfolio,
+    portfolios: ['All'],
+    project_keys: ['All'],
+    project_names: ['All'],
+    projectKeyToPortfolio: {},
+    projectKeyToName: {},
   });
 
   // Selected filters – same pattern as KPI
@@ -1886,58 +818,81 @@ export function DefectLeakageAnalyzer() {
 
   const activeMetricOption = VISIBLE_METRIC_OPTIONS.find(option => option.value === selectedMetric) || defaultMetric;
 
-  // Update dropdown options based on selected portfolio(s) - uses hardcoded TCOE structure
+  // Update dropdown options from the Jira-backed catalog.
   const updateDropdownOptions = (portfolios?: string[]) => {
-    if (!portfolios || portfolios.length === 0 || (portfolios.length === 1 && portfolios[0] === 'All')) {
-      // Show all options
-      setOptions({
-        portfolios: TCOE_OPTIONS.portfolios,
-        project_keys: TCOE_OPTIONS.allProjectKeys,
-        project_names: TCOE_OPTIONS.allProjectNames,
-        projectKeyToPortfolio: TCOE_OPTIONS.projectKeyToPortfolio,
-      });
-    } else {
-      // Filter to selected portfolios only
-      const filteredKeys = getProjectKeysForPortfolios(portfolios);
-      const filteredNames = filteredKeys.map(key => TCOE_OPTIONS.projectKeyToName[key] || key);
-
-      setOptions({
-        portfolios: TCOE_OPTIONS.portfolios,
-        project_keys: ['All', ...filteredKeys],
-        project_names: ['All', ...filteredNames],
-        projectKeyToPortfolio: TCOE_OPTIONS.projectKeyToPortfolio,
-      });
-    }
+    const selected = new Set((portfolios || []).filter(portfolio => portfolio !== 'All'));
+    const visiblePortfolios = selected.size
+      ? projectCatalog.filter(portfolio => selected.has(portfolio.name))
+      : projectCatalog;
+    const visibleProjects = visiblePortfolios.flatMap(portfolio => portfolio.projects);
+    const projectKeyToPortfolio: Record<string, string> = {};
+    const projectKeyToName: Record<string, string> = {};
+    projectCatalog.forEach(portfolio => portfolio.projects.forEach(project => {
+      projectKeyToPortfolio[project.key] = portfolio.name;
+      projectKeyToName[project.key] = project.name;
+    }));
+    setOptions({
+      portfolios: ['All', ...projectCatalog.map(portfolio => portfolio.name)],
+      project_keys: ['All', ...visibleProjects.map(project => project.key)],
+      project_names: ['All', ...Array.from(new Set(visibleProjects.map(project => project.name)))],
+      projectKeyToPortfolio,
+      projectKeyToName,
+    });
   };
 
-  // Build portfolio mapping for SELECTED portfolios only - uses hardcoded TCOE structure
+  // Build the selected key-to-portfolio mapping from Jira data.
   const buildPortfolioMapping = (portfoliosToUse?: string[]): Record<string, string> => {
-    // Use the hardcoded TCOE mapping
-    const fullMapping = TCOE_OPTIONS.projectKeyToPortfolio;
-
-    if (!portfoliosToUse || portfoliosToUse.length === 0) {
-      console.log('📋 Using full TCOE portfolio mapping:', fullMapping);
-      return fullMapping;
-    }
-
-    // Filter to only selected portfolios
     const filteredMapping: Record<string, string> = {};
-    const portfoliosSet = new Set(portfoliosToUse.filter(p => p !== 'All'));
-
-    Object.entries(fullMapping).forEach(([key, portfolio]) => {
-      if (portfoliosSet.has(portfolio)) {
-        filteredMapping[key] = portfolio;
+    const selected = new Set((portfoliosToUse || []).filter(portfolio => portfolio !== 'All'));
+    projectCatalog.forEach(portfolio => {
+      if (selected.size === 0 || selected.has(portfolio.name)) {
+        portfolio.projects.forEach(project => { filteredMapping[project.key] = portfolio.name; });
       }
     });
-
-    console.log('📋 Filtered TCOE portfolio mapping for', portfoliosToUse, ':', filteredMapping);
     return filteredMapping;
   };
 
-  // Initialize options on mount (using hardcoded TCOE structure)
+  // Load the authoritative catalog directly from Jira through the backend.
+  useEffect(() => {
+    let mounted = true;
+    const loadCatalog = async () => {
+      setCatalogLoading(true);
+      setCatalogError(null);
+      try {
+        const response = await fetch(getApiUrl('/api/quality/qcoe-projects'));
+        const payload = await response.json();
+        if (!response.ok || !payload.success || !Array.isArray(payload.portfolios)) {
+          throw new Error(payload.detail || payload.error || 'Unable to load QCOE projects from Jira.');
+        }
+        if (mounted) setProjectCatalog(payload.portfolios);
+      } catch (catalogFailure) {
+        if (mounted) {
+          setProjectCatalog([]);
+          setCatalogError(catalogFailure instanceof Error ? catalogFailure.message : 'Unable to load QCOE projects from Jira.');
+        }
+      } finally {
+        if (mounted) setCatalogLoading(false);
+      }
+    };
+    loadCatalog();
+    return () => { mounted = false; };
+  }, []);
+
   useEffect(() => {
     updateDropdownOptions();
-  }, []);
+    if (!projectCatalog.length) return;
+    const validPortfolios = new Set(projectCatalog.map(portfolio => portfolio.name));
+    const validProjects = new Set(projectCatalog.flatMap(portfolio => portfolio.projects.map(project => project.key)));
+    const validProjectNames = new Set(projectCatalog.flatMap(portfolio => portfolio.projects.map(project => project.name)));
+    setSelectedPortfolio(current => current === 'All' || validPortfolios.has(current) ? current : 'All');
+    setSelectedPortfolios(current => current.filter(portfolio => validPortfolios.has(portfolio)));
+    setTempSelectedPortfolios(current => current.filter(portfolio => validPortfolios.has(portfolio)));
+    setSelectedProjectKey(current => current === 'All' || validProjects.has(current) ? current : 'All');
+    setSelectedProjectKeys(current => current.filter(project => validProjects.has(project)));
+    setTempSelectedProjectKeys(current => current.filter(project => validProjects.has(project)));
+    setSelectedProjectName(current => current === 'All' || validProjectNames.has(current) ? current : 'All');
+    setSelectedProjectNames(current => current.filter(project => validProjectNames.has(project)));
+  }, [projectCatalog]);
 
   // Handle sprint selection - update dates when sprint changes
   // Update dates when sprint is selected in sprint mode
@@ -2018,14 +973,12 @@ export function DefectLeakageAnalyzer() {
     setSelectedProjectKeys([]);
     setSelectedProjectNames([]);
     setUseMultiSelect(false);
-  }, [selectedPortfolio, selectedPortfolios]);
+  }, [selectedPortfolio, selectedPortfolios, projectCatalog]);
 
-  // Helper: Find matching project name for a project key (uses hardcoded TCOE mapping)
+  // Helper: Find matching Jira project name for a project key.
   const findProjectNameForKey = (key: string): string | null => {
     if (!key || key === 'All') return null;
-
-    // Direct lookup from TCOE mapping
-    return TCOE_OPTIONS.projectKeyToName[key] || null;
+    return options.projectKeyToName[key] || null;
   };
 
   // Helper: Find matching project names for multiple keys
@@ -2197,6 +1150,10 @@ export function DefectLeakageAnalyzer() {
   };
 
   const analyzeLeakage = async () => {
+    if (catalogLoading || catalogError || projectCatalog.length === 0) {
+      setError(catalogError || 'QCOE projects are still loading from Jira.');
+      return;
+    }
     const startTime = Date.now();
     setLoading(true);
     setError(null);
@@ -2229,7 +1186,7 @@ export function DefectLeakageAnalyzer() {
       }
       // If no portfolios selected (All), portfoliosForMapping stays empty and we'll use all
 
-      // STEP 2: Get portfolio mapping from hardcoded TCOE structure
+      // STEP 2: Build the selected mapping from the Jira project catalog.
       console.log('📋 Getting portfolio mapping for:', portfoliosForMapping.length > 0 ? portfoliosForMapping : 'ALL');
       const portfolioMapping = buildPortfolioMapping(portfoliosForMapping.length > 0 ? portfoliosForMapping : undefined);
       console.log('📋 Portfolio mapping ready:', portfolioMapping);
@@ -5031,10 +3988,10 @@ export function DefectLeakageAnalyzer() {
                 borderRadius: isDarkMode ? '12px' : undefined,
                 border: 'none',
               }}
-              disabled={loading}
+              disabled={loading || catalogLoading || Boolean(catalogError) || projectCatalog.length === 0}
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              {loading ? 'Loading...' : 'Generate'}
+              <RefreshCw className={`h-4 w-4 ${loading || catalogLoading ? 'animate-spin' : ''}`} />
+              {catalogLoading ? 'Loading Jira Projects...' : loading ? 'Loading...' : 'Generate'}
             </Button>
             <Button
               onClick={handleExportExcel}
@@ -6242,7 +5199,7 @@ export function DefectLeakageAnalyzer() {
       </Card>
 
       {/* Error Display */}
-      {error && (
+      {(catalogError || error) && (
         <Alert
           className="border flex items-start gap-3"
           style={{
@@ -6253,13 +5210,13 @@ export function DefectLeakageAnalyzer() {
         >
           <AlertTriangle className="h-4 w-4" style={{ color: isDarkMode ? '#FECACA' : currentTheme.colors.error }} />
           <AlertDescription className="text-sm" style={{ color: isDarkMode ? '#FECACA' : '#C21F3A' }}>
-            {error}
+            {catalogError || error}
           </AlertDescription>
         </Alert>
       )}
 
       {/* Warning Display - for partial success when some portfolios have no valid projects */}
-      {warning && !error && (
+      {warning && !error && !catalogError && (
         <Alert
           data-pdf-exclude="true"
           className="border flex items-start gap-3"

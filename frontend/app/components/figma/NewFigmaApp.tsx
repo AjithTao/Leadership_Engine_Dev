@@ -159,11 +159,22 @@ function NewFigmaAppContent() {
       }
     }
 
-    // Initial fetch with a small delay to ensure auto-connect has completed
-    // (auto-connect happens during login, so we give it 2 seconds to complete)
-    setTimeout(() => {
-      refreshStatuses()
-    }, 2000)
+    // LDAP login is currently bypassed, so initialize server-side integrations
+    // from backend/config/.env when the application shell first loads.
+    const bootstrapIntegrations = async () => {
+      try {
+        await fetch(getApiUrl('/api/auth/auto-connect-integrations'), {
+          method: 'POST',
+        })
+      } catch {
+        // Status polling below will keep integrations disconnected if the
+        // backend or an external service is unavailable.
+      } finally {
+        await refreshStatuses()
+      }
+    }
+
+    bootstrapIntegrations()
     
     // Poll every 10 seconds to keep status updated
     const id = window.setInterval(refreshStatuses, 10000) // 10 seconds

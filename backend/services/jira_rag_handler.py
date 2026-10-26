@@ -24,21 +24,19 @@ class JiraRAGHandler:
         self._initialize()
     
     def _initialize(self):
-        """Initialize Databricks embeddings endpoint configuration"""
+        """Initialize the OpenAI-compatible embeddings configuration."""
         try:
             # Prefer dedicated embeddings key/endpoint if provided
             self.api_key = os.getenv("OPENAI_EMBEDDINGS_API_KEY") or os.getenv("OPENAI_API_KEY")
             self.embedding_endpoint = os.getenv(
-                "DATABRICKS_EMBEDDING_ENDPOINT",
-                os.getenv(
-                    "OPENAI_EMBEDDINGS_API_ENDPOINT",
-                    "https://dbc-46217bae-ef1b.cloud.databricks.com/serving-endpoints/databricks-gte-large-en/invocations"
-                )
+                "OPENAI_EMBEDDINGS_API_ENDPOINT",
+                "https://api.openai.com/v1/embeddings",
             )
+            self.embedding_model = os.getenv("OPENAI_EMBEDDINGS_MODEL", "text-embedding-3-small")
 
             if self.api_key:
                 endpoint_name = self.embedding_endpoint.split("/serving-endpoints/")[1].split("/")[0] if "/serving-endpoints/" in self.embedding_endpoint else "custom"
-                logger.info(f"✅ Jira RAG Handler initialized with Databricks embeddings endpoint: {endpoint_name}")
+                logger.info(f"✅ Jira RAG Handler initialized with embeddings endpoint: {endpoint_name}")
             else:
                 logger.warning("⚠️ OPENAI_API_KEY/OPENAI_EMBEDDINGS_API_KEY not found - Jira semantic search will use keyword matching")
         except Exception as e:
@@ -87,7 +85,7 @@ class JiraRAGHandler:
     
     async def _get_embeddings(self, texts: List[str]) -> List[List[float]]:
         """
-        Get embeddings using Databricks endpoint (direct HTTP approach)
+        Get embeddings using the configured OpenAI-compatible endpoint.
         Uses batch processing for efficiency
         """
         if not self.api_key or not self.embedding_endpoint:
@@ -103,9 +101,9 @@ class JiraRAGHandler:
             "Content-Type": "application/json"
         }
         
-        payload = {
-            "input": texts
-        }
+        payload = {"input": texts}
+        if "/serving-endpoints/" not in endpoint_url:
+            payload["model"] = self.embedding_model
         
         try:
             logger.debug(f"📤 Calling embeddings endpoint: {endpoint_url}")

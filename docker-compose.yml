@@ -33,13 +33,11 @@ services:
     container_name: leadership-frontend
     ports:
       - "3000:3000"
-    environment:
-      - NODE_ENV=production
     depends_on:
       - backend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 3

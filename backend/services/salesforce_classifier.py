@@ -91,7 +91,7 @@ def classify_and_solve_sync(subject: str, description: str) -> Dict[str, Any]:
     if not client:
         return _fallback_classification(subject, description)
 
-    model = os.getenv("OPENAI_MODEL", "databricks-gpt-5-1")
+    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     user_message = f"Subject: {subject}\nDescription: {description or 'No description provided.'}"
 
     try:

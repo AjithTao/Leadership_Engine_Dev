@@ -25,6 +25,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<{ username: string; email: string; role: string } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  // Every application data request uses the same JWT. Installing the wrapper
+  // once here protects direct fetch() calls across the existing dashboards
+  // without duplicating authorization logic in every component.
+  useEffect(() => {
+    const nativeFetch = window.fetch.bind(window)
+    const apiBase = getApiUrl('')
+
+    window.fetch = (input: RequestInfo | URL, init: RequestInit = {}) => {
+      const requestUrl = typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url
+      const headers = new Headers(input instanceof Request ? input.headers : undefined)
+      new Headers(init.headers).forEach((value, key) => headers.set(key, value))
+      const token = localStorage.getItem('auth_token')
+      if (token && requestUrl.startsWith(apiBase) && !headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${token}`)
+      }
+      return nativeFetch(input, { ...init, headers })
+    }
+
+    return () => { window.fetch = nativeFetch }
+  }, [])
+
   // Restore the session on load: verify a saved token instead of forcing a
   // fresh login on every refresh. verifyToken() clears the token and resets
   // state if it is missing, invalid, or expired.
@@ -113,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('auth_token', data.token)
         const userData = {
           username: data.username || username,
-          email: data.email || `${username}@cdk.com`,
+          email: data.email || `${username}@tao.local`,
           role: data.role || 'viewer'
         }
         setIsAuthenticated(true)

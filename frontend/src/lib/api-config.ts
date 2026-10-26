@@ -3,20 +3,15 @@ const API_PORT = '8000';
 // Resolve the backend base URL for a given API path.
 //
 // Priority:
-//   1. Vercel production        → managed Render backend.
-//   2. NEXT_PUBLIC_API_URL set  → use it verbatim (the single source of truth).
-//   3. Unset, in the browser    → the SAME host that served the page, on :8000.
+//   1. NEXT_PUBLIC_API_URL set  → use it verbatim (the deployment source of truth).
+//   2. Unset, in the browser    → the SAME host that served the page, on :8000.
 //      This makes plain `localhost` dev AND LAN sharing (http://<host>:3000) both
 //      work with no hardcoded IP, and survives the host's address changing between
 //      sessions — instead of a fixed `localhost:8000` that breaks for LAN clients.
 //   4. Unset, SSR / build       → localhost:8000 (no page host to derive from).
 export const getApiUrl = (path: string) => {
-  if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
-    return `https://master-1-hsnb.onrender.com${path}`;
-  }
-
   if (process.env.NEXT_PUBLIC_API_URL) {
-    return `${process.env.NEXT_PUBLIC_API_URL}${path}`;
+    return `${process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '')}${path}`;
   }
 
   if (typeof window !== 'undefined') {

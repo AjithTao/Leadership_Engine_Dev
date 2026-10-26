@@ -45,34 +45,34 @@ class TestCaseReviewStatusAnalyzer:
     Target: > 90% (industry standard)
     """
     
-    def __init__(self, jira_client):
+    def __init__(self, jira_client, project_catalog):
         self.jira = jira_client
-        api_key = os.getenv("OPENAI_API_KEY")
-        base_url = os.getenv("OPENAI_API_ENDPOINT")
+        ai_enabled = os.getenv("AI_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+        api_key = os.getenv("OPENAI_API_KEY") if ai_enabled else None
+        base_url = os.getenv("OPENAI_API_ENDPOINT") if ai_enabled else None
         if base_url and api_key:
             from services.ai_engine import create_databricks_async_openai_client
             self.openai = create_databricks_async_openai_client(api_key, base_url)
         elif api_key:
             self.openai = AsyncOpenAI(api_key=api_key)
         else:
-            self.openai = AsyncOpenAI()
-        self.model = os.getenv("OPENAI_MODEL", "databricks-gpt-5-1")
+            self.openai = None
+        self.model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
         
-        # Import shared portfolio mapping
-        from services.portfolio_mapping import PORTFOLIO_PROJECTS, PROJECT_TO_PORTFOLIO, get_portfolio_projects, build_project_jql, build_project_jql_with_validation
-        self.portfolio_projects_list = PORTFOLIO_PROJECTS
-        self._get_portfolio_projects = get_portfolio_projects
-        self._build_project_jql = build_project_jql
-        self._build_project_jql_with_validation = build_project_jql_with_validation
+        # Bind this analyzer to the immutable Jira catalog snapshot.
+        self.project_catalog = project_catalog
+        self.portfolio_projects_list = project_catalog.portfolio_projects
+        self._get_portfolio_projects = project_catalog.get_portfolio_projects
+        self._build_project_jql = project_catalog.build_project_jql
+        self._build_project_jql_with_validation = project_catalog.build_project_jql_with_validation
         
-        self.portfolio_projects: Dict[str, Dict[str, str]] = {
-            "Data Solutions": {"name": "CDK Intelligence Suite", "key": "NDP"},
-            "Data Platforms": {"name": "CRM - Artificial Intelligence", "key": "CRM"},
-            "ELSCRM": {"name": "CLS-CRM", "key": "ELSCRM"}
+        self.portfolio_projects = {
+            project.key: {"name": project.name, "key": project.key}
+            for project in project_catalog.projects
         }
         
-        # Project-key grouping comes from the shared Updated Project.xlsx mapping.
-        self.portfolio_groups = PROJECT_TO_PORTFOLIO.copy()
+        # Project-key grouping comes directly from Jira project categories.
+        self.portfolio_groups = project_catalog.project_to_portfolio.copy()
 
     def _review_focus(self, portfolio: str) -> str:
         return PORTFOLIO_REVIEW_FOCUS.get(portfolio, "high-risk stories and recently closed delivery scope")
@@ -101,40 +101,8 @@ class TestCaseReviewStatusAnalyzer:
         )
     
     async def _resolve_project_key(self, portfolio: str) -> str:
-        """Resolve project key from project name or key"""
-        for label, cfg in self.portfolio_projects.items():
-            if portfolio.lower() in {label.lower(), cfg["name"].lower(), cfg["key"].lower()}:
-                return cfg["key"]
-        if len(portfolio) <= 6 and portfolio.isupper():
-            return portfolio
-        
-        try:
-            projects = await self.jira.get_projects()
-            portfolio_upper = portfolio.upper()
-            
-            for project in projects:
-                project_name = (project.get('name', '') or '').upper()
-                project_key = project.get('key', '') or ''
-                
-                if portfolio_upper in project_name or portfolio_upper == project_key.upper():
-                    logger.info(f"✅ Resolved '{portfolio}' → project key '{project_key}'")
-                    return project_key
-            
-            if 'CDK' in portfolio_upper or 'INTELLIGENCE' in portfolio_upper:
-                for project in projects:
-                    project_name = (project.get('name', '') or '').upper()
-                    if 'CDK' in project_name and 'INTELLIGENCE' in project_name:
-                        project_key = project.get('key', '')
-                        logger.info(f"✅ Found CDK Intelligence Suite → project key '{project_key}'")
-                        return project_key
-            
-            logger.warning(f"⚠️ Could not resolve project key for '{portfolio}', using as-is")
-            return portfolio
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to resolve project key: {e}")
-            return portfolio
-    
+        """Resolve one project through the injected Jira catalog."""
+        return self._get_portfolio_projects(portfolio)[0]
     async def _fetch_all_issues(self, jql: str) -> List[Dict]:
         """Fetch all issues from Jira with pagination support"""
         all_issues = []
@@ -865,7 +833,7 @@ Be direct and executive-friendly. Focus on grand totals and portfolio-level insi
                 severity = "LOW"
                 recommendation = "Maintain current momentum and prevent regressions."
             
-            return f"[{severity}] Fortellis portfolio test case review coverage is {status_msg} at {grand_percentage_p2:.1f}% ({grand_total_stories_p2}/{grand_total_all_p2} stories). {focus_msg} {recommendation}"
+            return f"[{severity}] Portfolio test case review coverage is {status_msg} at {grand_percentage_p2:.1f}% ({grand_total_stories_p2}/{grand_total_all_p2} stories). {focus_msg} {recommendation}"
 
     
     async def analyze_by_portfolio_groups(self, projects: List[str], period1_from: str, period1_to: str, period2_from: str, period2_to: str) -> Dict:
@@ -873,19 +841,8 @@ Be direct and executive-friendly. Focus on grand totals and portfolio-level insi
         Analyze test case review status grouped by portfolio.
         Returns portfolio-level responses with concerning areas identified.
         
-        Projects are grouped by portfolio based on the legacy 207-project
-        April 10, 2026 QCOE reporting scope:
-        - Data Platform (22 projects): MDSICAP, MDSIA, OIP, MPSMOD, etc.
-        - Data Solutions (7 projects): NDP, NPS, DNADEDGE, APITRON, etc.
-        - DMS (27 projects): APMODACC, ARMODACC, FSMODACC, MDWP, etc.
-        - Fixed Ops (28 projects): FIX, FIXPRTSMKT, FIXPRTSORD, FXOPKIT, etc.
-        - Fortellis (6 projects): FORT, FORTAPPAPI, FORTQA, FORTMP, etc.
-        - Modern Retail (65 projects): CCEL, CRMMYDAY, CRMP4S, EKC, etc.
-        - Network & Communication Services (4 projects): PROTON, COL, COLLAB, VCI
-        - Payments (4 projects): EPAYTEAM, CDKPAY, CDKPAYIN, CDKPAYM
-        - Shared Services (19 projects): CA, CDS, CDCM, CNV, USA, etc.
-        - Title & Registration-CVR (25 projects): CVRS, CVRCACONV, CVRCBE, CVRWV, etc.
-        - Other: Any project not in above lists
+        Projects are grouped using the Jira category captured in this run's
+        immutable project-catalog snapshot.
         """
         logger.info(f"📊 Analyzing test case review status by portfolio groups")
         logger.info(f"   Projects: {projects}")
@@ -896,7 +853,7 @@ Be direct and executive-friendly. Focus on grand totals and portfolio-level insi
             # Group projects by portfolio
             portfolio_groups_data = {}
             for project in projects:
-                portfolio_group = self.portfolio_groups.get(project.upper(), "Other")
+                portfolio_group = self.project_catalog.get_portfolio_for_project(project)
                 logger.info(f"   📌 Mapping project '{project}' → Portfolio: '{portfolio_group}'")
                 if portfolio_group not in portfolio_groups_data:
                     portfolio_groups_data[portfolio_group] = []

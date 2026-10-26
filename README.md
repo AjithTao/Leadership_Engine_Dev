@@ -37,6 +37,12 @@ chmod +x start.sh
 docker-compose up -d
 ```
 
+### Free TAO proof-of-concept hosting
+
+For the Jira, Confluence, and GitHub-only Render deployment (AI and LDAP
+disabled), follow [DEPLOY_RENDER.md](DEPLOY_RENDER.md). The repository-root
+`render.yaml` creates the API and static frontend services.
+
 ## Manual Installation
 
 ### 1. Clone Repository

@@ -29,7 +29,7 @@ class OverallAutomationAnalyzer:
     Target: > 70% (industry standard)
     """
     
-    def __init__(self, jira_client):
+    def __init__(self, jira_client, project_catalog):
         """
         Initialize analyzer with Jira client
         
@@ -37,82 +37,34 @@ class OverallAutomationAnalyzer:
             jira_client: JiraClient instance for querying issues
         """
         self.jira = jira_client
-        api_key = os.getenv("OPENAI_API_KEY")
-        base_url = os.getenv("OPENAI_API_ENDPOINT")
+        ai_enabled = os.getenv("AI_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+        api_key = os.getenv("OPENAI_API_KEY") if ai_enabled else None
+        base_url = os.getenv("OPENAI_API_ENDPOINT") if ai_enabled else None
         if base_url and api_key:
             from services.ai_engine import create_databricks_async_openai_client
             self.openai = create_databricks_async_openai_client(api_key, base_url)
         elif api_key:
             self.openai = AsyncOpenAI(api_key=api_key)
         else:
-            self.openai = AsyncOpenAI()
-        self.model = os.getenv("OPENAI_MODEL", "databricks-gpt-5-1")
+            self.openai = None
+        self.model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
         
         # Import shared portfolio mapping
-        from services.portfolio_mapping import PORTFOLIO_PROJECTS, get_portfolio_projects, build_project_jql, build_project_jql_with_validation
-        self.portfolio_projects_list = PORTFOLIO_PROJECTS
-        self._get_portfolio_projects = get_portfolio_projects
-        self._build_project_jql = build_project_jql
-        self._build_project_jql_with_validation = build_project_jql_with_validation
+        self.project_catalog = project_catalog
+        self.portfolio_projects_list = project_catalog.portfolio_projects
+        self._get_portfolio_projects = project_catalog.get_portfolio_projects
+        self._build_project_jql = project_catalog.build_project_jql
+        self._build_project_jql_with_validation = project_catalog.build_project_jql_with_validation
         
         # Portfolio → project mapping
-        self.portfolio_projects: Dict[str, Dict[str, str]] = {
-            # Data Solutions → CDK Intelligence Suite (NDP)
-            "Data Solutions": {"name": "CDK Intelligence Suite", "key": "NDP"},
-            # Data Platforms → CRM - Artificial Intelligence (CRM)
-            "Data Platforms": {"name": "CRM - Artificial Intelligence", "key": "CRM"},
-            # Additional explicit project under Data Solutions
-            "ELSCRM": {"name": "CLS-CRM", "key": "ELSCRM"}
+        self.portfolio_projects = {
+            project.key: {"name": project.name, "key": project.key}
+            for project in project_catalog.projects
         }
     
     async def _resolve_project_key(self, portfolio: str) -> str:
-        """
-        Resolve project key from project name or key
-        
-        Args:
-            portfolio: Project name (e.g., "CDK Intelligence Suite") or key
-        
-        Returns:
-            Project key for JQL queries
-        """
-        # Check explicit mapping first
-        for label, cfg in self.portfolio_projects.items():
-            if portfolio.lower() in {label.lower(), cfg["name"].lower(), cfg["key"].lower()}:
-                return cfg["key"]
-        # If it's already a probable key, accept it as-is
-        if len(portfolio) <= 6 and portfolio.isupper():
-            return portfolio
-        
-        # Otherwise, search for project by name
-        try:
-            projects = await self.jira.get_projects()
-            portfolio_upper = portfolio.upper()
-            
-            # Find matching project
-            for project in projects:
-                project_name = (project.get('name', '') or '').upper()
-                project_key = project.get('key', '') or ''
-                
-                if portfolio_upper in project_name or portfolio_upper == project_key.upper():
-                    logger.info(f"✅ Resolved '{portfolio}' → project key '{project_key}'")
-                    return project_key
-            
-            # If exact match not found, look for "CDK Intelligence Suite"
-            if 'CDK' in portfolio_upper or 'INTELLIGENCE' in portfolio_upper:
-                for project in projects:
-                    project_name = (project.get('name', '') or '').upper()
-                    if 'CDK' in project_name and 'INTELLIGENCE' in project_name:
-                        project_key = project.get('key', '')
-                        logger.info(f"✅ Found CDK Intelligence Suite → project key '{project_key}'")
-                        return project_key
-            
-            logger.warning(f"⚠️ Could not resolve project key for '{portfolio}', using as-is")
-            return portfolio
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to resolve project key: {e}")
-            return portfolio
-    
+        """Resolve one project through the injected Jira catalog."""
+        return self._get_portfolio_projects(portfolio)[0]
     async def _fetch_all_issues(self, jql: str) -> List[Dict]:
         """
         Fetch all issues from Jira with pagination support

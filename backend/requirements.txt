@@ -33,9 +33,6 @@ ldap3
 # Password encryption
 cryptography
 
-# Databricks Vector Search + SDK
-databricks-sdk
-databricks-vectorsearch
 # Automated indexing scheduler
 apscheduler
 # PDF merging

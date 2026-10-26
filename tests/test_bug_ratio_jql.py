@@ -20,6 +20,7 @@ os.environ.setdefault("OPENAI_API_KEY", "test-key")
 os.environ.pop("OPENAI_API_ENDPOINT", None)
 
 from services.bug_ratio_analyzer import BugRatioAnalyzer
+from services.qcoe_project_catalog import QcoeProjectCatalog
 
 
 class CapturingJiraClient:
@@ -37,7 +38,8 @@ class CapturingJiraClient:
 class BugRatioJqlTests(unittest.TestCase):
     def setUp(self):
         self.jira = CapturingJiraClient()
-        self.analyzer = BugRatioAnalyzer(self.jira)
+        self.catalog = QcoeProjectCatalog.from_jira_projects([{"id": "1", "key": "NDP", "name": "NDP"}])
+        self.analyzer = BugRatioAnalyzer(self.jira, self.catalog)
 
     def test_denominator_uses_locked_a9_created_or_resolved_linked_cases(self):
         jql = self.analyzer._test_cases_in_period_jql(

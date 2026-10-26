@@ -182,7 +182,7 @@ Data:
 
     try:
         response = await analyzer.openai.chat.completions.create(
-            model=getattr(analyzer, "model", "databricks-gpt-5-1"),
+            model=getattr(analyzer, "model", "gpt-4o-mini"),
             messages=[
                 {"role": "system", "content": "Return valid JSON only. Base every conclusion on supplied QCOE evidence."},
                 {"role": "user", "content": prompt},

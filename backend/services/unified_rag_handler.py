@@ -210,12 +210,10 @@ class UnifiedRAGHandler:
         self._bm25 = _BM25Index()
 
         self.embedding_endpoint = os.getenv(
-            "DATABRICKS_EMBEDDING_ENDPOINT",
-            os.getenv(
-                "OPENAI_EMBEDDINGS_API_ENDPOINT",
-                "https://dbc-46217bae-ef1b.cloud.databricks.com/serving-endpoints/databricks-gte-large-en/invocations"
-            )
+            "OPENAI_EMBEDDINGS_API_ENDPOINT",
+            "https://api.openai.com/v1/embeddings",
         )
+        self.embedding_model = os.getenv("OPENAI_EMBEDDINGS_MODEL", "text-embedding-3-small")
         self.api_key = os.getenv("OPENAI_EMBEDDINGS_API_KEY") or os.getenv("OPENAI_API_KEY")
         self._initialized = False
 
@@ -433,7 +431,7 @@ class UnifiedRAGHandler:
     # ------------------------------------------------------------------
 
     async def _get_embedding(self, text: str) -> List[float]:
-        """Get embedding for text using Databricks endpoint with caching."""
+        """Get an embedding from the configured endpoint with caching."""
         from services.performance_cache import get_performance_cache
         cache     = get_performance_cache()
         cache_key = cache.get_embedding_key(text)
@@ -456,6 +454,8 @@ class UnifiedRAGHandler:
             "Content-Type":  "application/json"
         }
         payload = {"input": [text] if isinstance(text, str) else text}
+        if "/serving-endpoints/" not in endpoint_url:
+            payload["model"] = self.embedding_model
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(endpoint_url, json=payload, headers=headers)

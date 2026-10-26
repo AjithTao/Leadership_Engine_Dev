@@ -4,12 +4,12 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   Eye, EyeOff, AlertCircle, RefreshCw, CheckCircle2,
-  Sparkles, TrendingUp, ShieldCheck, GitPullRequest, BarChart3, LifeBuoy
+  BookOpen, TrendingUp, ShieldCheck, GitPullRequest
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { getApiUrl, fetchWithTimeout } from '../../lib/api-config'
-import { FalconXLogo, CDKLogo, MUSTARD, OLIVE, MUSTARD_DIM, OLIVE_DIM } from './ui/FalconXLogo'
+import { FalconXLogo, MUSTARD, OLIVE, MUSTARD_DIM, OLIVE_DIM } from './ui/FalconXLogo'
 
 // ── Design tokens — CSS variable references (theme-aware) ─────────────────────
 const T = {
@@ -30,15 +30,13 @@ const T = {
 } as const
 
 const features = [
-  { icon: Sparkles,       label: 'Work Buddy AI',        desc: 'Conversational copilot for your work data'      },
-  { icon: TrendingUp,     label: 'Sprint Analytics',     desc: 'Velocity, burndown & top performers'            },
-  { icon: ShieldCheck,    label: 'Quality Intelligence', desc: 'Defect leakage, coverage & TCOE metrics'        },
-  { icon: GitPullRequest, label: 'Engineering Insights', desc: 'GitHub PRs, repos & CI/CD health'               },
-  { icon: BarChart3,      label: 'KPI Dashboards',       desc: 'Executive metrics with AI-driven insights'      },
-  { icon: LifeBuoy,       label: 'Case Intelligence',    desc: 'AI-classified Salesforce case analytics'        },
+  { icon: TrendingUp,     label: 'TAO Jira Analytics',   desc: 'Projects, sprints, delivery and quality metrics' },
+  { icon: ShieldCheck,    label: 'Quality Intelligence', desc: 'Defect leakage, coverage and QCOE metrics'       },
+  { icon: GitPullRequest, label: 'GitHub Insights',      desc: 'Repositories, pull requests and CI/CD health'    },
+  { icon: BookOpen,       label: 'Confluence Knowledge', desc: 'Connected TAO documentation and project context' },
 ]
 
-const integrations = ['Jira', 'Confluence', 'GitHub', 'Salesforce']
+const integrations = ['TAO Jira', 'TAO Confluence', 'GitHub']
 
 export function IntegratedLoginPage() {
   const { login } = useAuth()
@@ -65,8 +63,8 @@ export function IntegratedLoginPage() {
       // The user is authenticated the instant login() resolves — the JWT is
       // stored and isAuthenticated has flipped, so page.tsx will swap in the app
       // on the next render. Connecting the Jira/Confluence/GitHub service
-      // accounts is best-effort warmup that makes several serial calls to CDK
-      // over VPN, so fire it in the BACKGROUND and redirect immediately rather
+      // accounts is best-effort warmup that makes several serial calls to TAO,
+      // so fire it in the BACKGROUND and redirect immediately rather
       // than holding the user on "Connecting…" for it. When it resolves it
       // dispatches 'integration-update'; the app also polls service status on
       // mount, so a dropped event self-heals. Do NOT set React state in this
@@ -146,13 +144,15 @@ export function IntegratedLoginPage() {
           style={{ padding: 'clamp(20px, 3.5vh, 52px) clamp(36px, 4vw, 64px)' }}
         >
 
-          {/* Top — CDK logo */}
+          {/* Top — deployment scope */}
           <motion.div
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <CDKLogo size={26} />
+            <span style={{ color: T.textSec, fontSize: 13, fontWeight: 700, letterSpacing: '0.08em' }}>
+              TAO CONNECTED
+            </span>
           </motion.div>
 
           {/* Middle — hero. my-auto wrapper instead of justify-center: on
@@ -201,7 +201,7 @@ export function IntegratedLoginPage() {
                 maxWidth: 420
               }}
             >
-              AI‑Powered Leadership Intelligence
+              Connected Leadership Intelligence
             </motion.h1>
 
             {/* Subtitle */}
@@ -218,9 +218,9 @@ export function IntegratedLoginPage() {
                 marginBottom: 'clamp(16px, 3vh, 32px)'
               }}
             >
-              FalconX unifies Jira, Confluence, GitHub, and Salesforce into one
-              intelligent workspace — sprint analytics, quality metrics, and an
-              AI copilot that answers in plain language.
+              FalconX connects TAO Jira, TAO Confluence, and GitHub in one
+              workspace for sprint analytics, engineering insights, and
+              quality reporting.
             </motion.p>
 
             {/* Feature cards */}
@@ -334,7 +334,7 @@ export function IntegratedLoginPage() {
             transition={{ delay: 1.05 }}
             style={{ color: T.textMuted, fontSize: 11 }}
           >
-            © {new Date().getFullYear()} CDK Global. FalconX Leadership Engine.
+            © {new Date().getFullYear()} FalconX Leadership Engine.
           </motion.p>
         </div>
       </div>

@@ -32,8 +32,8 @@ class LeadershipRAGHandler:
     def __init__(self, 
                  vector_search_endpoint: str = "leadership-vector-endpoint",
                  vector_search_index: str = "leadership_poc.rag.confluence_index",
-                 embedding_model: str = "databricks-gte-large-en",
-                 llm_model: str = "databricks-gpt-5-1"):
+                 embedding_model: str = "text-embedding-3-small",
+                 llm_model: str = "gpt-4o-mini"):
         """
         Initialize RAG handler.
         
@@ -412,7 +412,12 @@ Provide a helpful, actionable answer that references the specific documents prov
 # CURRENTLY DISABLED - Will be enabled when implementing Databricks
 
 def initialize_handler():
-    """Initialize handler with Databricks clients or fallback to local mode"""
+    """Initialize local RAG by default, with Databricks available only by opt-in."""
+    databricks_enabled = os.getenv("DATABRICKS_ENABLED", "false").lower() in {
+        "1", "true", "yes", "on"
+    }
+    if not databricks_enabled:
+        return initialize_local_handler()
     logger.info("=" * 60)
     logger.info("🔍 INITIALIZING RAG HANDLER")
     logger.info("=" * 60)

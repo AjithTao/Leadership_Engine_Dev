@@ -8,6 +8,7 @@ from datetime import date
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
 import services.tcoe_dashboard as dashboard
+from services.qcoe_project_catalog import QcoeProjectCatalog
 from services.pi_date_utils import (
     build_pi_date_window,
     compare_metric_by_date,
@@ -72,8 +73,13 @@ class TcoeDashboardDateTests(unittest.TestCase):
 
 
 class TcoeDashboardRunTests(unittest.TestCase):
+    def setUp(self):
+        self.catalog = QcoeProjectCatalog.from_jira_projects([
+            {"id": "1", "key": "ONE", "name": "One", "projectCategory": {"id": "10", "name": "Portfolio"}},
+        ])
+
     def test_create_dashboard_run_initializes_all_metrics_as_pending(self):
-        run = dashboard.create_tcoe_dashboard_run(date(2026, 5, 8))
+        run = dashboard.create_tcoe_dashboard_run(date(2026, 5, 8), self.catalog)
 
         self.assertEqual(run["status"], "pending")
         self.assertEqual(run["current_week_ending"], "2026-05-08")
@@ -82,18 +88,32 @@ class TcoeDashboardRunTests(unittest.TestCase):
         self.assertTrue(all(metric["status"] == "pending" for metric in run["metrics"].values()))
 
     def test_run_has_current_default_dates_matches_requested_week(self):
-        run = dashboard.create_tcoe_dashboard_run(date(2026, 5, 8))
+        run = dashboard.create_tcoe_dashboard_run(date(2026, 5, 8), self.catalog)
 
         self.assertTrue(dashboard.run_has_current_default_dates(run, date(2026, 5, 8)))
         self.assertFalse(dashboard.run_has_current_default_dates(run, date(2026, 5, 15)))
 
+    def test_run_stores_catalog_signature_and_project_count(self):
+        catalog = QcoeProjectCatalog.from_jira_projects([
+            {"id": "1", "key": "ONE", "name": "One", "projectCategory": {"id": "10", "name": "Portfolio"}},
+            {"id": "2", "key": "TWO", "name": "Two"},
+        ])
+
+        run = dashboard.create_tcoe_dashboard_run(date(2026, 5, 8), catalog)
+
+        self.assertEqual(run["catalog_signature"], catalog.signature)
+        self.assertEqual(run["project_count"], 2)
+
 
 class TcoeDashboardProgressTests(unittest.IsolatedAsyncioTestCase):
     async def test_run_state_updates_as_individual_metrics_complete(self):
-        run = dashboard.create_tcoe_dashboard_run(date(2026, 5, 8))
+        catalog = QcoeProjectCatalog.from_jira_projects([
+            {"id": "1", "key": "DS", "name": "Data Solutions", "projectCategory": {"id": "10", "name": "Data Solutions"}}
+        ])
+        run = dashboard.create_tcoe_dashboard_run(date(2026, 5, 8), catalog)
         original = dashboard.analyze_dashboard_metric
 
-        async def fake_analyze_metric(metric_key, jira_client, run_record, portfolios=None):
+        async def fake_analyze_metric(metric_key, jira_client, run_record, project_catalog, portfolios=None):
             if metric_key == "test_coverage":
                 await asyncio.sleep(0.01)
             else:
@@ -108,7 +128,7 @@ class TcoeDashboardProgressTests(unittest.IsolatedAsyncioTestCase):
 
         dashboard.analyze_dashboard_metric = fake_analyze_metric
         try:
-            task = asyncio.create_task(dashboard.process_tcoe_dashboard_run(run, object()))
+            task = asyncio.create_task(dashboard.process_tcoe_dashboard_run(run, object(), catalog))
             await asyncio.sleep(0.06)
 
             self.assertEqual(run["metrics"]["test_coverage"]["status"], "completed")

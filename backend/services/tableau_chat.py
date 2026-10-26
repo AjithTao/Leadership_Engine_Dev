@@ -48,7 +48,7 @@ class TableauChatHandler:
     def __init__(self):
         self._llm = None
         self._llm_initialized = False
-        self.model = os.getenv("OPENAI_MODEL", "databricks-gpt-5-1")
+        self.model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
     # ---------- routing guard ----------
 

@@ -18,7 +18,9 @@ class ConfluenceClient:
     def __init__(self, cfg: ConfluenceConfig):
         self.cfg = cfg
         self._client: Optional[httpx.AsyncClient] = None
-        self._use_bearer_auth = True  # Default to Bearer auth for PAT tokens
+        # Atlassian Cloud API tokens use Basic auth (email + token). Jira/
+        # Confluence Data Center PATs generally use Bearer auth.
+        self._use_bearer_auth = ".atlassian.net" not in self.cfg.base_url.lower()
 
     async def initialize(self):
         if not self._client:
@@ -64,10 +66,12 @@ class ConfluenceClient:
         else:
             resp = await self._client.request(method, url, headers=headers, **kwargs)
         
-        # If Bearer auth fails with 401, try Basic auth
-        if resp.status_code == 401 and self._use_bearer_auth:
-            logger.info("Bearer auth failed, trying Basic auth...")
-            self._use_bearer_auth = False
+        # Retry once with the alternate scheme. A 403 can also indicate that
+        # the server rejected the authentication style rather than permissions.
+        if resp.status_code in (401, 403):
+            previous_auth = "Bearer" if self._use_bearer_auth else "Basic"
+            self._use_bearer_auth = not self._use_bearer_auth
+            logger.info(f"{previous_auth} auth failed, trying the alternate scheme...")
             headers.update(self._headers())
             if method == 'GET':
                 resp = await self._client.get(url, headers=headers, **kwargs)
@@ -122,7 +126,7 @@ class ConfluenceClient:
         cql = " AND ".join(parts)
         params = {"cql": cql, "limit": str(limit)}
         try:
-            resp = await self._client.get(url, params=params, headers=self._headers())
+            resp = await self._request_with_auth_fallback('GET', url, params=params)
             resp.raise_for_status()
             return resp.json().get("results", [])
         except Exception as e:
@@ -144,7 +148,7 @@ class ConfluenceClient:
                 parts_exact = ["type = page", f'space = "{space}"', f'title = "{query}"']
                 cql_exact = " AND ".join(parts_exact)
                 params_exact = {"cql": cql_exact, "limit": str(limit)}
-                resp_exact = await self._client.get(url, params=params_exact, headers=self._headers())
+                resp_exact = await self._request_with_auth_fallback('GET', url, params=params_exact)
                 resp_exact.raise_for_status()
                 exact_results = resp_exact.json().get("results", [])
                 for result in exact_results:
@@ -162,7 +166,7 @@ class ConfluenceClient:
                 parts_title = ["type = page", f'space = "{space}"', f'title ~ "{query}"']
                 cql_title = " AND ".join(parts_title)
                 params_title = {"cql": cql_title, "limit": str(limit)}
-                resp_title = await self._client.get(url, params=params_title, headers=self._headers())
+                resp_title = await self._request_with_auth_fallback('GET', url, params=params_title)
                 resp_title.raise_for_status()
                 title_results = resp_title.json().get("results", [])
                 for result in title_results:
@@ -182,7 +186,7 @@ class ConfluenceClient:
                 parts_text = ["type = page", f'space = "{space}"', f'text ~ "{query}"']
                 cql_text = " AND ".join(parts_text)
                 params_text = {"cql": cql_text, "limit": str(limit * 2)}  # Get more to filter
-                resp_text = await self._client.get(url, params=params_text, headers=self._headers())
+                resp_text = await self._request_with_auth_fallback('GET', url, params=params_text)
                 resp_text.raise_for_status()
                 text_results = resp_text.json().get("results", [])
                 for result in text_results:
@@ -207,7 +211,7 @@ class ConfluenceClient:
         url = f"{self.cfg.base_url}/rest/api/space"
         params = {"limit": str(limit)}
         try:
-            resp = await self._client.get(url, params=params, headers=self._headers())
+            resp = await self._request_with_auth_fallback('GET', url, params=params)
             resp.raise_for_status()
             data = resp.json()
             # Cloud returns { results: [...] }, DC may vary
@@ -215,6 +219,32 @@ class ConfluenceClient:
         except Exception as e:
             logger.error(f"[Confluence] get_spaces failed: {e}")
             return []
+
+    async def validate_connection(self) -> Dict[str, Any]:
+        """Validate credentials against an endpoint that requires a current user."""
+        if not self._client:
+            await self.initialize()
+
+        url = f"{self.cfg.base_url}/rest/api/user/current"
+        resp = await self._request_with_auth_fallback('GET', url)
+        if resp.status_code != 200:
+            body = (resp.text or "").strip()
+            detail = "" if body.startswith("<") else f": {body[:200]}"
+            return {
+                "success": False,
+                "status_code": resp.status_code,
+                "message": f"Confluence authentication failed ({resp.status_code}){detail}",
+            }
+
+        user = resp.json()
+        display_name = (
+            user.get("displayName")
+            or user.get("publicName")
+            or user.get("username")
+            or user.get("accountId")
+            or "Confluence user"
+        )
+        return {"success": True, "user": display_name}
 
     @staticmethod
     def storage_html_to_text(storage_html: str) -> str:
@@ -299,7 +329,7 @@ class ConfluenceClient:
             "status": "current"  # Only get current version, not historical
         }
         try:
-            resp = await self._client.get(url, params=params, headers=self._headers())
+            resp = await self._request_with_auth_fallback('GET', url, params=params)
             resp.raise_for_status()
             page_data = resp.json()
             
@@ -349,7 +379,7 @@ class ConfluenceClient:
                 "expand": "metadata"
             }
             try:
-                resp = await self._client.get(url, params=params, headers=self._headers())
+                resp = await self._request_with_auth_fallback('GET', url, params=params)
                 resp.raise_for_status()
                 data = resp.json()
                 spaces = data.get("results", []) or data.get("spaces", [])
@@ -391,7 +421,7 @@ class ConfluenceClient:
                 "expand": "body.storage,version,space,metadata,ancestors"
             }
             try:
-                resp = await self._client.get(url, params=params, headers=self._headers())
+                resp = await self._request_with_auth_fallback('GET', url, params=params)
                 resp.raise_for_status()
                 data = resp.json()
                 pages = data.get("results", [])

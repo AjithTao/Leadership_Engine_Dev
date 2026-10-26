@@ -33,7 +33,7 @@ def log_startup_summary():
     
     ai_key = os.getenv("OPENAI_API_KEY", "")
     ai_endpoint = os.getenv("OPENAI_API_ENDPOINT", "https://api.openai.com")
-    ai_model = os.getenv("OPENAI_MODEL", "databricks-gpt-5-1")
+    ai_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     ai_enabled = bool(ai_key and not ai_key.startswith("sk-your-actual"))
     if ai_enabled:
         summary_logger.info(f"AI enabled: YES (endpoint: {ai_endpoint}, model: {ai_model})")

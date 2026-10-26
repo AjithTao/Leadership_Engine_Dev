@@ -1,7 +1,7 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends, Header, Query
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends, Header, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import base64
@@ -24,6 +24,18 @@ import pandas as pd
 
 # Load environment variables from config/.env
 load_dotenv(os.path.join(os.path.dirname(__file__), 'config', '.env'), override=True)
+
+# Hosted integration-only mode must never initialize or call an AI provider,
+# even if a developer machine happens to have old OpenAI variables configured.
+AI_ENABLED = os.getenv("AI_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+if not AI_ENABLED:
+    for ai_variable in (
+        "OPENAI_API_KEY",
+        "OPENAI_API_ENDPOINT",
+        "OPENAI_EMBEDDINGS_API_KEY",
+        "OPENAI_EMBEDDINGS_API_ENDPOINT",
+    ):
+        os.environ.pop(ai_variable, None)
 
 # Optional imports with fallback
 try:
@@ -209,7 +221,7 @@ def _cf_jql_id(field_id: str) -> str:
     return field_id
 
 
-# Known QE value sets for projects.cdk.com test-case workflow. Used as a reliable
+# Known QE value sets for the legacy TAO test-case workflow. Used as a reliable
 # candidate list (a 100-issue sample alone can miss values); unioned with whatever
 # the live sample surfaces, then each candidate is counted exactly. Any value not
 # in the list still lands in "Unspecified" so totals always reconcile.
@@ -221,7 +233,7 @@ QE_TEST_STATUSES = ['Test', 'Accepted', 'Abandoned']
 
 async def resolve_qe_field_ids(jira_client) -> Dict[str, Optional[str]]:
     """Resolve the 'Test Status' (automation lifecycle) and 'Test Type' custom field
-    ids by name, with the known projects.cdk.com ids as fallback."""
+    ids by name, with known TAO field ids as a compatibility fallback."""
     ids: Dict[str, Optional[str]] = {"automation": None, "testType": None}
     try:
         fields = await jira_client.get_fields()
@@ -422,23 +434,6 @@ app = FastAPI(
             "description": "Advanced analytics and insights endpoints"
         }
     ]
-)
-
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-        # Extra origins (e.g. a LAN IP for office sharing) come from env, not code
-    ] + [o.strip() for o in os.environ.get("EXTRA_CORS_ORIGINS", "").split(",") if o.strip()],
-    # Also allow private-range dev hosts on common frontend ports.
-    allow_origin_regex=r"^http://(10|192\.168|172\.(1[6-9]|2\d|3[01])|100)\.[\d.]+:300[01]$",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
 )
 
 # GZip responses for large payloads
@@ -1405,6 +1400,46 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production-m
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 24 * 60  # 24 hours
 
+_PUBLIC_API_PATHS = {"/api/auth/login"}
+
+
+@app.middleware("http")
+async def require_api_authentication(request: Request, call_next):
+    """Protect hosted API data; health/docs and login remain publicly reachable."""
+    path = request.url.path
+    if request.method == "OPTIONS" or not path.startswith("/api/") or path in _PUBLIC_API_PATHS:
+        return await call_next(request)
+
+    authorization = request.headers.get("Authorization", "")
+    if not authorization.startswith("Bearer "):
+        return JSONResponse(status_code=401, content={"detail": "Authentication required"})
+
+    try:
+        jwt.decode(authorization.removeprefix("Bearer ").strip(), SECRET_KEY, algorithms=[ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        return JSONResponse(status_code=401, content={"detail": "Session expired"})
+    except jwt.InvalidTokenError:
+        return JSONResponse(status_code=401, content={"detail": "Invalid authentication token"})
+
+    return await call_next(request)
+
+
+# Add CORS after authentication so even a 401 response includes the browser
+# headers needed by the separately hosted static frontend.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+    ] + [o.strip() for o in os.environ.get("EXTRA_CORS_ORIGINS", "").split(",") if o.strip()],
+    allow_origin_regex=r"^http://(10|192\.168|172\.(1[6-9]|2\d|3[01])|100)\.[\d.]+:300[01]$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Create JWT access token"""
     to_encode = data.copy()
@@ -1418,10 +1453,14 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 async def authenticate_user(username: str, password: str) -> Optional[dict]:
     """
-    Authenticate user against CDK LDAP/Active Directory
-    User credentials are NOT stored - only used for authentication
+    Authenticate through the configured local or LDAP provider.
     """
     try:
+        from services.local_auth import authenticate_local_user, local_auth_enabled
+
+        if local_auth_enabled():
+            return authenticate_local_user(username, password)
+
         from services.ldap_auth import authenticate_user_from_ldap
         
         user_info = authenticate_user_from_ldap(username, password)
@@ -1429,7 +1468,7 @@ async def authenticate_user(username: str, password: str) -> Optional[dict]:
             logger.info(f"User authenticated successfully: {user_info.get('username')}")
             return {
                 "username": user_info.get("username", username),
-                "email": user_info.get("email", f"{username}@cdk.com"),
+                "email": user_info.get("email", f"{username}@tao.local"),
                 "sAMAccountName": user_info.get("sAMAccountName", username),
                 "role": user_info.get("role", "viewer")
             }
@@ -1439,7 +1478,7 @@ async def authenticate_user(username: str, password: str) -> Optional[dict]:
         logger.error(f"LDAP authentication error: {e}")
         return None
 
-@app.post("/api/auth/login", tags=["Authentication"], summary="CDK Network Login")
+@app.post("/api/auth/login", tags=["Authentication"], summary="Application Login")
 async def login_endpoint(request: LoginRequest):
     """Authenticate user and return JWT token"""
     try:
@@ -1461,7 +1500,7 @@ async def login_endpoint(request: LoginRequest):
             "success": True,
             "token": access_token,
             "username": user.get("username", request.username),
-            "email": user.get("email", f"{request.username}@cdk.com"),
+            "email": user.get("email", f"{request.username}@tao.local"),
             "role": user.get("role", "viewer"),
             "message": "Login successful"
         }
@@ -1486,12 +1525,12 @@ async def auto_connect_integrations():
         # Get common credentials from environment (encrypted)
         jira_email = os.environ.get('JIRA_SERVICE_EMAIL')
         jira_api_token_encrypted = os.environ.get('JIRA_SERVICE_API_TOKEN')
-        jira_url = os.environ.get('JIRA_BASE_URL', 'https://projects.cdk.com')
+        jira_url = os.environ.get('JIRA_BASE_URL', '').strip()
         jira_board_id = os.environ.get('JIRA_BOARD_ID', '')
         
         confluence_email = os.environ.get('CONFLUENCE_SERVICE_EMAIL')
         confluence_api_token_encrypted = os.environ.get('CONFLUENCE_SERVICE_API_TOKEN')
-        confluence_url = os.environ.get('CONFLUENCE_BASE_URL', 'https://projects.cdk.com/wiki')
+        confluence_url = os.environ.get('CONFLUENCE_BASE_URL', '').strip()
 
         github_token_encrypted = os.environ.get('GITHUB_SERVICE_TOKEN')
 
@@ -1506,7 +1545,7 @@ async def auto_connect_integrations():
         }
         
         # Connect Jira
-        if jira_email and jira_api_token_encrypted:
+        if jira_url and jira_email and jira_api_token_encrypted:
             try:
                 # Decrypt API token (stored encrypted in .env)
                 jira_api_token = get_encrypted_env('JIRA_SERVICE_API_TOKEN')
@@ -1569,11 +1608,11 @@ async def auto_connect_integrations():
         else:
             results["jira"] = {
                 "success": False,
-                "message": "Jira service credentials not configured"
+                "message": "TAO Jira URL or service credentials are not configured"
             }
         
         # Connect Confluence
-        if confluence_email and confluence_api_token_encrypted:
+        if confluence_url and confluence_email and confluence_api_token_encrypted:
             try:
                 # Decrypt API token (stored encrypted in .env)
                 confluence_api_token = get_encrypted_env('CONFLUENCE_SERVICE_API_TOKEN')
@@ -1587,7 +1626,12 @@ async def auto_connect_integrations():
                 confluence_client = ConfluenceClient(confluence_config)
                 await confluence_client.initialize()
                 
-                # Test connection
+                # Validate authenticated identity before storing the client. An
+                # empty space list alone cannot distinguish no access from a
+                # swallowed HTTP error.
+                validation = await confluence_client.validate_connection()
+                if not validation.get("success"):
+                    raise ValueError(validation.get("message", "Confluence authentication failed"))
                 spaces = await confluence_client.get_spaces()
                 app_state.confluence_config = confluence_config
                 app_state.confluence_client = confluence_client
@@ -1602,6 +1646,14 @@ async def auto_connect_integrations():
                 # Clear token from memory
                 del confluence_api_token
             except Exception as e:
+                if 'confluence_client' in locals() and confluence_client:
+                    try:
+                        await confluence_client.close()
+                    except Exception:
+                        pass
+                app_state.confluence_configured = False
+                app_state.confluence_client = None
+                app_state.confluence_config = None
                 results["confluence"] = {
                     "success": False,
                     "message": f"Failed to connect: {str(e)}"
@@ -1610,7 +1662,7 @@ async def auto_connect_integrations():
         else:
             results["confluence"] = {
                 "success": False,
-                "message": "Confluence service credentials not configured"
+                "message": "TAO Confluence URL or service credentials are not configured"
             }
 
         # Connect GitHub
@@ -1971,22 +2023,17 @@ async def configure_confluence(config: dict):
         # Initialize the async client
         await confluence_client.initialize()
 
-        # Validate before storing: bad tokens can be served anonymously, so an
-        # empty spaces list means the credentials don't actually work. Never
-        # replace a working client with an unvalidated one (mirrors Jira).
+        # Validate authenticated identity before storing the client. Confluence
+        # can serve anonymous responses, so listing spaces is not an auth test.
         try:
+            validation = await confluence_client.validate_connection()
+            if not validation.get("success"):
+                raise ValueError(validation.get("message", "Confluence authentication failed"))
             spaces = await confluence_client.get_spaces()
         except Exception as e:
             await confluence_client.close()
             logger.warning(f"Rejected /api/confluence/configure: {e}")
             raise HTTPException(status_code=400, detail=f"Confluence credential validation failed: {e}")
-        if not spaces:
-            await confluence_client.close()
-            logger.warning("Rejected /api/confluence/configure: credentials cannot see any spaces")
-            raise HTTPException(
-                status_code=400,
-                detail="Confluence authenticated, but the account cannot see any spaces. Check credentials/permissions.",
-            )
         logger.info(f"Successfully connected to Confluence. Found {len(spaces)} spaces")
 
         # Update app state, closing the previous client to avoid leaking connections
@@ -4410,31 +4457,30 @@ def _domain_extract_text(path: str) -> str:
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
         return f.read()
 
-def _databricks_embed_texts(texts: List[str]) -> List[List[float]]:
+def _openai_embed_texts(texts: List[str]) -> List[List[float]]:
     """
-    Call Databricks embedding endpoint (databricks-gte-large-en) to get embeddings.
+    Call the configured OpenAI-compatible endpoint to get embeddings.
     """
     import httpx
     
-    # Databricks embedding endpoint
     embedding_endpoint = os.getenv(
-        "DATABRICKS_EMBEDDING_ENDPOINT",
-        "https://dbc-46217bae-ef1b.cloud.databricks.com/serving-endpoints/databricks-gte-large-en/invocations"
+        "OPENAI_EMBEDDINGS_API_ENDPOINT",
+        "https://api.openai.com/v1/embeddings",
     )
-    api_key = os.getenv("OPENAI_API_KEY")  # Same token used for Databricks
+    embedding_model = os.getenv("OPENAI_EMBEDDINGS_MODEL", "text-embedding-3-small")
+    api_key = os.getenv("OPENAI_EMBEDDINGS_API_KEY") or os.getenv("OPENAI_API_KEY")
     
     if not api_key:
-        raise RuntimeError("OPENAI_API_KEY (Databricks token) is required for embeddings")
+        raise RuntimeError("OPENAI_API_KEY is required for embeddings")
     
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
     
-    # Databricks embedding API format
-    payload = {
-        "input": texts
-    }
+    payload = {"input": texts}
+    if "/serving-endpoints/" not in embedding_endpoint:
+        payload["model"] = embedding_model
     
     try:
         with httpx.Client(timeout=60.0) as client:
@@ -4454,12 +4500,12 @@ def _databricks_embed_texts(texts: List[str]) -> List[List[float]]:
                 logger.error(f"Unexpected embedding response format: {list(result.keys())}")
                 raise RuntimeError(f"Unexpected embedding response format: {result}")
     except Exception as e:
-        logger.error(f"Databricks embedding call failed: {e}")
+        logger.error(f"Embedding API call failed: {e}")
         raise
 
 def _domain_embed_texts(chunks: List[str]) -> List[List[float]]:
-    """Embed text chunks using Databricks GTE-Large embedding model."""
-    return _databricks_embed_texts(chunks)
+    """Embed text chunks using the configured embeddings model."""
+    return _openai_embed_texts(chunks)
 
 def _domain_cosine(a: List[float], b: List[float]) -> float:
     # Lightweight cosine without adding global deps
@@ -4493,7 +4539,7 @@ async def ingest_domain_doc(payload: Dict[str, Any]):
         index = {
             "name": name,
             "source_path": path,
-            "model": "databricks-gte-large-en",  # Databricks embedding model
+            "model": os.getenv("OPENAI_EMBEDDINGS_MODEL", "text-embedding-3-small"),
             "items": [{"text": t, "vec": v} for t, v in zip(chunks, vectors)],
             "updated_at": datetime.utcnow().isoformat()
         }
@@ -4527,8 +4573,7 @@ async def domain_qa(payload: Dict[str, Any]):
     else:
         client = OpenAI()
     
-    # Use Databricks GTE-Large embedding model for query
-    qvec = _databricks_embed_texts([question])[0]
+    qvec = _openai_embed_texts([question])[0]
 
     scored = [{"text": it["text"], "score": _domain_cosine(qvec, it["vec"])} for it in idx["items"]]
     top = sorted(scored, key=lambda x: x["score"], reverse=True)[:k]
@@ -4544,7 +4589,7 @@ async def domain_qa(payload: Dict[str, Any]):
         "Answer with: a short summary (2-4 lines) + bullet steps + optional pitfalls."
     )
     resp = client.chat.completions.create(
-        model=os.getenv("OPENAI_MODEL", "databricks-gpt-5-1"),
+        model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
         messages=[
             {"role": "system", "content": "You are a precise internal assistant."},
             {"role": "user", "content": prompt},
@@ -4808,10 +4853,27 @@ from services.tcoe_dashboard import (
     process_tcoe_dashboard_run,
     run_has_current_default_dates,
 )
+from services.qcoe_project_catalog import load_qcoe_project_catalog
 
 # QCOE/TCOE latest-vs-last-week comparison dashboard is enabled.
 # Manual metric/report endpoints remain enabled for explicit report-date checks.
 TCOE_COMPARISON_DASHBOARD_ENABLED = True
+
+
+async def _load_qcoe_catalog():
+    if not app_state.jira_configured or not app_state.jira_client:
+        raise HTTPException(status_code=400, detail="Jira is not configured")
+    try:
+        return await load_qcoe_project_catalog(app_state.jira_client)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Unable to load QCOE projects from Jira: {exc}") from exc
+
+
+async def _create_qcoe_analyzer(analyzer_type):
+    catalog = await _load_qcoe_catalog()
+    return analyzer_type(app_state.jira_client, catalog)
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -5165,7 +5227,7 @@ async def analyze_defect_leakage(request: Dict[str, Any]):
         logger.info(f"🎯 Defect Leakage Analysis Request: {request['portfolio']}")
         
         # Initialize analyzer
-        analyzer = DefectLeakageAnalyzer(app_state.jira_client)
+        analyzer = await _create_qcoe_analyzer(DefectLeakageAnalyzer)
         
         # Perform analysis
         result = await analyzer.compare_weeks(
@@ -5231,11 +5293,10 @@ async def tcoe_report(request: Dict[str, Any]):
         date_from = request["dateFrom"]
         date_to = request["dateTo"]
 
-        analyzer = DefectLeakageAnalyzer(app_state.jira_client)
+        analyzer = await _create_qcoe_analyzer(DefectLeakageAnalyzer)
 
         if isinstance(portfolio, str) and portfolio.upper() == "ALL":
-            from services.portfolio_mapping import get_all_portfolios
-            portfolios = get_all_portfolios()
+            portfolios = analyzer.project_catalog.portfolio_names
             result = await analyzer.analyze_multiple(portfolios, date_from, date_to)
             if isinstance(result, dict) and isinstance(result.get("rows"), list):
                 result["rows"] = [_attach_pi_context(row, request) for row in result["rows"]]
@@ -5282,36 +5343,17 @@ from datetime import datetime
 async def _build_invalid_project_warning_details(portfolio: str, jira_client: Any) -> Dict[str, Any]:
     """Resolve invalid Jira projects and group them by portfolio for UI warnings."""
     try:
-        from services.portfolio_mapping import (
-            get_portfolio_for_project,
-            get_portfolio_projects,
-            validate_projects,
-        )
-
         if not portfolio:
             return {"invalid_projects": [], "invalid_projects_by_portfolio": []}
-
-        candidate_projects = get_portfolio_projects(portfolio)
-        if not candidate_projects:
-            candidate_projects = [portfolio]
-
-        _, invalid_projects = await validate_projects(jira_client, candidate_projects)
-        if not invalid_projects:
+        catalog = await load_qcoe_project_catalog(jira_client)
+        try:
+            catalog.get_portfolio_projects(portfolio)
             return {"invalid_projects": [], "invalid_projects_by_portfolio": []}
-
-        grouped: Dict[str, List[str]] = {}
-        for project_key in invalid_projects:
-            portfolio_name = get_portfolio_for_project(project_key) or "Unknown"
-            grouped.setdefault(portfolio_name, []).append(project_key)
-
-        invalid_projects_by_portfolio = [
-            {"portfolio": name, "projects": sorted(projects)}
-            for name, projects in sorted(grouped.items(), key=lambda entry: entry[0])
-        ]
-        return {
-            "invalid_projects": sorted(invalid_projects),
-            "invalid_projects_by_portfolio": invalid_projects_by_portfolio,
-        }
+        except ValueError:
+            return {
+                "invalid_projects": [portfolio],
+                "invalid_projects_by_portfolio": [{"portfolio": "Unknown", "projects": [portfolio]}],
+            }
     except Exception as exc:
         logger.warning("Unable to build invalid project warning details for '%s': %s", portfolio, exc)
         return {"invalid_projects": [], "invalid_projects_by_portfolio": []}
@@ -5332,7 +5374,7 @@ async def process_tcoe_job_background(job_id: str, request: Dict[str, Any], metr
         # Route to appropriate analyzer based on metric
         if metric == "regression_automation":
             from services.regression_automation_analyzer import RegressionAutomationAnalyzer
-            analyzer = RegressionAutomationAnalyzer(app_state.jira_client)
+            analyzer = await _create_qcoe_analyzer(RegressionAutomationAnalyzer)
             enable_comparison = request.get("enable_comparison", False)
             if enable_comparison:
                 result = await analyzer.compare_periods(
@@ -5350,7 +5392,7 @@ async def process_tcoe_job_background(job_id: str, request: Dict[str, Any], metr
                 )
         elif metric == "overall_automation":
             from services.overall_automation_analyzer import OverallAutomationAnalyzer
-            analyzer = OverallAutomationAnalyzer(app_state.jira_client)
+            analyzer = await _create_qcoe_analyzer(OverallAutomationAnalyzer)
             enable_comparison = request.get("enable_comparison", False)
             if enable_comparison:
                 result = await analyzer.compare_periods(
@@ -5368,7 +5410,7 @@ async def process_tcoe_job_background(job_id: str, request: Dict[str, Any], metr
                 )
         elif metric == "test_coverage":
             from services.test_coverage_analyzer import TestCoverageAnalyzer
-            analyzer = TestCoverageAnalyzer(app_state.jira_client)
+            analyzer = await _create_qcoe_analyzer(TestCoverageAnalyzer)
             enable_comparison = request.get("enable_comparison", False)
             if enable_comparison:
                 result = await analyzer.compare_periods(
@@ -5386,7 +5428,7 @@ async def process_tcoe_job_background(job_id: str, request: Dict[str, Any], metr
                 )
         elif metric == "test_story_ratio":
             from services.test_story_ratio_analyzer import TestStoryRatioAnalyzer
-            analyzer = TestStoryRatioAnalyzer(app_state.jira_client)
+            analyzer = await _create_qcoe_analyzer(TestStoryRatioAnalyzer)
             enable_comparison = request.get("enable_comparison", False)
             if enable_comparison:
                 result = await analyzer.compare_periods(
@@ -5404,7 +5446,7 @@ async def process_tcoe_job_background(job_id: str, request: Dict[str, Any], metr
                 )
         elif metric == "bug_ratio":
             from services.bug_ratio_analyzer import BugRatioAnalyzer
-            analyzer = BugRatioAnalyzer(app_state.jira_client)
+            analyzer = await _create_qcoe_analyzer(BugRatioAnalyzer)
             enable_comparison = request.get("enable_comparison", False)
             if enable_comparison:
                 result = await analyzer.compare_periods(
@@ -5422,7 +5464,7 @@ async def process_tcoe_job_background(job_id: str, request: Dict[str, Any], metr
                 )
         elif metric == "test_review_status":
             from services.test_case_review_status_analyzer import TestCaseReviewStatusAnalyzer
-            analyzer = TestCaseReviewStatusAnalyzer(app_state.jira_client)
+            analyzer = await _create_qcoe_analyzer(TestCaseReviewStatusAnalyzer)
             
             # NEW: Check for portfolio-grouped request (array of projects)
             if "projects" in request and isinstance(request.get("projects"), list):
@@ -5442,8 +5484,7 @@ async def process_tcoe_job_background(job_id: str, request: Dict[str, Any], metr
                 
                 if isinstance(portfolio, str) and portfolio.upper() == "ALL":
                     # Consolidated analysis across all portfolios
-                    from services.portfolio_mapping import get_all_portfolios
-                    portfolios = get_all_portfolios()
+                    portfolios = analyzer.project_catalog.portfolio_names
                     enable_comparison = request.get("enable_comparison", True)
                     if enable_comparison:
                         result = await analyzer.analyze_portfolio_consolidated(
@@ -5480,7 +5521,7 @@ async def process_tcoe_job_background(job_id: str, request: Dict[str, Any], metr
                         )
         else:
             # Default to defect leakage
-            analyzer = DefectLeakageAnalyzer(app_state.jira_client)
+            analyzer = await _create_qcoe_analyzer(DefectLeakageAnalyzer)
             enable_comparison = request.get("enable_comparison", True)
             if enable_comparison:
                 result = await analyzer.compare_weeks(
@@ -5643,6 +5684,7 @@ async def start_tcoe_dashboard(request: Optional[Dict[str, Any]] = None):
 
         payload = request or {}
         force = bool(payload.get("force", False))
+        project_catalog = await _load_qcoe_catalog()
 
         latest_run = None
         if app_state.latest_tcoe_dashboard_run_id:
@@ -5654,6 +5696,7 @@ async def start_tcoe_dashboard(request: Optional[Dict[str, Any]] = None):
             and latest_run
             and latest_run.get("status") in reusable_statuses
             and run_has_current_default_dates(latest_run)
+            and latest_run.get("catalog_signature") == project_catalog.signature
         ):
             return {
                 "success": True,
@@ -5664,11 +5707,11 @@ async def start_tcoe_dashboard(request: Optional[Dict[str, Any]] = None):
                 "metrics": TCOE_DASHBOARD_METRICS,
             }
 
-        run = create_tcoe_dashboard_run()
+        run = create_tcoe_dashboard_run(project_catalog=project_catalog)
         app_state.tcoe_dashboard_runs[run["run_id"]] = run
         app_state.latest_tcoe_dashboard_run_id = run["run_id"]
 
-        asyncio.create_task(process_tcoe_dashboard_run(run, app_state.jira_client))
+        asyncio.create_task(process_tcoe_dashboard_run(run, app_state.jira_client, project_catalog))
         logger.info("Started TCOE dashboard run %s", run["run_id"])
 
         return {
@@ -5688,10 +5731,15 @@ async def start_tcoe_dashboard(request: Optional[Dict[str, Any]] = None):
 @app.get("/api/quality/tcoe-dashboard/latest", tags=["TCOE Dashboard"], summary="Get Latest TCOE Dashboard Run")
 async def get_latest_tcoe_dashboard():
     """Return the latest active or completed TCOE dashboard run."""
+    project_catalog = await _load_qcoe_catalog()
     latest_run = None
     if app_state.latest_tcoe_dashboard_run_id:
         latest_run = app_state.tcoe_dashboard_runs.get(app_state.latest_tcoe_dashboard_run_id)
-    is_current = bool(latest_run and run_has_current_default_dates(latest_run))
+    is_current = bool(
+        latest_run
+        and run_has_current_default_dates(latest_run)
+        and latest_run.get("catalog_signature") == project_catalog.signature
+    )
 
     return {
         "success": True,
@@ -5700,6 +5748,13 @@ async def get_latest_tcoe_dashboard():
         "run": copy_dashboard_run(latest_run) if latest_run else None,
         "metrics": TCOE_DASHBOARD_METRICS,
     }
+
+
+@app.get("/api/quality/qcoe-projects", tags=["TCOE Report"], summary="Get Jira-backed QCOE projects")
+async def get_qcoe_projects():
+    """Return the current QCOE portfolio/project hierarchy directly from Jira."""
+    catalog = await _load_qcoe_catalog()
+    return catalog.as_response()
 
 @app.get("/api/quality/tcoe-dashboard/status/{run_id}", tags=["TCOE Dashboard"], summary="Get TCOE Dashboard Run Status")
 async def get_tcoe_dashboard_status(run_id: str):
@@ -5762,7 +5817,7 @@ async def analyze_single_week(request: Dict[str, Any]):
                 raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
         request = _normalize_tcoe_request_or_400(request, request.get("metric", "defect_leakage"))
         
-        analyzer = DefectLeakageAnalyzer(app_state.jira_client)
+        analyzer = await _create_qcoe_analyzer(DefectLeakageAnalyzer)
         
         result = await analyzer.analyze_defect_inflow_yoy(
             portfolio=request['portfolio'],
@@ -5846,7 +5901,7 @@ async def analyze_regression_automation(request: Dict[str, Any]):
         enable_comparison = request.get('enable_comparison', False)
         
         # Initialize analyzer
-        analyzer = RegressionAutomationAnalyzer(app_state.jira_client)
+        analyzer = await _create_qcoe_analyzer(RegressionAutomationAnalyzer)
         
         if enable_comparison:
             # Comparison mode - validate required fields
@@ -5939,7 +5994,7 @@ async def analyze_overall_automation(request: Dict[str, Any]):
         enable_comparison = request.get('enable_comparison', False)
         
         # Initialize analyzer
-        analyzer = OverallAutomationAnalyzer(app_state.jira_client)
+        analyzer = await _create_qcoe_analyzer(OverallAutomationAnalyzer)
         
         if enable_comparison:
             # Comparison mode - validate required fields
@@ -6008,7 +6063,7 @@ async def analyze_test_coverage(request: Dict[str, Any]):
             raise HTTPException(status_code=400, detail="Jira is not configured. Please configure Jira first.")
         
         enable_comparison = request.get('enable_comparison', False)
-        analyzer = TestCoverageAnalyzer(app_state.jira_client)
+        analyzer = await _create_qcoe_analyzer(TestCoverageAnalyzer)
         
         if enable_comparison:
             required_fields = ['portfolio', 'period1_from', 'period1_to', 'period2_from', 'period2_to']
@@ -6059,7 +6114,7 @@ async def analyze_test_story_ratio(request: Dict[str, Any]):
             raise HTTPException(status_code=400, detail="Jira is not configured. Please configure Jira first.")
         
         enable_comparison = request.get('enable_comparison', False)
-        analyzer = TestStoryRatioAnalyzer(app_state.jira_client)
+        analyzer = await _create_qcoe_analyzer(TestStoryRatioAnalyzer)
         
         if enable_comparison:
             required_fields = ['portfolio', 'period1_from', 'period1_to', 'period2_from', 'period2_to']
@@ -6110,7 +6165,7 @@ async def analyze_bug_ratio(request: Dict[str, Any]):
             raise HTTPException(status_code=400, detail="Jira is not configured. Please configure Jira first.")
         
         enable_comparison = request.get('enable_comparison', False)
-        analyzer = BugRatioAnalyzer(app_state.jira_client)
+        analyzer = await _create_qcoe_analyzer(BugRatioAnalyzer)
         
         if enable_comparison:
             required_fields = ['portfolio', 'period1_from', 'period1_to', 'period2_from', 'period2_to']
@@ -6170,7 +6225,7 @@ async def analyze_test_case_review_status(request: Dict[str, Any]):
         if not app_state.jira_configured or not app_state.jira_client:
             raise HTTPException(status_code=400, detail="Jira is not configured. Please configure Jira first.")
         
-        analyzer = TestCaseReviewStatusAnalyzer(app_state.jira_client)
+        analyzer = await _create_qcoe_analyzer(TestCaseReviewStatusAnalyzer)
         
         # Check if this is portfolio group analysis (multiple projects)
         if 'projects' in request and isinstance(request.get('projects'), list) and len(request['projects']) > 1:
@@ -8219,7 +8274,7 @@ async def get_mercury_dashboard_legacy():
     import httpx
     import asyncio
 
-    JIRA_BASE = os.getenv("JIRA_BASE_URL", "https://projects.cdk.com")
+    JIRA_BASE = os.getenv("JIRA_BASE_URL", "")
     # Service token is Fernet-encrypted in .env — decrypt it before use as a Bearer token.
     from services.encryption import get_encrypted_env
     JIRA_TOKEN = get_encrypted_env("JIRA_SERVICE_API_TOKEN") or ""
@@ -8422,8 +8477,8 @@ async def get_mercury_dashboard_legacy():
         "project":      "MODDWTC",
         "dashboard_id": "39900",
         "findings": {
-            "observations_url": "https://confluence.cdk.com/pages/viewpage.action?pageId=502140070",
-            "blockers_url":     "https://confluence.cdk.com/pages/viewpage.action?pageId=502140072",
+            "observations_url": "",
+            "blockers_url":     "",
         },
         "last_updated": datetime.utcnow().isoformat() + "Z",
     }
@@ -8447,7 +8502,7 @@ async def get_mercury_dashboard():
     except Exception:
         get_encrypted_env = None
 
-    jira_base = os.getenv("JIRA_BASE_URL", "https://projects.cdk.com").rstrip("/")
+    jira_base = os.getenv("JIRA_BASE_URL", "").rstrip("/")
     jira_token = get_encrypted_env("JIRA_SERVICE_API_TOKEN") if get_encrypted_env else ""
     jira_token = jira_token or os.getenv("JIRA_SERVICE_API_TOKEN", "")
     if not jira_token:
@@ -8872,8 +8927,8 @@ async def get_mercury_dashboard():
 
     rich_text_prefs = prefs_to_dict(rich_text_gadget)
     finding_urls = re.findall(r"https?://[^\]|\s]+", rich_text_prefs.get("html", ""))
-    observations_url = finding_urls[0] if finding_urls else "https://confluence.cdk.com/pages/viewpage.action?pageId=502140070"
-    blockers_url = finding_urls[1] if len(finding_urls) > 1 else "https://confluence.cdk.com/pages/viewpage.action?pageId=502140072"
+    observations_url = finding_urls[0] if finding_urls else ""
+    blockers_url = finding_urls[1] if len(finding_urls) > 1 else ""
 
     return {
         "focused_test_suite": focused,
@@ -8941,7 +8996,7 @@ async def get_findings_analysis():
     import asyncio
     import re
 
-    CONF_BASE  = os.getenv("CONFLUENCE_BASE_URL", "https://confluence.cdk.com")
+    CONF_BASE  = os.getenv("CONFLUENCE_BASE_URL", "")
     # Service token is Fernet-encrypted in .env — decrypt it before use as a Bearer token.
     from services.encryption import get_encrypted_env
     CONF_TOKEN = get_encrypted_env("CONFLUENCE_SERVICE_API_TOKEN") or ""
@@ -9009,7 +9064,7 @@ async def get_findings_analysis():
         s = s.lower()
         if any(x in s for x in ["resolved", "solved", "no more a blocker", "expected behaviour", "expected behavior"]):
             return "resolved"
-        if any(x in s for x in ["logged a bug", "raised bug", "bug logged", "existing bug", "already a bug", "defect", "projects.cdk.com/browse/"]):
+        if any(x in s for x in ["logged a bug", "raised bug", "bug logged", "existing bug", "already a bug", "defect", "/browse/"]):
             return "bug_logged"
         if any(x in s for x in ["in progress", "waiting", "awaiting", "discussed", "discussing", "on hold", "will be", "to check", "development"]):
             return "in_progress"
@@ -9119,15 +9174,15 @@ async def get_findings_analysis():
 # ── AI Insights — Accounting / Mercury Dashboard ─────────────────────────────
 @app.post("/api/mercury-dashboard/ai-insights", tags=["Mercury Dashboard"])
 async def get_mercury_ai_insights(payload: Dict[str, Any]):
-    """Generate Databricks AI insights for each gadget on the accounting dashboard."""
+    """Generate OpenAI insights for each gadget on the accounting dashboard."""
     from services.ai_engine import create_databricks_async_openai_client
 
     api_key      = os.getenv("OPENAI_API_KEY", "")
     api_base     = os.getenv("OPENAI_API_ENDPOINT", "")
-    model_name   = os.getenv("OPENAI_MODEL", "databricks-meta-llama-3-3-70b-instruct")
+    model_name   = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
     if not api_key or not api_base:
-        raise HTTPException(status_code=500, detail="Databricks AI service not configured")
+        raise HTTPException(status_code=500, detail="OpenAI service not configured")
 
     import json
     summary_fields = {
@@ -9176,15 +9231,15 @@ async def get_mercury_ai_insights(payload: Dict[str, Any]):
 # ── AI Insights — Services MOD Dashboard ─────────────────────────────────────
 @app.post("/api/services-mod-dashboard/ai-insights", tags=["Services MOD Dashboard"])
 async def get_services_mod_ai_insights(payload: Dict[str, Any]):
-    """Generate Databricks AI insights for each module on the services dashboard."""
+    """Generate OpenAI insights for each module on the services dashboard."""
     from services.ai_engine import create_databricks_async_openai_client
 
     api_key    = os.getenv("OPENAI_API_KEY", "")
     api_base   = os.getenv("OPENAI_API_ENDPOINT", "")
-    model_name = os.getenv("OPENAI_MODEL", "databricks-meta-llama-3-3-70b-instruct")
+    model_name = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
     if not api_key or not api_base:
-        raise HTTPException(status_code=500, detail="Databricks AI service not configured")
+        raise HTTPException(status_code=500, detail="OpenAI service not configured")
 
     import json
     modules = payload.get("modules", [])
@@ -9241,7 +9296,7 @@ async def get_services_mod_dashboard():
     except Exception:
         get_encrypted_env = None
 
-    jira_base = os.getenv("JIRA_BASE_URL", "https://projects.cdk.com").rstrip("/")
+    jira_base = os.getenv("JIRA_BASE_URL", "").rstrip("/")
     jira_token = get_encrypted_env("JIRA_SERVICE_API_TOKEN") if get_encrypted_env else ""
     jira_token = jira_token or os.getenv("JIRA_SERVICE_API_TOKEN", "")
     if not jira_token:
@@ -9469,7 +9524,7 @@ async def get_tk_categories():
     except Exception:
         get_encrypted_env = None
 
-    jira_base  = os.getenv("JIRA_BASE_URL", "https://projects.cdk.com").rstrip("/")
+    jira_base  = os.getenv("JIRA_BASE_URL", "").rstrip("/")
     jira_token = get_encrypted_env("JIRA_SERVICE_API_TOKEN") if get_encrypted_env else ""
     jira_token = jira_token or os.getenv("JIRA_SERVICE_API_TOKEN", "")
     if not jira_token:

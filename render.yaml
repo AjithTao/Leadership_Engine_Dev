@@ -1,0 +1,56 @@
+services:
+  - type: web
+    name: falconx-tao-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: AI_ENABLED
+        value: "false"
+      - key: AUTH_MODE
+        value: local
+      - key: APP_ADMIN_USERNAME
+        sync: false
+      - key: APP_ADMIN_PASSWORD
+        sync: false
+      - key: APP_ADMIN_EMAIL
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: SESSION_SECRET_KEY
+        sync: false
+      - key: JIRA_BASE_URL
+        sync: false
+      - key: JIRA_SERVICE_EMAIL
+        sync: false
+      - key: JIRA_SERVICE_API_TOKEN
+        sync: false
+      - key: JIRA_BOARD_ID
+        sync: false
+      - key: CONFLUENCE_BASE_URL
+        sync: false
+      - key: CONFLUENCE_SERVICE_EMAIL
+        sync: false
+      - key: CONFLUENCE_SERVICE_API_TOKEN
+        sync: false
+      - key: GITHUB_SERVICE_TOKEN
+        sync: false
+      - key: EXTRA_CORS_ORIGINS
+        sync: false
+
+  - type: web
+    name: falconx-tao-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./out
+    autoDeployTrigger: commit
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+      - key: NEXT_PUBLIC_AI_ENABLED
+        value: "false"

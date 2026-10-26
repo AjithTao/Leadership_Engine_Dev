@@ -14,7 +14,7 @@ from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from services.pi_date_utils import build_pi_date_window, compare_metric_by_date
-from services.portfolio_mapping import get_all_portfolios
+from services.qcoe_project_catalog import QcoeProjectCatalog
 
 
 TCOE_DASHBOARD_METRICS: List[Dict[str, Any]] = [
@@ -107,8 +107,13 @@ def build_default_dashboard_dates(today: Optional[date] = None) -> Dict[str, Any
     }
 
 
-def create_tcoe_dashboard_run(today: Optional[date] = None) -> Dict[str, Any]:
+def create_tcoe_dashboard_run(
+    today: Optional[date] = None,
+    project_catalog: Optional[QcoeProjectCatalog] = None,
+) -> Dict[str, Any]:
     """Create an initial dashboard run record with all metrics pending."""
+    if project_catalog is None:
+        raise ValueError("A Jira QCOE project catalog is required for dashboard runs.")
     date_context = build_default_dashboard_dates(today)
     run_id = str(uuid.uuid4())
     created_at = now_iso()
@@ -125,6 +130,8 @@ def create_tcoe_dashboard_run(today: Optional[date] = None) -> Dict[str, Any]:
         "current_window": date_context["current_window"],
         "previous_window": date_context["previous_window"],
         "comparison_note": date_context.get("comparison_note"),
+        "catalog_signature": project_catalog.signature,
+        "project_count": len(project_catalog.projects),
         "metrics": {
             metric["key"]: {
                 "key": metric["key"],
@@ -205,35 +212,35 @@ def _strip_heavy_row_fields(value: Any) -> Any:
     return value
 
 
-def _create_analyzer(metric_key: str, jira_client: Any) -> Any:
+def _create_analyzer(metric_key: str, jira_client: Any, project_catalog: QcoeProjectCatalog) -> Any:
     if metric_key == "test_coverage":
         from services.test_coverage_analyzer import TestCoverageAnalyzer
 
-        return TestCoverageAnalyzer(jira_client)
+        return TestCoverageAnalyzer(jira_client, project_catalog)
     if metric_key == "test_review_status":
         from services.test_case_review_status_analyzer import TestCaseReviewStatusAnalyzer
 
-        return TestCaseReviewStatusAnalyzer(jira_client)
+        return TestCaseReviewStatusAnalyzer(jira_client, project_catalog)
     if metric_key == "test_story_ratio":
         from services.test_story_ratio_analyzer import TestStoryRatioAnalyzer
 
-        return TestStoryRatioAnalyzer(jira_client)
+        return TestStoryRatioAnalyzer(jira_client, project_catalog)
     if metric_key == "bug_ratio":
         from services.bug_ratio_analyzer import BugRatioAnalyzer
 
-        return BugRatioAnalyzer(jira_client)
+        return BugRatioAnalyzer(jira_client, project_catalog)
     if metric_key == "defect_leakage":
         from services.defect_leakage_analyzer import DefectLeakageAnalyzer
 
-        return DefectLeakageAnalyzer(jira_client)
+        return DefectLeakageAnalyzer(jira_client, project_catalog)
     if metric_key == "overall_automation":
         from services.overall_automation_analyzer import OverallAutomationAnalyzer
 
-        return OverallAutomationAnalyzer(jira_client)
+        return OverallAutomationAnalyzer(jira_client, project_catalog)
     if metric_key == "regression_automation":
         from services.regression_automation_analyzer import RegressionAutomationAnalyzer
 
-        return RegressionAutomationAnalyzer(jira_client)
+        return RegressionAutomationAnalyzer(jira_client, project_catalog)
     raise ValueError(f"Unsupported TCOE dashboard metric: {metric_key}")
 
 
@@ -255,6 +262,7 @@ async def analyze_dashboard_metric(
     metric_key: str,
     jira_client: Any,
     run: Dict[str, Any],
+    project_catalog: QcoeProjectCatalog,
     portfolios: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Analyze one dashboard metric for every portfolio."""
@@ -262,11 +270,11 @@ async def analyze_dashboard_metric(
     if not metric:
         raise ValueError(f"Unsupported TCOE dashboard metric: {metric_key}")
 
-    analyzer = _create_analyzer(metric_key, jira_client)
+    analyzer = _create_analyzer(metric_key, jira_client, project_catalog)
     rows: List[Dict[str, Any]] = []
     errors: List[Dict[str, str]] = []
 
-    for portfolio in portfolios or get_all_portfolios():
+    for portfolio in portfolios or project_catalog.portfolio_names:
         try:
             result = await _run_metric_analyzer(analyzer, metric_key, portfolio, run)
             result = _attach_dashboard_context(result, metric, run)
@@ -300,6 +308,7 @@ async def analyze_dashboard_metric(
 async def process_tcoe_dashboard_run(
     run: Dict[str, Any],
     jira_client: Any,
+    project_catalog: QcoeProjectCatalog,
     portfolios: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Run all dashboard metrics concurrently and update the run progressively."""
@@ -315,7 +324,9 @@ async def process_tcoe_dashboard_run(
         run["updated_at"] = metric_state["started_at"]
 
         try:
-            result = await analyze_dashboard_metric(metric["key"], jira_client, run, portfolios=portfolios)
+            result = await analyze_dashboard_metric(
+                metric["key"], jira_client, run, project_catalog, portfolios=portfolios
+            )
             metric_state["rows"] = result["rows"]
             metric_state["errors"] = result["errors"]
             metric_state["ai_insight"] = result.get("ai_insight")

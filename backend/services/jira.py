@@ -77,12 +77,15 @@ class JiraClient:
 
         # Use the /search endpoint which exists in both v2 and v3
         try:
-            url = f"{self.cfg.base_url.rstrip('/')}{self._api('/search')}"
+            is_cloud = self._api_version == '3' and '.atlassian.net' in self.cfg.base_url.lower()
+            search_path = '/search/jql' if is_cloud else '/search'
+            url = f"{self.cfg.base_url.rstrip('/')}{self._api(search_path)}"
             params = {
                 "jql": jql,
                 "maxResults": max_results,
-                "startAt": start_at
             }
+            if not is_cloud:
+                params["startAt"] = start_at
             # Always specify fields to ensure we get results
             if fields:
                 params["fields"] = ",".join(fields) if isinstance(fields, list) else fields
@@ -99,12 +102,54 @@ class JiraClient:
             logger.info(f"⚙️  Parameters: maxResults={max_results}, startAt={start_at}, fields={params.get('fields', 'default')}")
             logger.info(f"🌐 API Version: v{self._api_version}, Endpoint: {url}")
             
-            resp = await self._get_with_auth(url, params=params)
+            # Jira Cloud's enhanced search replaced numeric startAt pagination
+            # with nextPageToken. Walk cursor pages only when a legacy caller
+            # requests a non-zero offset, preserving this client's public API.
+            if is_cloud and start_at > 0:
+                next_page_token = None
+                skipped = 0
+                while skipped < start_at:
+                    skip_params = {
+                        "jql": jql,
+                        "maxResults": min(100, start_at - skipped),
+                        "fields": "key",
+                    }
+                    if next_page_token:
+                        skip_params["nextPageToken"] = next_page_token
+                    skip_resp = await self._get_with_auth(url, params=skip_params)
+                    if skip_resp.status_code != 200:
+                        resp = skip_resp
+                        break
+                    skip_data = skip_resp.json()
+                    skipped += len(skip_data.get("issues", []))
+                    next_page_token = skip_data.get("nextPageToken")
+                    if skip_data.get("isLast") or not next_page_token:
+                        return {
+                            "issues": [],
+                            "startAt": start_at,
+                            "maxResults": max_results,
+                            "total": skipped,
+                        }
+                else:
+                    if next_page_token:
+                        params["nextPageToken"] = next_page_token
+                    resp = await self._get_with_auth(url, params=params)
+            else:
+                resp = await self._get_with_auth(url, params=params)
             
             if resp.status_code == 200:
                 data = resp.json()
-                total = data.get('total', 0)
                 issues_count = len(data.get('issues', []))
+                total = data.get('total')
+                if total is None:
+                    # Enhanced search intentionally omits an exact total. Keep
+                    # legacy pagination loops working: the final page supplies
+                    # the exact observed count; earlier pages advertise that at
+                    # least one more issue exists.
+                    total = start_at + issues_count + (0 if data.get('isLast') else 1)
+                    data["total"] = total
+                data.setdefault("startAt", start_at)
+                data.setdefault("maxResults", max_results)
                 logger.info(f"✅ JQL EXECUTION SUCCESS")
                 logger.info(f"📊 Results: {issues_count} issues returned (total matching: {total})")
                 logger.info(f"📄 Response details: startAt={data.get('startAt', 0)}, maxResults={data.get('maxResults', 0)}")
@@ -137,6 +182,11 @@ class JiraClient:
     async def count(self, jql: str) -> int:
         """Get count of issues matching JQL"""
         try:
+            if self._api_version == '3' and '.atlassian.net' in self.cfg.base_url.lower():
+                url = self._url(self._api('/search/approximate-count'))
+                response = await self._post_with_auth(url, json={"jql": jql})
+                if response.status_code == 200:
+                    return int(response.json().get('count', 0))
             result = await self.search(jql, max_results=1)
             if isinstance(result, dict):
                 return result.get('total', 0)
@@ -160,6 +210,50 @@ class JiraClient:
         except Exception as e:
             logger.error(f"Failed to get projects: {e}")
             return []
+
+    async def get_qcoe_projects(self) -> List[Dict[str, Any]]:
+        """Return all visible Jira projects with metadata required by QCOE.
+
+        Unlike ``get_projects``, this method raises on discovery failures so
+        callers never mistake an authentication or network error for an empty
+        project catalog.
+        """
+        if not self._client:
+            await self.initialize()
+
+        is_cloud = self._api_version == '3' and '.atlassian.net' in self.cfg.base_url.lower()
+        if not is_cloud:
+            url = self._url(self._api('/project'))
+            response = await self._get_with_auth(url)
+            if response.status_code != 200:
+                raise RuntimeError(f"Jira project discovery failed ({response.status_code}): {response.text[:200]}")
+            payload = response.json()
+            projects = payload if isinstance(payload, list) else payload.get('values', [])
+            if not isinstance(projects, list):
+                raise RuntimeError("Jira returned an invalid project-list response.")
+            return projects
+
+        url = self._url(self._api('/project/search'))
+        projects: List[Dict[str, Any]] = []
+        start_at = 0
+        while True:
+            response = await self._get_with_auth(url, params={
+                'startAt': start_at,
+                'maxResults': 100,
+                'status': 'live',
+            })
+            if response.status_code != 200:
+                raise RuntimeError(f"Jira project discovery failed ({response.status_code}): {response.text[:200]}")
+            payload = response.json()
+            values = payload.get('values', []) if isinstance(payload, dict) else []
+            if not isinstance(values, list):
+                raise RuntimeError("Jira returned an invalid project-search response.")
+            projects.extend(values)
+            start_at += len(values)
+            total = int(payload.get('total', start_at))
+            if payload.get('isLast') is True or not values or start_at >= total:
+                break
+        return projects
 
     async def get_fields(self) -> List[Dict[str, Any]]:
         """Get Jira field metadata, cached per client instance."""
@@ -330,13 +424,31 @@ class JiraClient:
                 await asyncio.sleep(1)
 
     async def _get_with_auth(self, url: str, params: Optional[dict] = None) -> httpx.Response:
-        """Perform GET trying Bearer (PAT) first, then Basic when unauthorized"""
-        # Try Bearer auth first (for Personal Access Tokens on Server/DC)
-        resp = await self._client.get(url, headers=self._headers_bearer, params=params)
-        if resp.status_code == 401:
-            # Retry with Basic auth in case this is a Cloud instance
-            logger.info("Bearer auth failed, trying Basic auth...")
-            resp = await self._client.get(url, headers=self._headers_basic, params=params)
+        """Perform an authenticated GET using the scheme appropriate to the host."""
+        is_cloud = '.atlassian.net' in self.cfg.base_url.lower()
+        primary_headers = self._headers_basic if is_cloud else self._headers_bearer
+        fallback_headers = self._headers_bearer if is_cloud else self._headers_basic
+        primary_name = "Basic" if is_cloud else "Bearer"
+        fallback_name = "Bearer" if is_cloud else "Basic"
+
+        # Atlassian Cloud API tokens are sent as Basic(email:token). Jira
+        # Server/Data Center PATs normally use Bearer authentication.
+        resp = await self._client.get(url, headers=primary_headers, params=params)
+        if resp.status_code in (401, 403):
+            logger.info(f"{primary_name} auth failed, trying {fallback_name} auth...")
+            resp = await self._client.get(url, headers=fallback_headers, params=params)
+        return resp
+
+    async def _post_with_auth(self, url: str, json: Optional[dict] = None) -> httpx.Response:
+        """Perform an authenticated POST using the scheme appropriate to the host."""
+        if not self._client:
+            await self.initialize()
+        is_cloud = '.atlassian.net' in self.cfg.base_url.lower()
+        primary_headers = self._headers_basic if is_cloud else self._headers_bearer
+        fallback_headers = self._headers_bearer if is_cloud else self._headers_basic
+        resp = await self._client.post(url, headers=primary_headers, json=json)
+        if resp.status_code in (401, 403):
+            resp = await self._client.post(url, headers=fallback_headers, json=json)
         return resp
     
     def get_assignee_info(self, name: str) -> Optional[Dict[str, Any]]:

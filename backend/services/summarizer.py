@@ -39,7 +39,7 @@ def summarize(user_query: str, results: List[Dict], response_type: str) -> str:
         return base
 
     base_url = os.getenv("OPENAI_API_ENDPOINT")
-    model = os.getenv("OPENAI_MODEL", "databricks-gpt-5-1")
+    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     if base_url:
         from services.ai_engine import create_databricks_openai_client
         client = create_databricks_openai_client(api_key, base_url)

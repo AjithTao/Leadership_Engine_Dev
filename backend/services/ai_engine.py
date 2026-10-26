@@ -264,7 +264,7 @@ class IntelligentAIEngine:
         self.conversation_context = []
         self.last_query_context = {}
         self.pending_user_confirmation = None  # Store pending user confirmation context
-        self.model = os.getenv("OPENAI_MODEL", "databricks-gpt-5-1")  # Get model from env or default
+        self.model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")  # Get model from env or default
         self.default_project = "NDP"  # Default project for queries
         # Initialize OpenAI/Databricks client once during construction
         self._initialize_openai_client()
@@ -1463,7 +1463,7 @@ Your response:"""
             from openai import AsyncOpenAI
             api_key = os.getenv("OPENAI_API_KEY")
             endpoint_url = os.getenv("OPENAI_API_ENDPOINT")
-            model = os.getenv("OPENAI_MODEL", "databricks-gpt-5-1")
+            model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
             
             if endpoint_url and api_key:
                 async_client = create_databricks_async_openai_client(api_key, endpoint_url)
