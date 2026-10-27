@@ -116,15 +116,20 @@ export function IntegrationsDropdown() {
         console.error('Failed to fetch Confluence status:', error)
       }
 
-      // GitHub is not implemented yet
-      setIntegrationStatuses(prev => ({
-        ...prev,
-        github: {
-          name: 'GitHub',
-          connected: false,
-          lastChecked: new Date()
-        }
-      }))
+      try {
+        const githubResponse = await fetch(getApiUrl('/api/github/status'))
+        const githubData = await githubResponse.json()
+        setIntegrationStatuses(prev => ({
+          ...prev,
+          github: {
+            name: 'GitHub',
+            connected: githubData.connected || false,
+            lastChecked: new Date()
+          }
+        }))
+      } catch (error) {
+        console.error('Failed to fetch GitHub status:', error)
+      }
     } finally {
       setIsRefreshing(false)
     }
