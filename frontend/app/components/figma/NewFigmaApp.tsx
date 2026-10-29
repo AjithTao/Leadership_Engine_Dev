@@ -1,5 +1,6 @@
 'use client'
 
+import { connectSharedAccounts } from '../../../lib/shared-integrations'
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { NewHeader } from './NewHeader'
@@ -13,10 +14,7 @@ import { TCOEDashboard } from '../TCOEDashboard'
 import { QAMetricsDashboard } from '../QAMetricsDashboard'
 import { KPIMetricsDashboard } from '../KPIMetricsDashboard'
 import { GitHubInsightsDashboard } from '../GitHubInsightsDashboard'
-import { SalesforceInsightsDashboard } from '../SalesforceInsightsDashboard'
 import { TableauInsightsDashboard } from '../TableauInsightsDashboard'
-import { ServicesDashboard } from '../ServicesDashboard'
-import { ServicesModDashboard } from '../ServicesModDashboard'
 import { useTheme } from '../../contexts/ThemeContext'
 import { SettingsProvider } from '../../contexts/SettingsContext'
 import { getApiUrl } from '../../../lib/api-config'
@@ -76,52 +74,7 @@ function NewFigmaAppContent() {
     setQuickActionPrompt(null)
   }
 
-  const onConnect = async (connectionType: string) => {
-    try {
-      // Get saved settings from localStorage
-      const savedConfig = localStorage.getItem(`${connectionType}-config`)
-      if (!savedConfig) {
-        throw new Error('Please configure settings first')
-      }
-
-      const config = JSON.parse(savedConfig)
-      
-      if (connectionType === 'atlassian') {
-        // Make API call to configure Jira
-        const response = await fetch(getApiUrl('/api/jira/configure'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            url: config.url,
-            email: config.email,
-            api_token: config.apiToken,
-            board_id: config.boardId || '1' // Default to '1' if empty
-          })
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to connect to Jira')
-        }
-
-        // Update connection status
-        setConnections(prev => prev.map(conn => 
-          conn.type === 'atlassian' 
-            ? { ...conn, status: 'connected' }
-            : conn
-        ))
-      } else {
-        // For GitHub and Slack, just toggle the status for now
-        setConnections(prev => prev.map(conn => 
-          conn.type === connectionType 
-            ? { ...conn, status: 'connected' }
-            : conn
-        ))
-      }
-    } catch (error) {
-      console.error('Connection failed:', error)
-      throw error
-    }
-  }
+  const onConnect = async (_connectionType: string) => { await connectSharedAccounts() }
 
   // Welcome popup is now handled in NewLeadershipCopilot component
   // No need to show it here anymore
@@ -159,22 +112,7 @@ function NewFigmaAppContent() {
       }
     }
 
-    // LDAP login is currently bypassed, so initialize server-side integrations
-    // from backend/config/.env when the application shell first loads.
-    const bootstrapIntegrations = async () => {
-      try {
-        await fetch(getApiUrl('/api/auth/auto-connect-integrations'), {
-          method: 'POST',
-        })
-      } catch {
-        // Status polling below will keep integrations disconnected if the
-        // backend or an external service is unavailable.
-      } finally {
-        await refreshStatuses()
-      }
-    }
-
-    bootstrapIntegrations()
+    refreshStatuses()
     
     // Poll every 10 seconds to keep status updated
     const id = window.setInterval(refreshStatuses, 10000) // 10 seconds
@@ -219,55 +157,8 @@ function NewFigmaAppContent() {
         return <GitHubInsightsDashboard />
       case 'tableau-insights':
         return <TableauInsightsDashboard />
-      case 'salesforce-insights':
-        return <SalesforceInsightsDashboard />
       case 'leadership':
         return <FigmaDashboard hasActiveConnections={hasActiveConnections} theme={isDarkMode ? 'dark' : 'light'} />
-      case 'services-dashboard':
-        return <ServicesDashboard />
-      case 'services-mod-dashboard':
-        return <ServicesModDashboard />
-      case 'services-modern':
-        return (
-          <div className="h-full flex flex-col items-center justify-center gap-5">
-            <div style={{
-              width: 72,
-              height: 72,
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-            }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
-                <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
-              </svg>
-            </div>
-            <div className="text-center" style={{ maxWidth: 340 }}>
-              <h2 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                Services Modern Enablement
-              </h2>
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                This feature is currently under development. Check back soon for modern services enablement insights and tooling.
-              </p>
-            </div>
-            <span style={{
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              lineHeight: 1,
-              padding: '5px 12px',
-              borderRadius: 999,
-              color: 'var(--accent-cool-text)',
-              background: 'var(--accent-cool-bg)',
-              border: '1px solid color-mix(in srgb, var(--accent-cool) 35%, transparent)',
-            }}>
-              Coming Soon
-            </span>
-          </div>
-        )
       default:
         return <NewLeadershipCopilot 
           hasActiveConnections={hasActiveConnections} 

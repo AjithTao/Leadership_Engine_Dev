@@ -261,7 +261,7 @@ export function SimpleTableauConnect() {
                 <Input
                   id="tableau-site"
                   type="text"
-                  placeholder="CDKInternal"
+                  placeholder="Your site ID"
                   value={config.siteId}
                   onChange={(e) => setConfig(prev => ({ ...prev, siteId: e.target.value }))}
                   className="text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-white dark:placeholder:text-slate-400"

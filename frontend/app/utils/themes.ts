@@ -49,7 +49,7 @@ export interface Theme {
 export const cdkLightTheme: Theme = {
   name: 'cdkLight',
   displayName: 'FalconX Light',
-  description: 'FalconX CDK Intelligent Suite — light mode palette',
+  description: 'FalconX · TAO Digital Solutions — light mode palette',
   colors: {
     primary: '#3F3E63',       // deep indigo — primary text / headings
     secondary: '#4A4A5E',     // body gray-indigo — labels, secondary text
@@ -94,7 +94,7 @@ export const cdkLightTheme: Theme = {
 export const cdkDarkTheme: Theme = {
   name: 'cdkDark',
   displayName: 'FalconX Dark',
-  description: 'FalconX CDK Intelligent Suite — official dark palette',
+  description: 'FalconX · TAO Digital Solutions — official dark palette',
   colors: {
     primary: '#E8EAF0',       // decorative accent → text-primary
     secondary: '#8B93A8',     // decorative secondary → text-secondary

@@ -114,6 +114,10 @@ dist
 # Gatsby files
 .cache/
 public
+!frontend/public/
+frontend/public/*
+!frontend/public/tao-logo.svg
+!frontend/public/TAO-logo-source.md
 
 # Storybook build outputs
 .out

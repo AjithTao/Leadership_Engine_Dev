@@ -446,7 +446,7 @@ export function TableauInsightsDashboard() {
               Tableau Executive Insights
             </h1>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              QCOE Top 7 metrics · Engineering Efficiency · CDKInternal
+              QCOE Top 7 metrics · Engineering Efficiency
               {lastUpdated && ` · updated ${lastUpdated.toLocaleTimeString()}`}
             </p>
           </div>
@@ -737,7 +737,7 @@ export function TableauInsightsDashboard() {
       </Panel>
 
       <p className="text-[11px] pb-2" style={{ color: 'var(--text-hint)' }}>
-        Sources: Tableau — Engineering Efficiency Top 7 View (Actuals), Unit Testing Coverage · site CDKInternal
+        Sources: Tableau — Engineering Efficiency Top 7 View (Actuals), Unit Testing Coverage
         {live ? '' : ' · currently showing representative sample data'}
       </p>
     </div>

@@ -5,6 +5,7 @@ import { ChatProvider } from './contexts/ChatContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { UserProvider } from './contexts/UserContext'
 import { AuthProvider } from './contexts/AuthContext'
+import { AuthGate } from './components/AuthGate'
 import { LoadingScreen } from './components/LoadingComponents'
 import { QueryProvider } from './providers/QueryProvider'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -50,7 +51,7 @@ export default function RootLayout({
                     <div className="min-h-screen transition-colors duration-300" style={{ backgroundColor: 'var(--bg-page)' }}>
                       {/* Main Content Area */}
                       <main>
-                        {children}
+                        <AuthGate>{children}</AuthGate>
                       </main>
                     </div>
                   </ChatProvider>

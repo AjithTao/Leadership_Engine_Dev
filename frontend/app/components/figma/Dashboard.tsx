@@ -504,7 +504,7 @@ export function FigmaDashboard({ hasActiveConnections, theme }: FigmaDashboardPr
             }}
           />
           <p style={{ color: T.textMuted, fontSize: 11, paddingBottom: 4 }}>
-            © {new Date().getFullYear()} CDK Global. FalconX Leadership Engine.
+            © {new Date().getFullYear()} TAO Digital Solutions. FalconX Leadership Engine.
           </p>
 
         </div>

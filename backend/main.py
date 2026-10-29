@@ -130,8 +130,10 @@ def create_success_response(data: Any = None, message: str = "Success") -> Dict[
 
 def mask_email(email: str) -> str:
     """Mask email address for security"""
-    if not email or "@" not in email:
-        return email
+    if not email:
+        return ""
+    if "@" not in email:
+        return email[:2] + "***"
     
     local, domain = email.split("@", 1)
     if len(local) <= 2:
@@ -1511,8 +1513,22 @@ async def login_endpoint(request: LoginRequest):
             "message": f"Authentication failed: {str(e)}"
         }
 
-@app.post("/api/auth/auto-connect-integrations", tags=["Authentication"], summary="Auto-connect Jira and Confluence")
+_integration_connect_lock = asyncio.Lock()
+
+async def _shared_client_healthy(client):
+    if client is None:
+        return False
+    try:
+        return bool((await client.validate_connection()).get("success"))
+    except Exception:
+        return False
+
+@app.post("/api/auth/auto-connect-integrations", tags=["Authentication"], summary="Connect shared service accounts")
 async def auto_connect_integrations():
+    async with _integration_connect_lock:
+        return await _connect_shared_integrations()
+
+async def _connect_shared_integrations():
     """
     Automatically connect Jira and Confluence using common service account credentials
     Called after successful LDAP login.
@@ -1545,7 +1561,9 @@ async def auto_connect_integrations():
         }
         
         # Connect Jira
-        if jira_url and jira_email and jira_api_token_encrypted:
+        if app_state.jira_configured and await _shared_client_healthy(app_state.jira_client):
+            results["jira"] = {"success": True, "message": "Shared Jira account connected"}
+        elif jira_url and jira_email and jira_api_token_encrypted:
             try:
                 # Decrypt API token (stored encrypted in .env)
                 jira_api_token = get_encrypted_env('JIRA_SERVICE_API_TOKEN')
@@ -1568,8 +1586,14 @@ async def auto_connect_integrations():
                 # empty list for accounts with limited visibility, so validation above
                 # is the source of truth for connection health.
                 projects = await jira_client.get_projects()
+                previous_client = app_state.jira_client
                 app_state.jira_configured = True
                 app_state.jira_client = jira_client
+                if previous_client and previous_client is not jira_client:
+                    try:
+                        await previous_client.close()
+                    except Exception:
+                        pass
                 app_state.jira_config = jira_config
                 app_state.jira_board_id = jira_board_id or None
                 
@@ -1602,7 +1626,7 @@ async def auto_connect_integrations():
                 app_state.jira_board_id = None
                 results["jira"] = {
                     "success": False,
-                    "message": f"Failed to connect: {str(e)}"
+                    "message": "Jira connection failed. Ask your administrator to verify the service credentials and network access."
                 }
                 logger.error(f"Jira auto-connect failed: {e}")
         else:
@@ -1612,7 +1636,9 @@ async def auto_connect_integrations():
             }
         
         # Connect Confluence
-        if confluence_url and confluence_email and confluence_api_token_encrypted:
+        if app_state.confluence_configured and await _shared_client_healthy(app_state.confluence_client):
+            results["confluence"] = {"success": True, "message": "Shared Confluence account connected"}
+        elif confluence_url and confluence_email and confluence_api_token_encrypted:
             try:
                 # Decrypt API token (stored encrypted in .env)
                 confluence_api_token = get_encrypted_env('CONFLUENCE_SERVICE_API_TOKEN')
@@ -1633,8 +1659,14 @@ async def auto_connect_integrations():
                 if not validation.get("success"):
                     raise ValueError(validation.get("message", "Confluence authentication failed"))
                 spaces = await confluence_client.get_spaces()
+                previous_client = app_state.confluence_client
                 app_state.confluence_config = confluence_config
                 app_state.confluence_client = confluence_client
+                if previous_client and previous_client is not confluence_client:
+                    try:
+                        await previous_client.close()
+                    except Exception:
+                        pass
                 app_state.confluence_configured = True
                 
                 results["confluence"] = {
@@ -1656,7 +1688,7 @@ async def auto_connect_integrations():
                 app_state.confluence_config = None
                 results["confluence"] = {
                     "success": False,
-                    "message": f"Failed to connect: {str(e)}"
+                    "message": "Confluence connection failed. Ask your administrator to verify the service credentials and network access."
                 }
                 logger.error(f"Confluence auto-connect failed: {e}")
         else:
@@ -1666,7 +1698,13 @@ async def auto_connect_integrations():
             }
 
         # Connect GitHub
-        if github_token_encrypted:
+        try:
+            github_connected = (await app_state.github_client.get_status()).get("connected")
+        except Exception:
+            github_connected = False
+        if github_connected:
+            results["github"] = {"success": True, "message": "Shared GitHub account connected"}
+        elif github_token_encrypted:
             try:
                 # Decrypt token (stored encrypted in .env)
                 github_token = get_encrypted_env('GITHUB_SERVICE_TOKEN')
@@ -1690,7 +1728,7 @@ async def auto_connect_integrations():
             except Exception as e:
                 results["github"] = {
                     "success": False,
-                    "message": f"Failed to connect: {str(e)}"
+                    "message": "GitHub connection failed. Ask your administrator to verify the service token."
                 }
                 logger.error(f"GitHub auto-connect failed: {e}")
         else:
@@ -1700,7 +1738,9 @@ async def auto_connect_integrations():
             }
 
         # Connect Tableau
-        if tableau_server_url and tableau_pat_secret_encrypted:
+        if app_state.tableau_configured and app_state.tableau_client:
+            results["tableau"] = {"success": True, "message": "Tableau connected"}
+        elif tableau_server_url and tableau_pat_secret_encrypted:
             try:
                 # Decrypt PAT secret (stored encrypted in .env)
                 tableau_pat_secret = get_encrypted_env('TABLEAU_PAT_SECRET')
@@ -1751,7 +1791,7 @@ async def auto_connect_integrations():
                 app_state.tableau_config = None
                 results["tableau"] = {
                     "success": False,
-                    "message": f"Failed to connect: {str(e)}"
+                    "message": "Tableau connection failed. Verify server configuration and access."
                 }
                 logger.error(f"Tableau auto-connect failed: {e}")
         else:
@@ -1794,7 +1834,7 @@ async def auto_connect_integrations():
         logger.error(f"Auto-connect error: {e}")
         return {
             "success": False,
-            "error": str(e)
+            "error": "Shared connection initialization failed. Contact your administrator."
         }
 
 @app.get("/api/auth/verify", tags=["Authentication"], summary="Verify Token")
@@ -1937,23 +1977,25 @@ async def disconnect_jira():
 async def get_jira_status():
     """Get Jira connection status"""
     return {
-        "configured": app_state.jira_configured,
+        "configured": app_state.jira_configured and await _shared_client_healthy(app_state.jira_client),
+        "credentials_available": all(os.getenv(key) for key in ("JIRA_BASE_URL", "JIRA_SERVICE_EMAIL", "JIRA_SERVICE_API_TOKEN")),
         "board_id": app_state.jira_board_id,
         "config": {
-            "url": app_state.jira_config.base_url if app_state.jira_config else None,
-            "email": mask_email(app_state.jira_config.email) if app_state.jira_config else None
-        } if app_state.jira_config else None
+            "url": os.getenv("JIRA_BASE_URL") or (app_state.jira_config.base_url if app_state.jira_config else None),
+            "email": mask_email(os.getenv("JIRA_SERVICE_EMAIL", "") or (app_state.jira_config.email if app_state.jira_config else ""))
+        }
     }
 
 @app.get("/api/confluence/status", tags=["CONFLUENCE"], summary="Get Confluence Connection Status")
 async def get_confluence_status():
     """Get Confluence connection status"""
     return {
-        "configured": app_state.confluence_configured,
+        "configured": app_state.confluence_configured and await _shared_client_healthy(app_state.confluence_client),
+        "credentials_available": all(os.getenv(key) for key in ("CONFLUENCE_BASE_URL", "CONFLUENCE_SERVICE_EMAIL", "CONFLUENCE_SERVICE_API_TOKEN")),
         "config": {
-            "url": app_state.confluence_config.base_url if app_state.confluence_config else None,
-            "email": mask_email(app_state.confluence_config.email) if app_state.confluence_config else None
-        } if app_state.confluence_config else None
+            "url": os.getenv("CONFLUENCE_BASE_URL") or (app_state.confluence_config.base_url if app_state.confluence_config else None),
+            "email": mask_email(os.getenv("CONFLUENCE_SERVICE_EMAIL", "") or (app_state.confluence_config.email if app_state.confluence_config else ""))
+        }
     }
 
 @app.get("/api/index-status", tags=["CONFLUENCE"], summary="Get Confluence Index Status")
@@ -7806,6 +7848,9 @@ async def github_status():
         logger.info("=" * 60)
     try:
         status_result = await app_state.github_client.get_status()
+        status_result["credentials_available"] = bool(os.getenv("GITHUB_SERVICE_TOKEN"))
+        account = str(status_result.get("user") or "")
+        status_result["config"] = {"url": "https://github.com", "email": account[:2] + "***" if account else None}
         if not github_status_logged:
             logger.info("=" * 60)
             if status_result.get("connected"):

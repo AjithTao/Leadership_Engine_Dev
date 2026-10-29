@@ -284,7 +284,7 @@ export function FigmaHeader({ theme, setTheme }: HeaderProps) {
           <div>
             <h1 className={`font-semibold text-sm ${
               theme === 'dark' ? 'text-[var(--text-primary)]' : 'text-[var(--text-primary)]'
-            }`}>cdk FalconX</h1>
+            }`}>TAO Digital Solutions · FalconX</h1>
           </div>
         </motion.div>
 

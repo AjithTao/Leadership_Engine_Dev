@@ -10,10 +10,10 @@ logger = logging.getLogger(__name__)
 class GitHubConfig:
     def __init__(self):
         self.api_token = os.getenv("GITHUB_TOKEN", "")
-        self.email = os.getenv("GITHUB_EMAIL", "ajith.ramesh@cdk.com")
+        self.email = os.getenv("GITHUB_EMAIL", "")
         self.base_url = "https://api.github.com"
         # Default org can be overridden via env when the repo lives elsewhere
-        self.org = os.getenv("GITHUB_ORG", "cdk-prod")
+        self.org = os.getenv("GITHUB_ORG", "Tao-Digital-India")
         # SSL / cert handling
         # GITHUB_VERIFY=false to skip verification (not recommended)
         # GITHUB_CA_BUNDLE=/path/to/ca-bundle.pem to trust custom CA

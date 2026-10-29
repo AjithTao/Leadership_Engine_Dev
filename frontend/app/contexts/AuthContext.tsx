@@ -1,6 +1,8 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import { connectSharedAccounts, readSharedStatuses, providers } from '../../lib/shared-integrations'
+import { migratePreferences } from '../../lib/preferences'
 import { getApiUrl, fetchWithTimeout } from '../../lib/api-config'
 
 export interface LoginResult {
@@ -29,6 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // once here protects direct fetch() calls across the existing dashboards
   // without duplicating authorization logic in every component.
   useEffect(() => {
+    migratePreferences()
     const nativeFetch = window.fetch.bind(window)
     const apiBase = getApiUrl('')
 
@@ -44,7 +47,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (token && requestUrl.startsWith(apiBase) && !headers.has('Authorization')) {
         headers.set('Authorization', `Bearer ${token}`)
       }
-      return nativeFetch(input, { ...init, headers })
+      return nativeFetch(input, { ...init, headers }).then(response => {
+        if (response.status === 401 && requestUrl.startsWith(apiBase) && !requestUrl.endsWith('/api/auth/login')) {
+          localStorage.removeItem('auth_token')
+          sessionStorage.setItem('auth_notice', 'Your session expired. Please sign in again.')
+          setIsAuthenticated(false); setUser(null)
+        }
+        return response
+      })
     }
 
     return () => { window.fetch = nativeFetch }
@@ -64,6 +74,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+    let stopped = false
+    let checking = false
+    const ensureConnected = async () => {
+      if (checking || stopped) return
+      checking = true
+      try {
+        const statuses = await readSharedStatuses()
+        if (!stopped && localStorage.getItem('auth_token') && providers.some(p => statuses[p].state === 'Connection failed')) await connectSharedAccounts()
+      } catch { /* Connection settings displays retry and provider status. */ }
+      finally { checking = false }
+    }
+    ensureConnected()
+    const timer = window.setInterval(ensureConnected, 60000)
+    return () => { stopped = true; clearInterval(timer) }
+  }, [isAuthenticated])
 
   const verifyToken = async (token: string) => {
     try {
@@ -86,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             role: data.role || 'viewer'
           })
           // Sync with SettingsContext
-          const settings = localStorage.getItem('cdk-digital-settings')
+          const settings = localStorage.getItem('tao-digital-settings')
           if (settings) {
             const parsed = JSON.parse(settings)
             parsed.userProfile = {
@@ -94,7 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               email: data.email || data.username || '',
               role: data.role || 'viewer'
             }
-            localStorage.setItem('cdk-digital-settings', JSON.stringify(parsed))
+            localStorage.setItem('tao-digital-settings', JSON.stringify(parsed))
           }
         } else {
           localStorage.removeItem('auth_token')
@@ -135,6 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch { /* non-JSON response (e.g. proxy error page) */ }
 
     if (data?.success && data?.token) {
+        sessionStorage.removeItem('auth_notice')
         localStorage.setItem('auth_token', data.token)
         const userData = {
           username: data.username || username,
@@ -145,7 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(userData)
         
         // Sync with SettingsContext
-        const settings = localStorage.getItem('cdk-digital-settings')
+        const settings = localStorage.getItem('tao-digital-settings')
         if (settings) {
           const parsed = JSON.parse(settings)
           parsed.userProfile = {
@@ -153,7 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email: userData.email,
             role: userData.role
           }
-          localStorage.setItem('cdk-digital-settings', JSON.stringify(parsed))
+          localStorage.setItem('tao-digital-settings', JSON.stringify(parsed))
         } else {
           // Create new settings with user profile
           const newSettings = {
@@ -170,7 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               role: userData.role
             }
           }
-          localStorage.setItem('cdk-digital-settings', JSON.stringify(newSettings))
+          localStorage.setItem('tao-digital-settings', JSON.stringify(newSettings))
         }
         
         return { success: true }

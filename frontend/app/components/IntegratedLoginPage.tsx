@@ -46,7 +46,7 @@ export function IntegratedLoginPage() {
   const [password, setPassword]   = useState('')
   const [showPwd, setShowPwd]     = useState(false)
   const [loading, setLoading]     = useState(false)
-  const [error, setError]         = useState('')
+  const [error, setError]         = useState(() => typeof window !== 'undefined' ? sessionStorage.getItem('auth_notice') || '' : '')
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,41 +59,6 @@ export function IntegratedLoginPage() {
         setLoading(false)
         return
       }
-
-      // The user is authenticated the instant login() resolves — the JWT is
-      // stored and isAuthenticated has flipped, so page.tsx will swap in the app
-      // on the next render. Connecting the Jira/Confluence/GitHub service
-      // accounts is best-effort warmup that makes several serial calls to TAO,
-      // so fire it in the BACKGROUND and redirect immediately rather
-      // than holding the user on "Connecting…" for it. When it resolves it
-      // dispatches 'integration-update'; the app also polls service status on
-      // mount, so a dropped event self-heals. Do NOT set React state in this
-      // callback — this component unmounts the moment we navigate.
-      const token = localStorage.getItem('auth_token')
-      fetchWithTimeout(getApiUrl('/api/auth/auto-connect-integrations'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : ''
-        }
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            const { jira, confluence, github } = data.results
-            if (jira.success || confluence.success || github?.success) {
-              window.dispatchEvent(new CustomEvent('integration-update', {
-                detail: {
-                  service: 'auto-connect',
-                  jira: jira.success,
-                  confluence: confluence.success,
-                  github: github?.success ?? false
-                }
-              }))
-            }
-          }
-        })
-        .catch(() => { /* non-critical: the user is already authenticated */ })
 
       router.push('/')
     } catch (err) {

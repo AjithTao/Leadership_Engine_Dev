@@ -80,52 +80,8 @@ export function FalconXLogo({
   )
 }
 
-export function CDKLogo({
-  size = 28,
-  textColor = 'var(--text-primary)',
-  markColor = 'var(--text-primary)',
-  className = ''
-}: {
-  size?: number
-  textColor?: string
-  markColor?: string
-  className?: string
-}) {
-  const r = size * 0.36
-  const gap = size * 0.08
-  const cx1 = r
-  const cx2 = cx1 + r * 1.4 + gap
-  const cx3 = cx2 + r * 1.4 + gap
-  const cy = size * 0.5
-  const totalWidth = cx3 + r
-
-  return (
-    <div className={`flex items-center gap-2.5 ${className}`}>
-      <svg
-        width={totalWidth}
-        height={size}
-        viewBox={`0 0 ${totalWidth} ${size}`}
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <circle cx={cx1} cy={cy} r={r} fill={markColor} fillOpacity="0.9" />
-        <circle cx={cx2} cy={cy} r={r} fill={markColor} fillOpacity="0.9" />
-        {/* Third circle — CDK brand dot (green in light, mustard in dark) */}
-        <circle cx={cx3} cy={cy} r={r} fill="var(--cdk-dot)" />
-      </svg>
-
-      <span
-        style={{
-          color: textColor,
-          fontSize: size * 0.52,
-          fontWeight: 400,
-          letterSpacing: '-0.01em',
-          fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-          lineHeight: 1
-        }}
-      >
-        CDKGlobal<sup style={{ fontSize: size * 0.26, verticalAlign: 'super', opacity: 0.7 }}>®</sup>
-      </span>
-    </div>
-  )
+export function TaoLogo({ size = 28, className = '' }: { size?: number; textColor?: string; markColor?: string; className?: string }) {
+  return <span className={className} style={{ display: 'inline-flex', background: '#17202c', padding: '6px 10px', borderRadius: 6 }}>
+    <img src="/tao-logo.svg" alt="TAO Digital Solutions" style={{ height: Math.max(size, 36), width: 'auto' }} />
+  </span>
 }

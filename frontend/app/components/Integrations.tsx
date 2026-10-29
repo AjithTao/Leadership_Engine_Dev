@@ -52,16 +52,7 @@ export function Integrations() {
   useEffect(() => {
     let active = true
 
-    const bootstrap = async () => {
-      try {
-        await fetch(getApiUrl('/api/auth/auto-connect-integrations'), { method: 'POST' })
-      } catch {
-        // Status checks below surface any unavailable integration.
-      }
-      if (active) await fetchAllStatuses()
-    }
-
-    bootstrap()
+    fetchAllStatuses()
     const interval = window.setInterval(fetchAllStatuses, 10000)
     const handleIntegrationUpdate = () => fetchAllStatuses()
     window.addEventListener('integration-update', handleIntegrationUpdate)

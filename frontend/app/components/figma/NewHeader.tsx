@@ -7,7 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext'
 import { useSettings } from '../../contexts/SettingsContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { useRouter } from 'next/navigation'
-import { CDKLogo } from '../ui/FalconXLogo'
+import { TaoLogo } from '../ui/FalconXLogo'
 import {
   ChevronDown,
   User,
@@ -98,13 +98,13 @@ export function NewHeader({
       {/* Row 1: Logo, Status, User */}
       <div className="flex items-center justify-between h-14 px-6">
 
-        {/* CDK Logo — top-left of content area */}
+        {/* TAO logo — top-left of content area */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <CDKLogo size={24} textColor="var(--nav-text)" markColor="var(--nav-text)" />
+          <TaoLogo size={24} textColor="var(--nav-text)" markColor="var(--nav-text)" />
         </motion.div>
 
         {/* Right section */}

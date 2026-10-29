@@ -364,7 +364,7 @@ export function KPIMetricsDashboard() {
                 Key Performance Indicators
               </p>
               <h1 style={{ fontSize: '26px', fontWeight: 800, color: DS.textPrimary, letterSpacing: '-0.04em', margin: 0 }}>
-                CDK KPI Metrics
+                TAO Digital Solutions KPI Metrics
               </h1>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
                 <p style={{ fontSize: '14px', color: DS.textSecondary, margin: 0 }}>

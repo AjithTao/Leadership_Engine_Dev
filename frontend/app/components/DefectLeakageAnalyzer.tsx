@@ -3959,7 +3959,7 @@ export function DefectLeakageAnalyzer() {
                 color: 'var(--text-primary)',
               }}
             >
-              CDK QCOE Metrics
+              TAO Digital Solutions QCOE Metrics
             </h1>
             {(useMultiSelect && selectedProjectKeys.length > 0) && (
               <div className="mt-2">

@@ -214,7 +214,7 @@ export function LoadingScreen() {
           background: `linear-gradient(to right, transparent, color-mix(in srgb, ${MUSTARD} 37.6%, transparent), color-mix(in srgb, ${OLIVE} 37.6%, transparent), transparent)`
         }} />
         <p style={{ color: 'var(--text-hint)', fontSize: 11 }}>
-          © {new Date().getFullYear()} CDK Global · FalconX Leadership Engine
+          © {new Date().getFullYear()} TAO Digital Solutions · FalconX Leadership Engine
         </p>
       </div>
 

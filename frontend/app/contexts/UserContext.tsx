@@ -19,9 +19,9 @@ const UserContext = createContext<UserContextType | undefined>(undefined)
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [userDetails, setUserDetails] = useState<UserDetails>({
-    name: 'Ajith Kumar',
-    email: 'ajith.kumar@cdkdigital.com',
-    atlassianAccount: 'ajith.kumar@cdkdigital.com',
+    name: '',
+    email: '',
+    atlassianAccount: '',
     apiToken: ''
   })
 
@@ -31,7 +31,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (saved) {
       try {
         const parsed = JSON.parse(saved)
-        setUserDetails(prev => ({ ...prev, ...parsed }))
+        delete parsed.apiToken
+        localStorage.setItem('userDetails', JSON.stringify(parsed))
+        setUserDetails(prev => ({ ...prev, ...parsed, apiToken: '' }))
       } catch (error) {
         console.error('Failed to parse saved user details:', error)
       }
@@ -40,17 +42,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const updateUserDetails = (details: Partial<UserDetails>) => {
     setUserDetails(prev => {
-      const updated = { ...prev, ...details }
+      const updated = { ...prev, ...details, apiToken: '' }
       // Auto-save to localStorage
       localStorage.setItem('userDetails', JSON.stringify(updated))
-      console.log('User details updated and saved:', updated)
       return updated
     })
   }
 
   const saveUserDetails = () => {
     localStorage.setItem('userDetails', JSON.stringify(userDetails))
-    console.log('User details saved:', userDetails)
   }
 
   return (

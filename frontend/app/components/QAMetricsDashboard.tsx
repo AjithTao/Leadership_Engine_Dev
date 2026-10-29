@@ -184,7 +184,7 @@ export function QAMetricsDashboard() {
       ['Test Data Refresh', data.test_data_refresh],
       ['Performance Tested', data.performance_tested],
       ['TAO QE Count', data.tao_qe_count],
-      ['TAO + GP + CDK Count', data.tao_gp_cdk_count],
+      ['Combined Team Count', data.tao_gp_cdk_count],
       ['DEV - QE Ratio', data.dev_qe_ratio]
     ].map(row => row.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -253,7 +253,7 @@ export function QAMetricsDashboard() {
             <div>
               <p style={{ color: 'var(--accent-cool)', fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', margin: '0 0 6px' }}>Quality Engineering</p>
               <h1 style={{ fontSize: '22px', fontWeight: 700, color: DS.textPrimary, letterSpacing: '-0.03em', margin: 0 }}>
-                CDK QE Metrics
+                TAO Digital Solutions QE Metrics
               </h1>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
                 <p style={{ fontSize: '14px', color: DS.textSecondary, margin: 0 }}>Comprehensive Quality Engineering Dashboard</p>
@@ -362,11 +362,11 @@ export function QAMetricsDashboard() {
             transition={{ delay: 0.6 }}
             style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}
           >
-            <TeamCompositionCard title="CDK Assignment" sdetCount={data.sdet_assignment} manualCount={data.manual_assignment} icon={<Users size={16} style={{ color: DS.blue }} />} />
+            <TeamCompositionCard title="Team Assignment" sdetCount={data.sdet_assignment} manualCount={data.manual_assignment} icon={<Users size={16} style={{ color: DS.blue }} />} />
             <TeamCompositionCard title="Skillset Distribution" sdetCount={data.sdet_skillset} manualCount={data.manual_skillset} icon={<Award size={16} style={{ color: DS.green }} />} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <TeamCountCard title="TAO QE Count" count={data.tao_qe_count} />
-              <TeamCountCard title="TAO + GP + CDK Count" count={data.tao_gp_cdk_count} />
+              <TeamCountCard title="Combined Team Count" count={data.tao_gp_cdk_count} />
               <TeamRatioCard title="DEV — QE Ratio" ratio={data.dev_qe_ratio} dataKey={dataKey} />
             </div>
           </motion.div>

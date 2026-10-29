@@ -64,7 +64,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   // Load settings from localStorage on mount
   useEffect(() => {
     try {
-      const savedSettings = localStorage.getItem('cdk-digital-settings')
+      const savedSettings = localStorage.getItem('tao-digital-settings')
       if (savedSettings) {
         const parsedSettings = JSON.parse(savedSettings)
         setSettings({ ...defaultSettings, ...parsedSettings })
@@ -82,7 +82,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     if (authUser) {
       // User profile is synced by AuthContext during login
       // This effect ensures SettingsContext picks it up
-      const savedSettings = localStorage.getItem('cdk-digital-settings')
+      const savedSettings = localStorage.getItem('tao-digital-settings')
       if (savedSettings) {
         try {
           const parsed = JSON.parse(savedSettings)
@@ -103,7 +103,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   useEffect(() => {
     if (isLoaded) {
       try {
-        localStorage.setItem('cdk-digital-settings', JSON.stringify(settings))
+        localStorage.setItem('tao-digital-settings', JSON.stringify(settings))
       } catch (error) {
         console.error('Error saving settings to localStorage:', error)
       }
